@@ -52,7 +52,7 @@ README for nais_processer.py
 
         sum_matrix[1:,0] = matlab datenum
         sum_matrix[0,2:] = bin geometric mean diameters [m]
-        sum_matrix[1:,2:] = normalized concentrations, dNdlogDp [cm-3]
-        sum_matrix[1:,2] = Integrated total number concentration [cm-3]
+        sum_matrix[1:,1] = integrated number concentration [cm-3]
+        sum_matrix[1:,2:] = normalized concentrations, dN/dlogDp [cm-3]
 
     figures-folder contains the surface plots of the number-size distributions.

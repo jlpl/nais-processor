@@ -157,12 +157,12 @@ field_names = ["Path to files",
                "Deviation from UTC in hours (negative or positive integer)"]
 
 # These are the default values, change if needed
-field_values = ['/path/to/data/files/',
-                '20170508',
-                '20170608',
+field_values = ['/path/to/files/',
+                '20170524',
+                '20170716',
                 'lores',
                 '54.0',
-                'yes',
+                'no',
                 'yes',
                 '0.4',
                 '0.035',
@@ -172,7 +172,7 @@ field_values = ['/path/to/data/files/',
                 '-block-ions.spectra',
                 '-block-particles.spectra',
                 'yes',
-                '2']
+                '0']
 
 field_values = easygui.multenterbox("Enter information", title, field_names, values = field_values)
 
@@ -189,7 +189,7 @@ recordfmt = field_values[11]
 ionfmt = field_values[12]
 particlefmt = field_values[13]
 tp_data = field_values[14]
-sf = float(field_values[4])
+sf = float(field_values[4])   # lpm convert to m3/s
 inlet_length = float(field_values[7])
 inlet_diameter = float(field_values[8])
 time_zone = float(field_values[15])
@@ -378,13 +378,13 @@ for i in range(0,len(datetimes)):
         if tubeloss_corr=='yes':
             throughput_ions = np.zeros(neg_ions.shape)
             for i in range(0,throughput_ions.shape[0]):
-                throughput_ions[i,:] = tubeloss(dpmil,sf,inlet_diameter,inlet_length,temperature_ions[i],pressure_ions[i])
+                throughput_ions[i,:] = tubeloss(dpmil,sf*1.667e-5,inlet_diameter,inlet_length,temperature_ions[i],pressure_ions[i])
             neg_ions = throughput_ions*neg_ions
             pos_ions = throughput_ions*pos_ions
             if particles_file!='':
                 throughput_particles = np.zeros(neg_particles.shape)
                 for i in range(0,throughput_particles.shape[0]):
-                    throughput_particles[i,:] = tubeloss(dps,sf,inlet_diameter,inlet_length,temperature_particles[i],pressure_particles[i])
+                    throughput_particles[i,:] = tubeloss(dps,sf*1.667e-5,inlet_diameter,inlet_length,temperature_particles[i],pressure_particles[i])
                 neg_particles = throughput_particles*neg_particles
                 pos_particles = throughput_particles*pos_particles
             
