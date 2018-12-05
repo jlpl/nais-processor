@@ -117,8 +117,8 @@ def plot_sumfile(handle,v,clim=(10,100000)):
     
 
 
-def nais_processer(load_path='../data',
-                   save_path='../processed'
+def nais_processor(load_path='../data',
+                   save_path='../processed',
                    ideal_flow=27.0,
                    particle_files='block-particles.spectra',
                    ion_files='block-ions.spectra',
@@ -173,7 +173,7 @@ def nais_processer(load_path='../data',
     mob_ion_hires = np.loadtxt('mob_ion_hires.dat') # cm2 s-1 V-1    
 
     # Find the filenames in the destination directory and sort them
-    filenames = os.listdir(path)
+    filenames = os.listdir(load_path)
     filenames.sort()
 
     # List particle/ion/records filenames
@@ -191,11 +191,8 @@ def nais_processer(load_path='../data',
     if ions_measured==0:
         raise Exception("Need at least ion data")
 
-    # Create folder for the processed data
-    mkdir_p(path+'/processed_data')
-
     # Process the last day found in the data
-    for i in range(number_of_data_days-1,number_of_data_days):
+    for i in range(0,number_of_data_days):
         # Read ion data
         ions = pd.read_table(load_path+'/'+ion_filenames[i],
                              sep=delimiter,
@@ -439,15 +436,15 @@ def nais_plotter(load_path='../processed',
    particles_measured = 1 if len(neg_particle_filenames)>0 else 0
 
    # Take the second lastest files and make a plot
-   for i in range(num_files-2,num_files-1):
+   for i in range(0,num_files):
        if particles_measured:
            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
-           pos_ion_data = np.loadtxt(path+'/'+pos_ion_filenames[i])
-           neg_ion_data = np.loadtxt(path+'/'+neg_ion_filenames[i])
-           pos_particle_data = np.loadtxt(path+'/'\
+           pos_ion_data = np.loadtxt(load_path+'/'+pos_ion_filenames[i])
+           neg_ion_data = np.loadtxt(load_path+'/'+neg_ion_filenames[i])
+           pos_particle_data = np.loadtxt(load_path+'/'\
                                           +pos_particle_filenames[i])
-           neg_particle_data = np.loadtxt(path+'/'\
+           neg_particle_data = np.loadtxt(load_path+'/'\
                                           +neg_particle_filenames[i])
 
            date = datenum2datetime(pos_ion_data[1,0])
