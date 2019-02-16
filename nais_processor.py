@@ -541,14 +541,6 @@ def plot_sumfile(handle,v,clim=(10,100000)):
     cbar.set_label('dN/dlogDp, [cm-3]')
     return pcolorplot
 
-
-# TODO:
-# - Have some output from the program and write it into a data processing log
-# - Remvoe the sampleflow correction thing
-# -
-# -
-
-
 def nais_processor(load_path = '/path/to/raw/data/',
                    save_path = '/path/to/processed/files/',
                    config_file = '/path/to/config_file.yml',
