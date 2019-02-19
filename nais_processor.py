@@ -595,13 +595,15 @@ def nais_processor(load_path = '/path/to/raw/data/',
                            save_path='/home/user/NAIS/figs/')
     """
     
+    with open(log_file,'a+') as the_log_file:
+        the_log_file.write('%s\nrunning...\n' % (datetime.today().strftime('%Y-%m-%d %H:%M')))
+ 
     # Ignore all warnings
     warnings.filterwarnings("ignore")
 
     # Try to read the configuration file
     with open(config_file,'r') as stream:
         try:
-            print 'config file: '+config_file
             config = yaml.load(stream)
             pressure_name = config['pressure_name']
             temperature_name = config['temperature_name']
@@ -615,7 +617,9 @@ def nais_processor(load_path = '/path/to/raw/data/',
             model = config['model']
             pipelength = config['pipe_length']
         except Exception as error:
-            print 'error: '+str(error)
+            print 'error reading %s: %s' % (config_file,error)
+            with open(log_file,'a+') as the_log_file:
+                the_log_file.write('error reading %s: %s' % (config_file,error))
             return
 
     # List files in the load and save directories
@@ -657,6 +661,8 @@ def nais_processor(load_path = '/path/to/raw/data/',
          dp_par = dp_par_hires
     else:
         print "error: 'inverter resolution must be 'low' or 'high''"
+        with open(log_file,'a+') as the_log_file:
+            the_log_file.write("error: 'inverter resolution must be 'low' or 'high''\n")
         return
 
     # Calculate the log-differences
@@ -759,9 +765,9 @@ def nais_processor(load_path = '/path/to/raw/data/',
                     temp_particles = 273.15 + particle_records[temperature_name].astype(float).interpolate().values.flatten()
                 else:
                     err_msg = 'name '+"'"+temperature_name+"'"+' not found in '+"'"+date_strings[i]+diagnostic_files+"'"
-                    print 'error: '+err_msg
+                    print 'error while processing %s:\n%s\n' % (date_strings[i],err_msg)
                     with open(log_file,'a+') as the_log_file:
-                        the_log_file.write('%s\nerror while processing: %s\n%s\n' % (datetime.today().strftime('%Y-%m-%d %H:%M'),date_strings[i],err_msg))
+                        the_log_file.write('error while processing %s:\n%s\n' % (date_strings[i],err_msg))
                     continue
           
                 # Extract pressure data if it exists, else use standard conditions
@@ -773,9 +779,9 @@ def nais_processor(load_path = '/path/to/raw/data/',
                     pres_particles = 100.0*particle_records[pressure_name].astype(float).interpolate().values.flatten()
                 else:
                     err_msg = 'name '+"'"+pressure_name+"'"+' not found in '+"'"+date_strings[i]+diagnostic_files+"'"
-                    print 'error: '+err_msg
+                    print 'error while processing %s:\n%s\n' % (date_strings[i],err_msg)
                     with open(log_file,'a+') as the_log_file:
-                        the_log_file.write('%s\nerror while processing: %s\n%s\n' % (datetime.today().strftime('%Y-%m-%d %H:%M'),date_strings[i],err_msg))
+                        the_log_file.write('error while processing %s:\n%s\n' % (date_strings[i],err_msg))
                     continue
 
                 # Pressure and temperature correction
@@ -844,9 +850,9 @@ def nais_processor(load_path = '/path/to/raw/data/',
                 np.savetxt(save_path+model+'p'+ds+'np.sum',posparticles)
 
             except Exception as error:
-                print 'error: '+str(error)
+                print "unexpected error while processing %s:\n%s\n" % (date_strings[i],error)
                 with open(log_file,'a+') as the_log_file:
-                    the_log_file.write("%s\nunexpected error while processing: %s\n%s\n" % (datetime.today().strftime('%Y-%m-%d %H:%M'),date_strings[i],error))
+                    the_log_file.write("unexpected error while processing %s:\n%s\n" % (date_strings[i],error))
                 continue
 
         else: 
