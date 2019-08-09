@@ -552,57 +552,38 @@ def nais_processor(load_path = '/path/to/raw/data/',
                    save_path = '/path/to/processed/files/',
                    config_file = '/path/to/config_file.yml'):
     """ Function that processes data from the NAIS 
+    
+    The function reads the raw NAIS data files from the load_path, 
+    applies corrections (diffusion losses in the inlet line, conversion 
+    to standard conditions and R. Wagner's ion mode calibration) to the 
+    measured number concentrations and saves the data as a University of 
+    Helsinki sum-formatted number-size distribution to the save_path.
 
-    The function reads the raw data files from Neutral cluster and 
-    Air Ion Spectrometer (NAIS), applies corrections (diffusion losses in 
-    the inlet line, conversion to standard conditions and R. Wagner's 
-    ion mode calibration) to the measured number concentrations and 
-    saves the data as a University of Helsinki sum-formatted number-size
-    distribution.
+    A measurement setup specific configuration file is needed in the 
+    processing (see README file for an example).
 
-    When the function is called it will process all the unprocessed 
-    raw files in the source folder.
+    The function only processes the unprocessed files in the load_path.
+    It also produces a log-file where it writes possible errors during 
+    the processing.
 
-    File format:
+    The sum file format:
         [0,0]  = UTC offset in hours
         [1:,0] = Time (MATLAB datenum) 
         [0,2:] = Geometric mean diameter of size-channel (m)
         [1:,1] = Integrated total number concentration (cm-3)
         [1:,2:] = Normalized number concentrations, dN/dlogDp (cm-3)
 
-    Example configuration file:
-        # NAIS-5-1.yml
-
-        model: 'NAIS-5-1'
-        inverter_resolution: 'high'
-        sampleflow: 54.0 # L/min
-        date_format: '%Y%m%d'
-        particle_files: '-block-particles.spectra'
-        ion_files: '-block-ions.spectra'
-        diagnostic_files: '-block.records'
-        delimiter: '\t'
-        temperature_name: 'temperature.mean'
-        pressure_name: 'baro.mean'
-        pipe_length: 0.5  # meters
-        location: 'Jungfraujoch'
-
-    Arguments:
+    Function arguments:
         load_path (str): path from where the unprocessed data is loaded
         save_path (str): path where the processed data is saved
-        config_file (str): path to the configuration file
-        log_file (str): path to the log file (will be created)
-    
-    Example use:
-        import sys
-        sys.path.append('/home/user/nais-processor')
-        from nais_processor import *
-        nais_processor(load_path='/home/user/NAIS/data/',
-                       save_path='/home/user/NAIS/processed/',
-                       config_file='/home/user/NAIS/NAIS-5-1.yml')
-        nais_plotter(load_path='/home/user/NAIS/processed/',
-                     save_path='/home/user/NAIS/figs/',
-                     config_file='/home/user/NAIS/NAIS-5-1.yml')
-    
+        config_file (str): name of the configuration file the 
+                           configuration file
+
+    Example:
+        nais_processor(load_path='/home/user/nais-jfj/data/',
+                       save_path='/home/user/nais-jfj/processed/',
+                       config_file='/home/user/nais-jfj/nais-jfj.yml')
+
     """
 
     log_file = config_file[:-4] + '.log'
