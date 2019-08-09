@@ -1,0 +1,12 @@
+name: nais-processor
+channels:
+    - defaults
+    - conda-forge
+    - anaconda
+dependencies:
+    - python=2.7
+    - numpy
+    - matplotlib
+    - pandas
+    - pyyaml
+    - dateutil

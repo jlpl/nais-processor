@@ -10,6 +10,7 @@ import locale
 import warnings
 import yaml
 import re
+import sys
 from dateutil.parser import parse
 
 dp_ion_lowres = np.array([7.949610066873187275e-01,
@@ -524,7 +525,7 @@ def plot_sumfile(handle,v,clim=(10,100000)):
     mesh_dp,mesh_time = np.meshgrid(dp,time)
     pcolorplot = handle.pcolormesh(mesh_time,mesh_dp,data,
                                    norm=colors.LogNorm(),
-    linewidth=0,rasterized=True)
+    linewidth=0,rasterized=True,cmap='jet')
     handle.set_yscale('log')
     pcolorplot.set_clim(clim)
     pcolorplot.set_edgecolor('face')
@@ -535,16 +536,21 @@ def plot_sumfile(handle,v,clim=(10,100000)):
     handle.xaxis.set_major_formatter(dts.DateFormatter('%H'))
     plt.setp(handle.get_xticklabels(), rotation=80)
     handle.set_ylabel('Dp, [m]')
-    handle.set_xlabel('Computer time, [hours]')
+    handle.set_xlabel('UTC+'+'%1.0f'%v[0,0]+', [h]')
     cbar = plt.colorbar(pcolorplot,ax=handle,
                         ticks=LogLocator(subs=range(10)))
     cbar.set_label('dN/dlogDp, [cm-3]')
     return pcolorplot
 
+def write_logs(log_file,message):
+    print message
+    with open(log_file,'a+') as the_log_file:
+        the_log_file.write('\n%s\n' % (message))
+    return
+
 def nais_processor(load_path = '/path/to/raw/data/',
                    save_path = '/path/to/processed/files/',
-                   config_file = '/path/to/config_file.yml',
-                   log_file = '/path/to/log_file.log'):
+                   config_file = '/path/to/config_file.yml'):
     """ Function that processes data from the NAIS 
 
     The function reads the raw data files from Neutral cluster and 
@@ -557,16 +563,17 @@ def nais_processor(load_path = '/path/to/raw/data/',
     When the function is called it will process all the unprocessed 
     raw files in the source folder.
 
-    Sum-format:
+    File format:
+        [0,0]  = UTC offset in hours
         [1:,0] = Time (MATLAB datenum) 
         [0,2:] = Geometric mean diameter of size-channel (m)
         [1:,1] = Integrated total number concentration (cm-3)
-        [1:,2:] = Normalized number concentrations (cm-3)
+        [1:,2:] = Normalized number concentrations, dN/dlogDp (cm-3)
 
     Example configuration file:
         # NAIS-5-1.yml
 
-        model: NAIS-5-1
+        model: 'NAIS-5-1'
         inverter_resolution: 'high'
         sampleflow: 54.0 # L/min
         date_format: '%Y%m%d'
@@ -577,30 +584,49 @@ def nais_processor(load_path = '/path/to/raw/data/',
         temperature_name: 'temperature.mean'
         pressure_name: 'baro.mean'
         pipe_length: 0.5  # meters
+        location: 'Jungfraujoch'
 
     Arguments:
-        load_path (str): path from where data is loaded
-        save_path (str): path where data is saved
-        config_file (str): path to configuration file
+        load_path (str): path from where the unprocessed data is loaded
+        save_path (str): path where the processed data is saved
+        config_file (str): path to the configuration file
+        log_file (str): path to the log file (will be created)
     
     Example use:
         import sys
-        sys.path.append('/home/user/nais_processor')
+        sys.path.append('/home/user/nais-processor')
         from nais_processor import *
         nais_processor(load_path='/home/user/NAIS/data/',
-                           save_path='/home/user/NAIS/processed/',
-                           config_file='/home/user/NAIS/NAIS-5-1.yml',
-                           log_file='/home/user/NAIS/NAIS-5-1.log')
+                       save_path='/home/user/NAIS/processed/',
+                       config_file='/home/user/NAIS/NAIS-5-1.yml')
         nais_plotter(load_path='/home/user/NAIS/processed/',
-                           save_path='/home/user/NAIS/figs/')
-    """
+                     save_path='/home/user/NAIS/figs/',
+                     config_file='/home/user/NAIS/NAIS-5-1.yml')
     
-    with open(log_file,'a+') as the_log_file:
-        the_log_file.write('%s\nrunning...\n' % (datetime.today().strftime('%Y-%m-%d %H:%M')))
- 
+    """
+
+    log_file = config_file[:-4] + '.log'
+    
+    msg = '%s\nprocessing...' % (datetime.today().strftime('%Y-%m-%d %H:%M'))
+    write_logs(log_file,msg)
+    
     # Ignore all warnings
     warnings.filterwarnings("ignore")
 
+    # Check that the paths exist and that the config file exists
+    if os.path.isfile(config_file)==False:
+        msg = '%s does not exist' % config_file
+        write_logs(log_file,msg)
+        return
+    if os.path.isdir(load_path)==False:
+        msg = '%s does not exist' % load_path
+        write_logs(log_file,msg)
+        return
+    if os.path.isdir(save_path)==False:
+        msg = '%s does not exist' % save_path
+        write_logs(log_file,msg)
+        return
+   
     # Try to read the configuration file
     with open(config_file,'r') as stream:
         try:
@@ -617,9 +643,8 @@ def nais_processor(load_path = '/path/to/raw/data/',
             model = config['model']
             pipelength = config['pipe_length']
         except Exception as error:
-            print 'error reading %s: %s' % (config_file,error)
-            with open(log_file,'a+') as the_log_file:
-                the_log_file.write('error reading %s: %s' % (config_file,error))
+            err_msg = 'error while reading %s: %s\nexiting...' % (config_file,error)
+            write_logs(log_file,err_msg)
             return
 
     # List files in the load and save directories
@@ -627,241 +652,339 @@ def nais_processor(load_path = '/path/to/raw/data/',
     save_filenames = os.listdir(save_path)
 
     # Find the dates that need to be processed
-    load_dates = np.array([datetime.strptime(re.search('.+?(?='+ion_files+')',x).group(0),\
-                 date_format) for x in load_filenames if ion_files in x])
-    save_dates = np.array([datetime.strptime(re.search('(?<='+model+'n)(.*)(?=nds.sum)',x).group(0),\
-                 '%Y%m%d') for x in save_filenames if re.match(model+'n........nds.sum',x)])
-    datetimes = np.sort(np.setdiff1d(load_dates,save_dates))
-    date_strings = np.array([datetime.strftime(x,date_format) for x in datetimes])
+    load_dates_ions = np.array([datetime.strptime(re.search('.+?(?='+ion_files+')',x).group(0),\
+                      date_format) for x in load_filenames if ion_files in x])
+    save_dates_ions = np.array([datetime.strptime(re.search('(?<='+model+'n)(.*)(?=nds.sum)',x).group(0),\
+                      '%Y%m%d') for x in save_filenames if re.match(model+'n........nds.sum',x)])
+    load_dates_pars = np.array([datetime.strptime(re.search('.+?(?='+particle_files+')',x).group(0),\
+                      date_format) for x in load_filenames if particle_files in x])
+    save_dates_pars = np.array([datetime.strptime(re.search('(?<='+model+'n)(.*)(?=np.sum)',x).group(0),\
+                      '%Y%m%d') for x in save_filenames if re.match(model+'n........np.sum',x)])
+
+    datetimes_ions = np.sort(np.setdiff1d(load_dates_ions,save_dates_ions))
+    datetimes_pars = np.sort(np.setdiff1d(load_dates_pars,save_dates_pars))
+
+    date_strings_ions = np.array([datetime.strftime(x,date_format) for x in datetimes_ions])
+    date_strings_pars = np.array([datetime.strftime(x,date_format) for x in datetimes_pars])
 
     # Check if any new data files found
-    if len(date_strings)==0:
+    if (len(date_strings_ions)==0 & len(date_strings_pars)==0):
         return
     else:
-        # Do not process the latest file if its from today
+        # Don't process the latest file if it's from today
         today = datetime.today().strftime(date_format)
-        last_day = date_strings[-1]
-        if last_day==today:
-            last_index = len(datetimes)-1
-        else:
-            last_index = len(datetimes)
+        last_day_ions = date_strings_ions[-1]
+        last_day_pars = date_strings_pars[-1]
 
+        if last_day_ions==today:
+            last_index_ions = len(datetimes_ions)-1
+        else:
+            last_index_ions = len(datetimes_ions)
+
+        if last_day_pars==today:
+            last_index_pars = len(datetimes_pars)-1
+        else:
+            last_index_pars = len(datetimes_pars)
+    
     # Define standard conditions
     temp_ref = 273.15 # K
     pres_ref = 101325.0 # Pa
 
     # Determine the inverter resolution
     if inverter_reso=='low':
-         dp_ion = dp_ion_lowres
-         mob_ion = mob_ion_lowres
-         dp_par = dp_par_lowres
+        dp_ion = dp_ion_lowres
+        mob_ion = mob_ion_lowres
+        dp_par = dp_par_lowres
     elif inverter_reso=='high':
-         dp_ion = dp_ion_hires
-         mob_ion = mob_ion_hires
-         dp_par = dp_par_hires
+        dp_ion = dp_ion_hires
+        mob_ion = mob_ion_hires
+        dp_par = dp_par_hires
     else:
-        print "error: 'inverter resolution must be 'low' or 'high''"
-        with open(log_file,'a+') as the_log_file:
-            the_log_file.write("error: 'inverter resolution must be 'low' or 'high''\n")
+        err_msg = "error: 'inverter resolution must be 'low' or 'high''\nexiting..." 
+        write_logs(log_file,err_msg)
         return
-
+    
     # Calculate the log-differences
     dlogdp_ion = x2dlogx(dp_ion)
     dlogmob_ion = x2dlogx(mob_ion)
     dlogdp_par = x2dlogx(dp_par)
 
-    # Run through the unprocessed dates
-    for i in range(0,last_index):
+    # Run through the unprocessed ion dates
+    for i in range(0,last_index_ions):
+ 
+        print 'processing ions: '+date_strings_ions[i]
 
-        # If model is NAIS then particles are measured
-        if model[:4]=='NAIS':
-      
-            try:
-                print 'processing '+date_strings[i]
-            
-                # Read the ion data
-                ions = pd.read_table(load_path + date_strings[i] + ion_files,
-                                     sep=delimiter,
-                                     comment='#',
-                                     engine='python',
-                                     error_bad_lines=False,
-                                     header=None)
+        try:
 
-                # Read the particle data 
-                particles = pd.read_table(load_path + date_strings[i] + particle_files,
-                                          sep=delimiter,
-                                          comment='#',
-                                          engine='python',
-                                          error_bad_lines=False,
-                                          header=None)
+            # Read the ion data
+            ions = pd.read_table(load_path + date_strings_ions[i] + ion_files,
+                                 sep=delimiter,
+                                 comment='#',
+                                 engine='python',
+                                 #error_bad_lines=False,
+                                 header=None)
 
-                # Read the diagnostic data
-                records = pd.read_table(load_path + date_strings[i] + diagnostic_files,
-                                        sep=delimiter,
-                                        comment='#',
-                                        engine='python',
-                                        error_bad_lines=False,
-                                        header=None)
+            # Read the diagnostic data
+            records = pd.read_table(load_path + date_strings_ions[i] + diagnostic_files,
+                                    sep=delimiter,
+                                    comment='#',
+                                    engine='python',
+                                    #error_bad_lines=False,
+                                    header=None)
 
-                # Remove duplicate rows based on first column (time)
-                ions = ions.drop_duplicates(subset=None,
-                                            keep='first',
-                                            inplace=False)
+            # Remove duplicate rows based on first column (time)
+            ions = ions.drop_duplicates(subset=None,
+                                        keep='first',
+                                        inplace=False)
 
-                particles = particles.drop_duplicates(subset = None,
-                                                      keep='first',
-                                                      inplace=False)
+            records = records.drop_duplicates(subset=None,
+                                              keep='first',
+                                              inplace=False)
 
-                records = records.drop_duplicates(subset=None,
+            # Set the first row as the header and remove it from the actual data
+            ions.columns = ions.iloc[0,:]
+            ions = ions.reindex(ions.index.drop(0))
+
+            records.columns = records.iloc[0,:]
+            records = records.reindex(records.index.drop(0))
+
+            # Calculate the ion number-size distribution
+            ions = ions.set_index(ions.columns[0])
+            ions.index = [parse(x) for x in ions.index]
+            neg_ions = ions.iloc[:,3:3+len(dp_ion)].astype(float).interpolate().values
+            pos_ions = ions.iloc[:,3+2*len(dp_ion):3+3*len(dp_ion)].astype(float).interpolate().values
+            neg_ions = neg_ions * dlogmob_ion / dlogdp_ion
+            pos_ions = pos_ions * dlogmob_ion / dlogdp_ion
+
+            # Index records by the operation mode
+            records = records.set_index('opmode')
+
+            # Then extract the ion records
+            ion_records = records.loc['ions'].set_index(records.columns[0])
+            ion_records.index = [parse(x) for x in ion_records.index]
+            ion_records = ion_records.reindex(index=ions.index)
+
+            diag_params = list(records)
+
+            # Extract temperature data if it exists, else use standard conditions
+            if temperature_name=='':
+                temp_ions = temp_ref*np.ones(neg_ions.shape[0])
+            elif temperature_name in diag_params:
+                temp_ions = 273.15 + ion_records[temperature_name].astype(float).interpolate().values.flatten()
+            else:
+                err_msg = "error: 'name "+"'"+temperature_name+"'"+' not found in '+"'"+date_strings_ions[i]+diagnostic_files+"'', continuing..."
+                write_logs(log_file,err_msg)
+                continue
+
+            # Extract pressure data if it exists, else use standard conditions
+            if pressure_name=='':
+                pres_ions = pres_ref*np.ones(neg_ions.shape[0])
+            elif pressure_name in diag_params:
+                pres_ions = 100.0*ion_records[pressure_name].astype(float).interpolate().values.flatten()
+            else:
+                err_msg = "error: 'name "+"'"+pressure_name+"'"+' not found in '+"'"+date_strings_ions[i]+diagnostic_files+"'', continuing..."
+                write_logs(log_file,err_msg)
+                continue
+
+            # Pressure and temperature correction
+            stp_corr_ions = (pres_ref*temp_ions)/(temp_ref*pres_ions)
+            neg_ions = (stp_corr_ions*neg_ions.T).T
+            pos_ions = (stp_corr_ions*pos_ions.T).T
+
+            # Diffusion loss correction
+            throughput_ions = np.zeros(neg_ions.shape)
+            for j in range(0,throughput_ions.shape[0]):
+                throughput_ions[j,:] = tubeloss(dp_ion*1e-9,
+                                                sampleflow*1.667e-5,
+                                                pipelength,
+                                                temp_ions[j],
+                                                pres_ions[j])
+
+            neg_ions = throughput_ions*neg_ions
+            pos_ions = throughput_ions*pos_ions
+
+            # Robert Wagner's calibration (only ions)
+            roberts_corr = 0.713*dp_ion**0.120
+            neg_ions = roberts_corr*neg_ions
+            pos_ions = roberts_corr*pos_ions
+
+            # Integrate total ion number concentrations
+            total_neg_ions = np.nansum(neg_ions*dlogdp_ion,axis=1)[np.newaxis].T
+            total_pos_ions = np.nansum(pos_ions*dlogdp_ion,axis=1)[np.newaxis].T
+
+            # Get the utc offset
+            if ions.index[0].utcoffset()==None:
+                utc_offset_ions = 0
+            else:
+                utc_offset_ions = ions.index[0].utcoffset().total_seconds()/(60.0*60.0)
+
+            time_ions = np.array([datetime2datenum(x) for x in ions.index])[np.newaxis].T
+
+            # Construct the header
+            ion_header = np.insert(dp_ion*1e-9,0,(utc_offset_ions,0))[np.newaxis]
+
+            # Construct the sum-files
+            negions = np.concatenate((ion_header,np.concatenate((time_ions,total_neg_ions,neg_ions),axis=1)))
+            posions = np.concatenate((ion_header,np.concatenate((time_ions,total_pos_ions,pos_ions),axis=1)))
+
+            # Save the sum matrices using the standard names
+            ds = datetime.strftime(datetimes_ions[i],'%Y%m%d')
+            np.savetxt(save_path+model+'n'+ds+'nds.sum',negions)
+            np.savetxt(save_path+model+'p'+ds+'nds.sum',posions)
+
+        except Exception as error:
+            err_msg = "unexpected error while processing ions on %s:\n%s\ncontinuing..." % (date_strings_ions[i],error)
+            write_logs(log_file,err_msg)
+            continue
+
+    for i in range(0,last_index_pars):
+
+        print 'processing particles: '+date_strings_pars[i]
+
+        try:
+
+            # Read the particle data 
+            particles = pd.read_table(load_path + date_strings_pars[i] + particle_files,
+                                      sep=delimiter,
+                                      comment='#',
+                                      engine='python',
+                                      #error_bad_lines=False,
+                                      header=None)
+
+            # Read the diagnostic data
+            records = pd.read_table(load_path + date_strings_pars[i] + diagnostic_files,
+                                    sep=delimiter,
+                                    comment='#',
+                                    engine='python',
+                                    #error_bad_lines=False,
+                                    header=None)
+
+            # Remove duplicate rows based on first column (time)
+            particles = particles.drop_duplicates(subset = None,
                                                   keep='first',
                                                   inplace=False)
 
-                # Set the first row as the header and remove it from the actual data
-                ions.columns = ions.iloc[0,:]
-                ions = ions.reindex(ions.index.drop(0))
+            records = records.drop_duplicates(subset=None,
+                                              keep='first',
+                                              inplace=False)
 
-                particles.columns = particles.iloc[0,:]
-                particles = particles.reindex(particles.index.drop(0))
+            # Set the first row as the header and remove it from the actual data
+            particles.columns = particles.iloc[0,:]
+            particles = particles.reindex(particles.index.drop(0))
 
-                records.columns = records.iloc[0,:]
-                records = records.reindex(records.index.drop(0))
+            records.columns = records.iloc[0,:]
+            records = records.reindex(records.index.drop(0))
 
-                # Calculate the ion number-size distribution
-                ions = ions.set_index(ions.columns[0])
-                ions.index = [parse(x) for x in ions.index]
-                neg_ions = ions.iloc[:,3:3+len(dp_ion)].astype(float).interpolate().values
-                pos_ions = ions.iloc[:,3+2*len(dp_ion):3+3*len(dp_ion)].astype(float).interpolate().values
-                neg_ions = neg_ions * dlogmob_ion / dlogdp_ion
-                pos_ions = pos_ions * dlogmob_ion / dlogdp_ion
+            # Calculate the particle number-size distribution
+            particles = particles.set_index(particles.columns[0])
+            particles.index = [parse(x) for x in particles.index]
+            neg_particles = particles.iloc[:,3:3+len(dp_par)].astype(float).interpolate().values
+            pos_particles = particles.iloc[:,3+2*len(dp_par):3+3*len(dp_par)].astype(float).interpolate().values
 
-                # Calculate the particle number-size distribution
-                particles = particles.set_index(particles.columns[0])
-                particles.index = [parse(x) for x in particles.index]
-                neg_particles = particles.iloc[:,3:3+len(dp_par)].astype(float).interpolate().values
-                pos_particles = particles.iloc[:,3+2*len(dp_par):3+3*len(dp_par)].astype(float).interpolate().values
+            # Index records by the operation mode
+            records = records.set_index('opmode')
 
-                # Index records by the operation mode
-                records = records.set_index('opmode')
+            # And extract the particle records
+            particle_records = records.loc['particles'].set_index(records.columns[0])
+            particle_records.index = [parse(x) for x in particle_records.index]
+            particle_records = particle_records.reindex(index=particles.index)
 
-                # Then extract the ion records
-                ion_records = records.loc['ions'].set_index(records.columns[0])
-                ion_records.index = [parse(x) for x in ion_records.index]
-                ion_records = ion_records.reindex(index=ions.index)
+            # List all variable names in the diagnostic file
+            diag_params = list(records)
 
-                # And the particle records
-                particle_records = records.loc['particles'].set_index(records.columns[0])
-                particle_records.index = [parse(x) for x in particle_records.index]
-                particle_records = particle_records.reindex(index=particles.index)
-
-                # List all variable names in the diagnostic file
-                diag_params = list(records)
-
-                # Extract temperature data if it exists, else use standard conditions
-                if temperature_name=='':
-                    temp_ions = temp_ref*np.ones(neg_ions.shape[0])
-                    temp_particles = temp_ref*np.ones(neg_particles.shape[0])
-                elif temperature_name in diag_params:
-                    temp_ions = 273.15 + ion_records[temperature_name].astype(float).interpolate().values.flatten()
-                    temp_particles = 273.15 + particle_records[temperature_name].astype(float).interpolate().values.flatten()
-                else:
-                    err_msg = 'name '+"'"+temperature_name+"'"+' not found in '+"'"+date_strings[i]+diagnostic_files+"'"
-                    print 'error while processing %s:\n%s\n' % (date_strings[i],err_msg)
-                    with open(log_file,'a+') as the_log_file:
-                        the_log_file.write('error while processing %s:\n%s\n' % (date_strings[i],err_msg))
-                    continue
-          
-                # Extract pressure data if it exists, else use standard conditions
-                if pressure_name=='':
-                    pres_ions = pres_ref*np.ones(neg_ions.shape[0])
-                    pres_particles = pres_ref*np.ones(neg_particles.shape[0])
-                elif pressure_name in diag_params:
-                    pres_ions = 100.0*ion_records[pressure_name].astype(float).interpolate().values.flatten()
-                    pres_particles = 100.0*particle_records[pressure_name].astype(float).interpolate().values.flatten()
-                else:
-                    err_msg = 'name '+"'"+pressure_name+"'"+' not found in '+"'"+date_strings[i]+diagnostic_files+"'"
-                    print 'error while processing %s:\n%s\n' % (date_strings[i],err_msg)
-                    with open(log_file,'a+') as the_log_file:
-                        the_log_file.write('error while processing %s:\n%s\n' % (date_strings[i],err_msg))
-                    continue
-
-                # Pressure and temperature correction
-                stp_corr_ions = (pres_ref*temp_ions)/(temp_ref*pres_ions)
-                neg_ions = (stp_corr_ions*neg_ions.T).T
-                pos_ions = (stp_corr_ions*pos_ions.T).T
-
-                stp_corr_particles = (pres_ref*temp_particles)/(temp_ref*pres_particles)
-                neg_particles = (stp_corr_particles*neg_particles.T).T
-                pos_particles = (stp_corr_particles*pos_particles.T).T
-
-                # Diffusion loss correction
-                throughput_ions = np.zeros(neg_ions.shape)
-                for j in range(0,throughput_ions.shape[0]):
-                    throughput_ions[j,:] = tubeloss(dp_ion*1e-9,
-                                                    sampleflow*1.667e-5,
-                                                    pipelength,
-                                                    temp_ions[j],
-                                                    pres_ions[j])
-
-                throughput_particles = np.zeros(neg_particles.shape)
-                for j in range(0,throughput_particles.shape[0]):
-                    throughput_particles[j,:] = tubeloss(dp_par*1e-9,
-                                                         sampleflow*1.667e-5,
-                                                         pipelength,
-                                                         temp_particles[j],
-                                                         pres_particles[j])
-
-                neg_ions = throughput_ions*neg_ions
-                pos_ions = throughput_ions*pos_ions
-                neg_particles = throughput_particles*neg_particles
-                pos_particles = throughput_particles*pos_particles
-
-                # Robert Wagner's calibration (only ions)
-                roberts_corr = 0.713*dp_ion**0.120
-                neg_ions = roberts_corr*neg_ions
-                pos_ions = roberts_corr*pos_ions
-
-                # Integrate total number concentrations
-                total_neg_ions = np.nansum(neg_ions*dlogdp_ion,axis=1)[np.newaxis].T
-                total_pos_ions = np.nansum(pos_ions*dlogdp_ion,axis=1)[np.newaxis].T
-                total_neg_particles = np.nansum(neg_particles*dlogdp_par,axis=1)[np.newaxis].T
-                total_pos_particles = np.nansum(pos_particles*dlogdp_par,axis=1)[np.newaxis].T
-
-                # Define time vectors
-                time_ions = np.array([datetime2datenum(x) for x in ions.index])[np.newaxis].T
-                time_particles = np.array([datetime2datenum(x) for x in particles.index])[np.newaxis].T
-                
-                # Construct the headers
-                ion_header = np.insert(dp_ion*1e-9,(0,0),0)[np.newaxis]
-                particle_header = np.insert(dp_par*1e-9,(0,0),0)[np.newaxis]
-
-                # Construct the sum-files
-                negions = np.concatenate((ion_header,np.concatenate((time_ions,total_neg_ions,neg_ions),axis=1)))
-                posions = np.concatenate((ion_header,np.concatenate((time_ions,total_pos_ions,pos_ions),axis=1)))
-                negparticles = np.concatenate((particle_header,np.concatenate\
-                                                    ((time_particles,total_neg_particles,neg_particles),axis=1)))
-                posparticles = np.concatenate((particle_header,np.concatenate\
-                                                    ((time_particles,total_pos_particles,pos_particles),axis=1)))
-
-                # Save the sum matrices using the standard names
-                ds = datetime.strftime(datetimes[i],'%Y%m%d')
-                np.savetxt(save_path+model+'n'+ds+'nds.sum',negions)
-                np.savetxt(save_path+model+'p'+ds+'nds.sum',posions)
-                np.savetxt(save_path+model+'n'+ds+'np.sum',negparticles)
-                np.savetxt(save_path+model+'p'+ds+'np.sum',posparticles)
-
-            except Exception as error:
-                print "unexpected error while processing %s:\n%s\n" % (date_strings[i],error)
-                with open(log_file,'a+') as the_log_file:
-                    the_log_file.write("unexpected error while processing %s:\n%s\n" % (date_strings[i],error))
+            # Extract temperature data if it exists, else use standard conditions
+            if temperature_name=='':
+                temp_particles = temp_ref*np.ones(neg_particles.shape[0])
+            elif temperature_name in diag_params:
+                temp_particles = 273.15 + particle_records[temperature_name].astype(float).interpolate().values.flatten()
+            else:
+                err_msg = "error: 'name "+"'"+temperature_name+"'"+' not found in '+"'"+date_strings_pars[i]+diagnostic_files+"'', continuing..."
+                write_logs(log_file,err_msg)
+                continue
+      
+            # Extract pressure data if it exists, else use standard conditions
+            if pressure_name=='':
+                pres_particles = pres_ref*np.ones(neg_particles.shape[0])
+            elif pressure_name in diag_params:
+                pres_particles = 100.0*particle_records[pressure_name].astype(float).interpolate().values.flatten()
+            else:
+                err_msg = "error: 'name "+"'"+pressure_name+"'"+' not found in '+"'"+date_strings_pars[i]+diagnostic_files+"'', continuing..."
+                write_logs(log_file,err_msg)
                 continue
 
-        else: 
+            stp_corr_particles = (pres_ref*temp_particles)/(temp_ref*pres_particles)
+            neg_particles = (stp_corr_particles*neg_particles.T).T
+            pos_particles = (stp_corr_particles*pos_particles.T).T
+
+            throughput_particles = np.zeros(neg_particles.shape)
+            for j in range(0,throughput_particles.shape[0]):
+                throughput_particles[j,:] = tubeloss(dp_par*1e-9,
+                                                     sampleflow*1.667e-5,
+                                                     pipelength,
+                                                     temp_particles[j],
+                                                     pres_particles[j])
+
+            neg_particles = throughput_particles*neg_particles
+            pos_particles = throughput_particles*pos_particles
+
+            # Integrate total number concentrations
+            total_neg_particles = np.nansum(neg_particles*dlogdp_par,axis=1)[np.newaxis].T
+            total_pos_particles = np.nansum(pos_particles*dlogdp_par,axis=1)[np.newaxis].T
+
+            # Get utc offset in hours
+            if particles.index[0].utcoffset()==None:
+                utc_offset_particles = 0
+            else:
+                utc_offset_particles = particles.index[0].utcoffset().total_seconds()/(60.0*60.0)
+
+            # Define time vectors
+            time_particles = np.array([datetime2datenum(x) for x in particles.index])[np.newaxis].T
+            
+            # Construct the header
+            particle_header = np.insert(dp_par*1e-9,0,(utc_offset_particles,0))[np.newaxis]
+
+            # Construct the sum-files
+            negparticles = np.concatenate((particle_header,np.concatenate\
+                                                ((time_particles,total_neg_particles,neg_particles),axis=1)))
+            posparticles = np.concatenate((particle_header,np.concatenate\
+                                                ((time_particles,total_pos_particles,pos_particles),axis=1)))
+
+            # Save the sum matrices using the standard names
+            ds = datetime.strftime(datetimes_pars[i],'%Y%m%d')
+            np.savetxt(save_path+model+'n'+ds+'np.sum',negparticles)
+            np.savetxt(save_path+model+'p'+ds+'np.sum',posparticles)
+
+        except Exception as error:
+            err_msg = "unexpected error while processing particles on %s:\n%s\ncontinuing..." % (date_strings_pars[i],error)
+            write_logs(log_file,err_msg)
             continue
+
 
 def nais_plotter(load_path='/path/to/processed/files/',
                  save_path='/path/to/figures/',
                  config_file='/path/to/config_file.yml'):
     """ Function to plot the processed NAIS data """
+
+    log_file = config_file[:-4] + '.log'
+
+    msg = '%s\nplotting...' % (datetime.today().strftime('%Y-%m-%d %H:%M'))
+    write_logs(log_file,msg)
+
+    warnings.filterwarnings("ignore")
+    
+    # Check that the paths exist and that the config file exists
+    if os.path.isfile(config_file)==False:
+        msg = '%s does not exist' % config_file
+        write_logs(log_file,msg)
+        return
+    if os.path.isdir(load_path)==False:
+        msg = '%s does not exist' % load_path
+        write_logs(log_file,msg)
+        return
+    if os.path.isdir(save_path)==False:
+        msg = '%s does not exist' % save_path
+        write_logs(log_file,msg)
+        return
 
     # Try to read the configuration file
     with open(config_file,'r') as stream:
@@ -870,7 +993,8 @@ def nais_plotter(load_path='/path/to/processed/files/',
             model = config['model']
             location = config['location']
         except Exception as error:
-            print 'error: '+str(error)
+            err_msg = 'error while reading %s: %s\nexiting...' % (config_file,error)
+            write_logs(log_file,err_msg)
             return
 
     plt.style.use('dark_background')
@@ -880,46 +1004,61 @@ def nais_plotter(load_path='/path/to/processed/files/',
     save_filenames = os.listdir(save_path)
     
     # Find the dates that need to be plotted
-    load_dates = np.array([datetime.strptime(re.search('(?<='+model+'n)(.*)(?=nds.sum)',x).group(0),\
+    load_dates_ions = np.array([datetime.strptime(re.search('(?<='+model+'n)(.*)(?=nds.sum)',x).group(0),\
                  '%Y%m%d') for x in load_filenames if re.match(model+'n........nds.sum',x)])
-    save_dates = np.array([datetime.strptime(re.search('(?<='+model+'_)(.*)(?=.png)',x).group(0),\
-                 '%Y%m%d') for x in save_filenames if re.match(model+'_.........png',x)])
-    datetimes = np.setdiff1d(load_dates,save_dates)
-    date_strings = [datetime.strftime(x,'%Y%m%d') for x in datetimes]
+    save_dates_ions = np.array([datetime.strptime(re.search('(?<='+model+'_ions_)(.*)(?=.png)',x).group(0),\
+                 '%Y%m%d') for x in save_filenames if re.match(model+'_ions_.........png',x)])
+    datetimes_ions = np.setdiff1d(load_dates_ions,save_dates_ions)
+    date_strings_ions = [datetime.strftime(x,'%Y%m%d') for x in datetimes_ions]
 
-    for i in range(0,len(datetimes)):
+    load_dates_pars = np.array([datetime.strptime(re.search('(?<='+model+'n)(.*)(?=np.sum)',x).group(0),\
+                 '%Y%m%d') for x in load_filenames if re.match(model+'n........np.sum',x)])
+    save_dates_pars = np.array([datetime.strptime(re.search('(?<='+model+'_particles_)(.*)(?=.png)',x).group(0),\
+                 '%Y%m%d') for x in save_filenames if re.match(model+'_particles_.........png',x)])
+    datetimes_pars = np.setdiff1d(load_dates_pars,save_dates_pars)
+    date_strings_pars = [datetime.strftime(x,'%Y%m%d') for x in datetimes_pars]
 
-        # If model is NAIS then particles are measured
-        if model[:4]=='NAIS':
-            
-            print "plotting " + date_strings[i]
-            
-            pos_ion_data = np.loadtxt(load_path+model+'p'+date_strings[i]+'nds.sum')
-            neg_ion_data = np.loadtxt(load_path+model+'n'+date_strings[i]+'nds.sum')
-            pos_particle_data = np.loadtxt(load_path+model+'p'+date_strings[i]+'np.sum')
-            neg_particle_data = np.loadtxt(load_path+model+'n'+date_strings[i]+'np.sum')
+    for i in range(0,len(datetimes_ions)):
+        print "plotting ions: "+date_strings_ions[i]
+        pos_ion_data = np.loadtxt(load_path+model+'p'+date_strings_ions[i]+'nds.sum')
+        neg_ion_data = np.loadtxt(load_path+model+'n'+date_strings_ions[i]+'nds.sum')
 
-            fig,ax = plt.subplots(2,2,figsize=(9,6))
-            ax = ax.flatten()
+        fig,ax = plt.subplots(2,1,figsize=(6,4))
+        ax = ax.flatten()
 
-            plot_sumfile(ax[0],pos_ion_data,clim=(10,10000))
-            plot_sumfile(ax[1],neg_ion_data,clim=(10,10000))
-            plot_sumfile(ax[2],pos_particle_data,clim=(10,100000))
-            plot_sumfile(ax[3],neg_particle_data,clim=(10,100000))
-                       
-            ax[0].set_title('Positive ions')
-            ax[1].set_title('Negative ions')
-            ax[2].set_title('Particles (positive polarity)')
-            ax[3].set_title('Particles (negative polarity)')
+        plot_sumfile(ax[0],pos_ion_data,clim=(10,10000))
+        plot_sumfile(ax[1],neg_ion_data,clim=(10,10000))
+                   
+        ax[0].set_title('Positive ions')
+        ax[1].set_title('Negative ions')
 
-            plt.tight_layout()
+        plt.tight_layout()
 
-            fig.suptitle(model + ' ' + datetimes[i].strftime('%Y-%m-%d') + ' ' + location, y=1)
+        fig.suptitle(model + ' ' + datetimes_ions[i].strftime('%Y-%m-%d') + ' ' + location, y=1)
 
-            plt.savefig(save_path+model+'_'+date_strings[i]+'.png',
-                        bbox_inches='tight',dpi=300)
+        plt.savefig(save_path+model+'_ions_'+date_strings_ions[i]+'.png',bbox_inches='tight',dpi=300)
 
-            plt.close()
+        plt.close()
 
-        else:
-            continue
+    for i in range(0,len(datetimes_pars)):
+        print "plotting particles: "+date_strings_pars[i]
+        pos_particle_data = np.loadtxt(load_path+model+'p'+date_strings_pars[i]+'np.sum')
+        neg_particle_data = np.loadtxt(load_path+model+'n'+date_strings_pars[i]+'np.sum')
+
+        fig,ax = plt.subplots(2,1,figsize=(6,4))
+        ax = ax.flatten()
+
+        plot_sumfile(ax[0],pos_particle_data,clim=(10,100000))
+        plot_sumfile(ax[1],neg_particle_data,clim=(10,100000))
+                   
+        ax[0].set_title('Particles (positive polarity)')
+        ax[1].set_title('Particles (negative polarity)')
+
+        plt.tight_layout()
+
+        fig.suptitle(model + ' ' + datetimes_pars[i].strftime('%Y-%m-%d') + ' ' + location, y=1)
+
+        plt.savefig(save_path+model+'_particles_'+date_strings_pars[i]+'.png',
+                    bbox_inches='tight',dpi=300)
+
+        plt.close()
