@@ -1,37 +1,108 @@
-Create a conda environment from the nais_processor.yml file
+0. Install Anaconda (or Miniconda). Read the instructions: 
 
-    conda env create -f nais_processor.yml
+    https://docs.anaconda.com/anaconda/install/
 
-Create a configuration file:
+1. Create a conda environment from the nais_processor.yml file
 
-    #example-config-file.yml
+    $ conda env create -f nais_processor.yml
 
-    model: 'NAIS-5-1'
-    inverter_resolution: 'high'
-    sampleflow: 54.0 # L/min
-    date_format: '%Y%m%d'
-    particle_files: '-block-particles.spectra'
-    ion_files: '-block-ions.spectra'
-    diagnostic_files: '-block.records'
-    delimiter: '\t'
-    temperature_name: 'temperature.mean'
-    pressure_name: 'baro.mean'
-    pipe_length: 0.5  # meters
-    location: 'Jungfraujoch'
+        # nais_processor.yml
 
-Create a command file:
+        name: nais-processor
+        channels:
+            - defaults
+            - conda-forge
+            - anaconda
+        dependencies:
+            - python=3.6
+            - numpy
+            - matplotlib
+            - pandas
+            - pyyaml
+            - tinydb
+            - ipython
+            - jq
 
-    #example-command-file.py
+2. Create a yaml configuration file:
 
-    import sys
-    sys.path.append('/home/user/nais-processor')
-    from nais_processor import *
-    nais_processor(load_path='/home/user/nais-jfj/data/',
-                   save_path='/home/user/nais-jfj/processed/',
-                   config_file='/home/user/nais-jfj/nais-jfj.yml')
-    nais_plotter(load_path='/home/user/nais-jfj/processed/',
-                 save_path='/home/user/nais-jfj/figs/',
-                 config_file='/home/user/nais-jfj/nais-jfj.yml')
+    For one of the 5 series models:
 
-Open the nais-processor environment and run the command file to 
-process and plot the data
+        # example-config-file-nais-5-1.yml
+
+        model: 'NAIS-5-1'
+        inverter_resolution: 'high'
+        sampleflow_name: 
+              - 'pos_sampleflow.mean'
+              - 'neg_sampleflow.mean'
+        particle_files: '-block-particles.spectra'
+        ion_files: '-block-ions.spectra'
+        diagnostic_files: '-block.records'
+        delimiter: '\t'
+        temperature_name: 'temperature.mean'
+        pressure_name: 'baro.mean'
+        inlet_length: 0.78 # in meters
+        location: 'Jungfraujoch'
+        data_folder: '/home/user/data/raw/'
+        processed_folder: '/home/user/data/processed/'
+        figure_folder: '/home/user/data/figures/'
+        start_date: '1990-01-01'
+        end_date: '2030-01-01'
+
+    For NAIS1, which for example does not measure T/P and only has one sensor for the flow rate
+    
+        # example-config-file-nais1.yml
+
+        model: 'NAIS1'
+        inverter_resolution: 'low'
+        sampleflow_name: 'Flowaer' 
+        particle_files: '.particles.nds'
+        ion_files: '.ions.nds'
+        diagnostic_files: '.log'
+        delimiter: ','
+        temperature_name: ''
+        pressure_name: ''
+        pipe_length: 2.9 # inlet length in meters
+        location: 'Svalbard'
+        data_folder: '/home/user/data/raw/'
+        processed_folder: '/home/user/data/processed/'
+        figure_folder: '/home/user/data/figures/'
+        start_date: '1990-01-01'
+        end_date: '2030-01-01'
+
+3. Activate the nais-processor environment
+
+    $ conda activate nais-processor
+
+3. Open a python shell (or write a command file) and run the following commands
+
+        >>> import sys
+        >>> sys.path.append('/home/user/nais-processor')
+        >>> from nais_processor import *
+        >>> nais_processor('/home/user/data/config-file.yml',
+                           '/home/user/data/db-file.json')    # Process the data
+        >>> nais_plotter('/home/user/data/config-file.yml',
+                         '/home/user/data/db-file.json')      # Plot the data
+
+    Alternatively add the nais-processor to your python search path. 
+   
+    For example in Linux run:
+
+        $ echo 'export PYTHONPATH="${PYTHONPATH}:/path/to/nais-processor"' >> ~/.bashrc
+
+    And the commands become
+
+        >>> from nais_processor import *
+        >>> nais_processor('/home/user/data/config-file.yml',
+                           '/home/user/data/db-file.json')
+        >>> nais_plotter('/home/user/data/config-file.yml',
+                         '/home/user/data/db-file.json')
+
+    nais_processor() creates a JSON database. The database contains information on the 
+    processed files and figures as well as possible errors during processing. View it 
+    with any JSON processor. For example jq is installed with the nais-processor 
+    environment.
+
+    To view the whole database:
+
+        $ jq . db-file.json
+
