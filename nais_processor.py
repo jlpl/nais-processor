@@ -102,8 +102,6 @@ def datenum2datetime(matlab_datenum):
 def plot_sumfile(handle,v,clim=(10,100000)):
     """ Plot UHEL's sum-formatted aerosol number-size distribution """
     
-    #TODO: make the figure size consistent
-    
     time = v[1:,0]
     dp = v[0,2:]
     data = v[1:,2:]
