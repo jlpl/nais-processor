@@ -102,13 +102,7 @@ def datenum2datetime(matlab_datenum):
 def plot_sumfile(handle,v,clim=(10,100000)):
     """ Plot UHEL's sum-formatted aerosol number-size distribution """
     
-    plt.rcParams.update({'font.size': 10,
-                         'axes.titlesize': 10,
-                         'axes.labelsize': 10,
-                         'xtick.labelsize': 10,
-                         'ytick.labelsize': 10,
-                         'figure.titlesize': 10,
-                         'legend.fontsize': 10})
+    #TODO: make the figure size consistent
     
     time = v[1:,0]
     dp = v[0,2:]
@@ -416,9 +410,9 @@ def nais_processor(config_file,database):
             elif temperature_name in diag_params:
                 temp_ions = 273.15 + ion_records[temperature_name].astype(float).interpolate().values.flatten()
             else:
-                err_msg = ['"%s" not found in diagnostic file' % temperature_name]
-                print(err_msg)
-                db.update(add('error', err_msg), check.timestamp==x['timestamp'])
+                error_msg = '"%s" not found in diagnostic file' % temperature_name
+                print(error_msg)
+                db.update(add('error', [error_msg]), check.timestamp==x['timestamp'])
                 continue
 
             # Extract pressure data from the diagnostic files
@@ -427,9 +421,9 @@ def nais_processor(config_file,database):
             elif pressure_name in diag_params:
                 pres_ions = 100.0*ion_records[pressure_name].astype(float).interpolate().values.flatten()
             else:
-                err_msg = ['"%s" not found in diagnostic file' % pressure_name]
-                print(err_msg)
-                db.update(add('error', err_msg), check.timestamp==x['timestamp'])
+                error_msg = '"%s" not found in diagnostic file' % pressure_name
+                print(error_msg)
+                db.update(add('error', [error_msg]), check.timestamp==x['timestamp'])
                 continue
 
             # Correct the number concentrations to standard conditions
@@ -442,9 +436,9 @@ def nais_processor(config_file,database):
                 flow_ions = ion_records[sampleflow_name].astype(float).sum(axis=1).interpolate().values.flatten()
             except ValueError:
                 flow_ions = ion_records[sampleflow_name].astype(float).interpolate().values.flatten()
-            except Exception as error:
-                print(error)
-                db.update(add('error', error), check.timestamp==x['timestamp'])
+            except Exception as error_msg:
+                print(error_msg)
+                db.update(add('error', [str(error_msg)]), check.timestamp==x['timestamp'])
                 continue
 
             # Test if the sampleflow is in cm3/s or l/min and possibly convert to l/min
@@ -497,10 +491,9 @@ def nais_processor(config_file,database):
             db.update({'processed_neg_ion_file': save_path+model+'n'+x['timestamp']+'nds.sum',
                        'processed_pos_ion_file': save_path+model+'p'+x['timestamp']+'nds.sum'}, check.timestamp==x['timestamp'])
             
-        except Exception as error:
-            err_msg = [str(error)]
-            print(err_msg)
-            db.update(add('error', err_msg), check.timestamp==x['timestamp'])
+        except Exception as error_msg:
+            print(error_msg)
+            db.update(add('error', [str(error_msg)]), check.timestamp==x['timestamp'])
             continue
  
     # Iterate through the unprocessed particle data excluding today
@@ -513,7 +506,7 @@ def nais_processor(config_file,database):
         try:
 
             print('processing %s' % x['particles'])
-
+ 
             # Read the particle data 
             particles = pd.read_table(x['particles'],
                                       sep=delimiter,
@@ -569,9 +562,9 @@ def nais_processor(config_file,database):
             elif temperature_name in diag_params:
                 temp_particles = 273.15 + particle_records[temperature_name].astype(float).interpolate().values.flatten()
             else:
-                err_msg = ['"%s" not found in diagnostic file' % temperature_name]
+                err_msg = '"%s" not found in diagnostic file' % temperature_name
                 print(err_msg)
-                db.update(add('error', err_msg), check.timestamp==x['timestamp'])
+                db.update(add('error', [err_msg]), check.timestamp==x['timestamp'])
                 continue
 
             # Pressure
@@ -580,9 +573,9 @@ def nais_processor(config_file,database):
             elif pressure_name in diag_params:
                 pres_particles = 100.0*particle_records[pressure_name].astype(float).interpolate().values.flatten()
             else:
-                err_msg = ['"%s" not found in diagnostic file' % pressure_name]
-                print(err_msg)
-                db.update(add('error', err_msg), check.timestamp==x['timestamp'])
+                error_msg = '"%s" not found in diagnostic file' % pressure_name
+                print(error_msg)
+                db.update(add('error', [error_msg]), check.timestamp==x['timestamp'])
                 continue
 
             stp_corr_particles = (pres_ref*temp_particles)/(temp_ref*pres_particles)
@@ -594,9 +587,9 @@ def nais_processor(config_file,database):
                 flow_particles = particle_records[sampleflow_name].astype(float).sum(axis=1).interpolate().values.flatten()
             except ValueError:
                 flow_particles = particle_records[sampleflow_name].astype(float).interpolate().values.flatten()
-            except Exception as error:
-                print(error)
-                db.update(add('error', error), check.timestamp==x['timestamp'])
+            except Exception as error_msg:
+                print(error_msg)
+                db.update(add('error', [str(error_msg)]), check.timestamp==x['timestamp'])
                 continue
 
             # Test if the sampleflow is in cm3/s or l/min and convert to l/min
@@ -646,16 +639,17 @@ def nais_processor(config_file,database):
             db.update({'processed_neg_particle_file': save_path+model+'n'+x['timestamp']+'np.sum',
                        'processed_pos_particle_file': save_path+model+'p'+x['timestamp']+'np.sum'}, check.timestamp==x['timestamp'])
             
-        except Exception as error:
-            err_msg = [str(error)]
-            print(err_msg) 
-            db.update(add('error',err_msg),check.timestamp==x['timestamp'])
+        except Exception as error_msg:
+            print(error_msg) 
+            db.update(add('error',[str(error_msg)]),check.timestamp==x['timestamp'])
             continue
 
 def nais_plotter(config_file,database):
     """ Function to plot the processed NAIS data """
 
     warnings.filterwarnings("ignore")
+
+    today = datetime.today().strftime('%Y%m%d')
 
     # Check that database exists
     if os.path.isfile(database)==False:
@@ -666,9 +660,6 @@ def nais_plotter(config_file,database):
       # Initialize the database
       db = TinyDB(database)
       check = Query()
-      today = datetime.today().strftime('%Y%m%d')
-      if bool(db.search(check.timestamp==today))==False:
-          db.insert({'timestamp':today, 'error':[]})
 
     # Check that config file exists
     if os.path.isfile(config_file)==False:
@@ -683,22 +674,28 @@ def nais_plotter(config_file,database):
               model = config['model']
               location = config['location']
               fig_path = config['figure_folder']
-          except Exception as error:
-              error_msg = [str(error)]
+          except Exception as error_msg:
               print(error_msg)
-              db.update(add('error',error_msg), check.timestamp==today)
               return
 
     # Testing here if the configuration information is valid
     if os.path.isdir(fig_path)==False:
-        error_msg = ['the path "%s" does not exist' % fig_path]
+        error_msg = 'the path "%s" does not exist' % fig_path
         print(error_msg)
-        db.update(add('error', error_msg), check.timestamp==today)
         return
 
     fig_path = os.path.abspath(fig_path) + '/'
 
     plt.style.use('dark_background')
+
+    fontsize = 14
+    plt.rcParams.update({'font.size': fontsize,
+                         'axes.titlesize': fontsize,
+                         'axes.labelsize': fontsize,
+                         'xtick.labelsize': fontsize,
+                         'ytick.labelsize': fontsize,
+                         'figure.titlesize': fontsize,
+                         'legend.fontsize': fontsize})
 
     # Iterate through the unprocessed ion data excluding today
     for x in iter(db.search(    check.processed_neg_ion_file.exists()   
@@ -713,7 +710,7 @@ def nais_plotter(config_file,database):
             pos_ion_data = np.loadtxt(x['processed_pos_ion_file'])
             neg_ion_data = np.loadtxt(x['processed_neg_ion_file'])
 
-            fig,ax = plt.subplots(2,1,figsize=(6,5))
+            fig,ax = plt.subplots(2,1,figsize=(7,7.5),dpi=100)
             ax = ax.flatten()
 
             plot_sumfile(ax[0],pos_ion_data,clim=(10,10000))
@@ -726,20 +723,15 @@ def nais_plotter(config_file,database):
 
             fig.suptitle(model + ' ' + x['timestamp'] + ' ' + location, y=1)
 
-            plt.savefig(fig_path+model+'_ions_'+ x['timestamp'] +'.png',bbox_inches='tight',dpi=300)
+            plt.savefig(fig_path+model+'_ions_'+ x['timestamp'] +'.png',dpi=100)
 
             db.update({'ion_figure': fig_path+model+'_ions_'+ x['timestamp'] +'.png'}, check.timestamp==x['timestamp'])
 
-            # plot for the screen
-            plt.savefig(fig_path + model + '.png',bbox_inches='tight',dpi=96)
-
             plt.close()
 
-        except Exception as error:
-
-            err_msg = [str(error)]
-            print(err_msg) 
-            db.update(add('error',err_msg), check.timestamp==x['timestamp'])
+        except Exception as error_msg:
+            print(error_msg) 
+            db.update(add('error',[str(error_msg)]), check.timestamp==x['timestamp'])
             continue
 
     for x in iter(db.search(    check.processed_neg_particle_file.exists()
@@ -753,7 +745,7 @@ def nais_plotter(config_file,database):
             pos_particle_data = np.loadtxt(x['processed_pos_particle_file'])
             neg_particle_data = np.loadtxt(x['processed_neg_particle_file'])
 
-            fig,ax = plt.subplots(2,1,figsize=(6,5))
+            fig,ax = plt.subplots(2,1,figsize=(7,7.5),dpi=100)
             ax = ax.flatten()
 
             plot_sumfile(ax[0],pos_particle_data,clim=(10,100000))
@@ -766,17 +758,15 @@ def nais_plotter(config_file,database):
 
             fig.suptitle(model + ' ' + x['timestamp'] + ' ' + location, y=1)
 
-            plt.savefig(fig_path+model+'_particles_'+ x['timestamp'] +'.png',bbox_inches='tight',dpi=300)
+            plt.savefig(fig_path+model+'_particles_'+ x['timestamp'] +'.png',dpi=100)
 
             db.update({'particle_figure': fig_path+model+'_particles_'+ x['timestamp'] +'.png'}, check.timestamp==x['timestamp'])
 
             plt.close()
 
-        except Exception as error:
-
-            err_msg = [str(error)]
-            print(err_msg) 
-            db.update(add('error',err_msg), check.timestamp==x['timestamp'])
+        except Exception as error_msg:
+            print(error_msg) 
+            db.update(add('error',[str(error_msg)]), check.timestamp==x['timestamp'])
             continue
 
 
