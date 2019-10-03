@@ -2,7 +2,6 @@ name: nais-processor
 channels:
     - defaults
     - conda-forge
-    - anaconda
 dependencies:
     - python=3.6
     - numpy

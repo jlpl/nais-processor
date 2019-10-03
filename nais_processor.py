@@ -183,26 +183,30 @@ def nais_processor(config_file,database):
 
     Function arguments:
         Name of the configuration file (str)
+        Name of the database file (str)
 
     Example:
-        nais_processor('/home/user/data/nais.yml')
+        nais_processor('/home/user/data/nais.yml',
+                       '/home/user/data/nais.json')
 
     """
-    
+
     # Ignore all warnings
     warnings.filterwarnings("ignore")
+
+    # Find out today
+    today = datetime.today().strftime('%Y%m%d')
 
     # Initialize the database
     try:
       db = TinyDB(database)
       check = Query()
-      today = datetime.today().strftime('%Y%m%d')
-      if bool(db.search(check.timestamp==today))==False:
-          db.insert({'timestamp':today, 'error':[]})
+
       # Clear all pre-existing errors
       db.update({'error':[]},check.error.exists())
-    except Exception as error:
-        print(str(error))
+
+    except Exception as error_msg:
+        print(error_msg)
         return
 
     # Check that the config file exists
@@ -228,51 +232,42 @@ def nais_processor(config_file,database):
                 save_path = config['processed_folder']
                 start_date = config['start_date']
                 end_date = config['end_date']
-            except Exception as error:
-                error_msg = [str(error)]
+            except Exception as error_msg:
                 print(error_msg)
-                db.update(add('error',error_msg), check.timestamp==today)
                 return
-
-    # Testing if the configuration information is valid
+    
+    # Test if the configuration information is valid
     try:
         float(pipelength)
     except:
-        error_msg = ['"%s" must be a number' % pipelength]
+        error_msg = '"%s" must be a number' % pipelength
         print(error_msg)
-        db.update(add('error', error_msg), check.timestamp==today)
         return
     if os.path.isdir(load_path)==False:
-        error_msg = ['the path "%s" does not exist' % load_path]
+        error_msg = 'the path "%s" does not exist' % load_path
         print(error_msg)
-        db.update(add('error', error_msg), check.timestamp==today)
         return
     if os.path.isdir(save_path)==False:
-        error_msg = ['the path "%s" does not exist' % save_path]
+        error_msg = 'the path "%s" does not exist' % save_path
         print(error_msg)
-        db.update(add('error', error_msg), check.timestamp==today)
         return
     start_datenum = str2datenum(start_date)
     end_datenum = str2datenum(end_date)
     if (start_datenum | end_datenum)==False:
-        error_msg = ['bad start or end date']
+        error_msg = 'bad start or end date'
         print(error_msg)
-        db.update(add('error', error_msg), check.timestamp==today)
         return
     if (bool(ion_files) | bool(particle_files))==False:
-        error_msg = ['ion and particle file names are empty']
+        error_msg = 'ion and particle file names are empty'
         print(error_msg)
-        db.update(add('error', error_msg), check.timestamp==today)
         return
     if sampleflow_name=='':
-        error_msg = ['sampleflow_name is empty']
+        error_msg = 'sampleflow_name is empty'
         print(error_msg)
-        db.update(add('error', error_msg), check.timestamp==today)
         return
     if ((inverter_reso=='low') | (inverter_reso=='high'))==False:
-        error_msg = ['inverter_resolution must be "low" or "high"']
+        error_msg = 'inverter_resolution must be "low" or "high"'
         print(error_msg)
-        db.update(add('error', error_msg), check.timestamp==today)
         return
 
     # Convert load and save paths to absolute paths
@@ -287,45 +282,52 @@ def nais_processor(config_file,database):
         
         # Find ion files
         if is_it_nais_file(full_name,ion_files)==True:
-          ion_datenum = str2datenum(full_name)
-          ion_datestr = datenum2str(ion_datenum)
-          if ((ion_datenum>=start_datenum) & (ion_datenum<=end_datenum)):
-            if bool(db.search(check.timestamp==ion_datestr))==False:
-              db.insert({'timestamp':ion_datestr, 'ions':full_name, 'error':[]})
-            elif bool(db.search((check.ions==full_name) & (check.timestamp==ion_datestr)))==False:
-              db.update({'ions':full_name},check.timestamp==ion_datestr)
+          # Is the ion file already in the database?
+          if bool(db.search(check.ions==full_name))==True:
+            continue
+          else:
+            ion_datenum = str2datenum(full_name)
+            ion_datestr = datenum2str(ion_datenum)
+            # Is the raw file in the acceptable time range?
+            if ((ion_datenum>=start_datenum) & (ion_datenum<=end_datenum)):
+              # Raw data for that day does not exist at all
+              if bool(db.search(check.timestamp==ion_datestr))==False:
+                db.insert({'timestamp':ion_datestr, 'ions':full_name, 'error':[]})
+              # Raw data exists but not ion file
+              else:
+                db.update({'ions':full_name},check.timestamp==ion_datestr)
             else:
               continue
-          else:
-            continue
 
         # Find particle files
         if is_it_nais_file(full_name,particle_files)==True:
-          particle_datenum = str2datenum(full_name)
-          particle_datestr = datenum2str(particle_datenum)
-          if ((particle_datenum>=start_datenum) & (particle_datenum<=end_datenum)):
-            if bool(db.search(check.timestamp==particle_datestr))==False:
-              db.insert({'timestamp':particle_datestr, 'particles':full_name, 'error':[]})
-            elif bool(db.search((check.particles==full_name) & (check.timestamp==particle_datestr)))==False:
-              db.update({'particles':full_name},check.timestamp==particle_datestr)
+          if bool(db.search(check.particles==full_name))==True:
+            continue
+          else:
+            particle_datenum = str2datenum(full_name)
+            particle_datestr = datenum2str(particle_datenum)
+            if ((particle_datenum>=start_datenum) & (particle_datenum<=end_datenum)):
+              if bool(db.search(check.timestamp==particle_datestr))==False:
+                db.insert({'timestamp':particle_datestr, 'particles':full_name, 'error':[]})
+              else:
+                db.update({'particles':full_name},check.timestamp==particle_datestr)
             else:
               continue
-          else:
-            continue
  
         # Find diagnostic files
         if is_it_nais_file(full_name,diagnostic_files)==True:
-          diagnostic_datenum = str2datenum(full_name)
-          diagnostic_datestr = datenum2str(diagnostic_datenum)
-          if ((diagnostic_datenum>=start_datenum) & (diagnostic_datenum<=end_datenum)):
-            if bool(db.search(check.timestamp==diagnostic_datestr))==False:
-              db.insert({'timestamp':diagnostic_datestr, 'diagnostics':full_name, 'error':[]})
-            elif bool(db.search((check.diagnostics==full_name) & (check.timestamp==diagnostic_datestr)))==False:
-              db.update({'diagnostics':full_name},check.timestamp==diagnostic_datestr)
+          if bool(db.search(check.diagnostics==full_name))==True:
+            continue
+          else:
+            diagnostic_datenum = str2datenum(full_name)
+            diagnostic_datestr = datenum2str(diagnostic_datenum)
+            if ((diagnostic_datenum>=start_datenum) & (diagnostic_datenum<=end_datenum)):
+              if bool(db.search(check.timestamp==diagnostic_datestr))==False:
+                db.insert({'timestamp':diagnostic_datestr, 'diagnostics':full_name, 'error':[]})
+              else:
+                db.update({'diagnostics':full_name},check.timestamp==diagnostic_datestr)
             else:
               continue
-          else:
-            continue
  
     # Define standard conditions
     temp_ref = 273.15 # K

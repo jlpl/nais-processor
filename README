@@ -25,11 +25,11 @@
 
 2. Create a yaml configuration file:
 
-    For one of the 5 series models:
+    For one of the 5-series models:
 
-        # example-config-file-nais-5-1.yml
+        # example-config-file-nais-5-7.yml
 
-        model: 'NAIS-5-1'
+        model: 'NAIS-5-7'
         inverter_resolution: 'high'
         sampleflow_name: 
               - 'pos_sampleflow.mean'
@@ -78,10 +78,8 @@
         >>> import sys
         >>> sys.path.append('/home/user/nais-processor')
         >>> from nais_processor import *
-        >>> nais_processor('/home/user/data/config-file.yml',
-                           '/home/user/data/db-file.json')    # Process the data
-        >>> nais_plotter('/home/user/data/config-file.yml',
-                         '/home/user/data/db-file.json')      # Plot the data
+        >>> nais_processor('/home/user/data/config-file.yml')    # Process the data
+        >>> nais_plotter('/home/user/data/config-file.yml')      # Plot the data
 
     Alternatively add the nais-processor to your python search path. 
    
@@ -92,17 +90,14 @@
     And the commands become
 
         >>> from nais_processor import *
-        >>> nais_processor('/home/user/data/config-file.yml',
-                           '/home/user/data/db-file.json')
-        >>> nais_plotter('/home/user/data/config-file.yml',
-                         '/home/user/data/db-file.json')
+        >>> nais_processor('/home/user/data/config-file.yml','/home/user/data/db-file.json')
+        >>> nais_plotter('/home/user/data/config-file.yml','/home/user/data/db-file.json')
 
     nais_processor() creates a JSON database. The database contains information on the 
     processed files and figures as well as possible errors during processing. View it 
-    with any JSON processor. For example jq is installed with the nais-processor 
-    environment.
+    with any JSON processor. For example jq is installed with the environment.
 
-    To view the whole database:
+    To view the whole database
 
         $ jq . db-file.json
 
