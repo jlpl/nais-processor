@@ -1,8 +1,8 @@
-1. Install Anaconda or Miniconda. Read the instructions:
+Install Anaconda or Miniconda. Read the instructions:
 
     https://docs.anaconda.com/anaconda/install/
 
-2. Create a conda environment from the nais_processor.yml file
+Create a conda environment from the nais_processor.yml file
 
     $ conda env create -f nais_processor.yml
 
@@ -22,7 +22,7 @@
             - ipython
             - jq
 
-2. Create a yaml configuration file:
+Create a yaml configuration file:
 
     For one of the 5-series models:
 
@@ -68,11 +68,11 @@
         start_date: '1990-01-01'
         end_date: '2030-01-01'
 
-3. Activate the nais-processor environment
+Activate the nais-processor environment
 
     $ conda activate nais-processor
 
-3. Open a python shell (or write a command file) and run the following commands
+Open a python shell (or write a command file) and run the following commands
 
         >>> import sys
         >>> sys.path.append('/path/to/nais-processor')
