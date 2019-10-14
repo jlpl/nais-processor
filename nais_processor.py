@@ -102,7 +102,7 @@ def datenum2datetime(matlab_datenum):
 def plot_sumfile(handle,v,clim=(10,100000)):
     """ Plot UHEL's sum-formatted aerosol number-size distribution """
     
-    time = v[1:,0]
+    time = v[1:,0] # This is datenum
     dp = v[0,2:]
     data = v[1:,2:]
     mesh_dp, mesh_time = np.meshgrid(dp,time)
@@ -113,6 +113,7 @@ def plot_sumfile(handle,v,clim=(10,100000)):
     pcolorplot.set_clim(clim)
     pcolorplot.set_edgecolor('face')
     handle.autoscale(tight='true')
+    handle.set_xlim((np.floor(time),np.floor(time)+1))
 
     handle.grid('on',which='both',linestyle='--',color='w',lw=0.5)
     handle.xaxis.set_major_locator(dts.HourLocator(interval=1))
