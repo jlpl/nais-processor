@@ -331,7 +331,7 @@ def nais_processor(config_file,database):
       dp_ion = dp_ion_lowres
       dlogdp_ion = x2dlogx(dp_ion)
       mob_ion = mob_ion_lowres
-      dlogmob_ion = x2dlogx(dp_ion)
+      dlogmob_ion = x2dlogx(mob_ion)
       dp_par = dp_par_lowres
       dlogdp_par = x2dlogx(dp_par)
     else:
@@ -418,7 +418,7 @@ def nais_processor(config_file,database):
             if pressure_name=='':
                 pres_ions = pres_ref*np.ones(neg_ions.shape[0])
             elif pressure_name in diag_params:
-                pres_ions = 100.0*ion_records[pressure_name].astype(float).interpolate().values.flatten()
+                pres_ions = 100.0 * ion_records[pressure_name].astype(float).interpolate().values.flatten()
             else:
                 error_msg = '"%s" not found in diagnostic file' % pressure_name
                 print(error_msg)
@@ -455,13 +455,13 @@ def nais_processor(config_file,database):
                                                 temp_ions[j],
                                                 pres_ions[j])
 
-            neg_ions = throughput_ions*neg_ions
-            pos_ions = throughput_ions*pos_ions
+            neg_ions = neg_ions / throughput_ions
+            pos_ions = pos_ions / throughput_ions
 
             # Robert Wagner's calibration (only ions)
             roberts_corr = 0.713*dp_ion**0.120
-            neg_ions = roberts_corr*neg_ions
-            pos_ions = roberts_corr*pos_ions
+            neg_ions = neg_ions / roberts_corr
+            pos_ions = pos_ions / roberts_corr
 
             # Integrate total ion number concentrations
             total_neg_ions = np.nansum(neg_ions*dlogdp_ion,axis=1)[np.newaxis].T
@@ -605,8 +605,8 @@ def nais_processor(config_file,database):
                                                      temp_particles[j],
                                                      pres_particles[j])
 
-            neg_particles = throughput_particles*neg_particles
-            pos_particles = throughput_particles*pos_particles
+            neg_particles = neg_particles / throughput_particles
+            pos_particles = pos_particles / throughput_particles
 
             # Integrate total number concentrations
             total_neg_particles = np.nansum(neg_particles*dlogdp_par,axis=1)[np.newaxis].T
