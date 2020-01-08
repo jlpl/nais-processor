@@ -718,9 +718,9 @@ def nais_plotter(config_file,database):
             ax[0].set_title('Positive ions')
             ax[1].set_title('Negative ions')
 
-            plt.tight_layout()
+            plt.tight_layout(rect=[0, 0.0, 1, 0.96])
 
-            fig.suptitle(model + ' ' + x['timestamp'] + ' ' + location, y=1)
+            fig.suptitle(model + ' ' + x['timestamp'] + ' ' + location, y=0.98)
 
             plt.savefig(fig_path+model+'_ions_'+ x['timestamp'] +'.png',dpi=100)
 
@@ -753,9 +753,9 @@ def nais_plotter(config_file,database):
             ax[0].set_title('Particles (positive polarity)')
             ax[1].set_title('Particles (negative polarity)')
 
-            plt.tight_layout()
+            plt.tight_layout(rect=[0, 0.0, 1, 0.96])
 
-            fig.suptitle(model + ' ' + x['timestamp'] + ' ' + location, y=1)
+            fig.suptitle(model + ' ' + x['timestamp'] + ' ' + location, y=0.98)
 
             plt.savefig(fig_path+model+'_particles_'+ x['timestamp'] +'.png',dpi=100)
 
