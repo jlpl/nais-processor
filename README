@@ -82,7 +82,7 @@ Open a python shell (or write a command file) and run the following commands
         >>> nais_plotter('/home/user/data/config-file.yml',
                          '/home/user/data/db-file.json')
 
-    Alternatively add the nais-processor to your python search path. 
+    Alternatively add the nais-processor to your python search path, with something like:
 
         $ echo 'export PYTHONPATH="${PYTHONPATH}:/path/to/nais-processor"' >> ~/.bashrc
 

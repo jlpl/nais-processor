@@ -105,6 +105,7 @@ def plot_sumfile(handle,v,clim=(10,100000)):
     time = v[1:,0] # This is datenum
     dp = v[0,2:]
     data = v[1:,2:]
+    data[data<=0]=1e-30 # No holes in plots
     mesh_dp, mesh_time = np.meshgrid(dp,time)
     pcolorplot = handle.pcolormesh(mesh_time,mesh_dp,data,
                                    norm=colors.LogNorm(),
