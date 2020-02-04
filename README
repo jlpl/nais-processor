@@ -28,6 +28,7 @@ Create a yaml configuration file:
 
         # example-config-file-nais-5-7.yml
 
+        database_file: './nais-5-7-jfj.json'
         model: 'NAIS-5-7'
         inverter_resolution: 'high'
         sampleflow_name: 
@@ -51,6 +52,7 @@ Create a yaml configuration file:
     
         # example-config-file-nais1.yml
 
+        database_file: './nais1-svalbard.json'
         model: 'NAIS1'
         inverter_resolution: 'low'
         sampleflow_name: 'Flowaer' 
@@ -77,10 +79,8 @@ Open a python shell (or write a command file) and run the following commands
         >>> import sys
         >>> sys.path.append('/path/to/nais-processor')
         >>> from nais_processor import *
-        >>> nais_processor('/home/user/data/config-file.yml',
-                           '/home/user/data/db-file.json')
-        >>> nais_plotter('/home/user/data/config-file.yml',
-                         '/home/user/data/db-file.json')
+        >>> nais_processor('/home/user/data/config-file.yml)
+        >>> nais_plotter('/home/user/data/config-file.yml')
 
     Alternatively add the nais-processor to your python search path, with something like:
 
@@ -89,10 +89,8 @@ Open a python shell (or write a command file) and run the following commands
     And the commands become
 
         >>> from nais_processor import *
-        >>> nais_processor('/home/user/data/config-file.yml',
-                           '/home/user/data/db-file.json')
-        >>> nais_plotter('/home/user/data/config-file.yml',
-                         '/home/user/data/db-file.json')
+        >>> nais_processor('/home/user/data/config-file.yml')
+        >>> nais_plotter('/home/user/data/config-file.yml')
 
     nais_processor() creates a JSON database. The database contains information on the 
     processed files and figures as well as possible errors during processing. View it 
