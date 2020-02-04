@@ -153,7 +153,7 @@ def is_it_nais_file(x,file_ending):
     else:
       return True
 
-def nais_processor(config_file,database):
+def nais_processor(config_file):
     """ Function that processes data from the NAIS 
     
     The function reads the raw NAIS data files from the load_path, 
@@ -191,18 +191,6 @@ def nais_processor(config_file,database):
     # Find out today
     today = datetime.today().strftime('%Y%m%d')
 
-    # Initialize the database
-    try:
-      db = TinyDB(database)
-      check = Query()
-
-      # Clear all pre-existing errors
-      db.update({'error':[]},check.error.exists())
-
-    except Exception as error_msg:
-        print(error_msg)
-        return
-
     # Check that the config file exists
     if os.path.isfile(config_file)==False:
         error_msg = 'The file "%s" does not exist' % config_file
@@ -226,9 +214,22 @@ def nais_processor(config_file,database):
                 save_path = config['processed_folder']
                 start_date = config['start_date']
                 end_date = config['end_date']
+                database = config['database_file']
             except Exception as error_msg:
                 print(error_msg)
                 return
+
+    # Initialize the database
+    try:
+      db = TinyDB(database)
+      check = Query()
+
+      # Clear all pre-existing errors
+      db.update({'error':[]},check.error.exists())
+
+    except Exception as error_msg:
+        print(error_msg)
+        return
     
     # Test if the configuration information is valid
     try:
@@ -644,22 +645,12 @@ def nais_processor(config_file,database):
             db.update(add('error',[str(error_msg)]),check.timestamp==x['timestamp'])
             continue
 
-def nais_plotter(config_file,database):
+def nais_plotter(config_file):
     """ Function to plot the processed NAIS data """
 
     warnings.filterwarnings("ignore")
 
     today = datetime.today().strftime('%Y%m%d')
-
-    # Check that database exists
-    if os.path.isfile(database)==False:
-        error_msg = 'The file "%s" does not exist' % database
-        print(error_msg)
-        return
-    else:
-      # Initialize the database
-      db = TinyDB(database)
-      check = Query()
 
     # Check that config file exists
     if os.path.isfile(config_file)==False:
@@ -674,15 +665,25 @@ def nais_plotter(config_file,database):
               model = config['model']
               location = config['location']
               fig_path = config['figure_folder']
+              database = config['database_file']
           except Exception as error_msg:
               print(error_msg)
               return
 
-    # Testing here if the configuration information is valid
+    # Test if figure path exists
     if os.path.isdir(fig_path)==False:
         error_msg = 'the path "%s" does not exist' % fig_path
         print(error_msg)
         return
+    # Test if the database file does not exist
+    if os.path.isfile(database)==False:
+        error_msg = 'The file "%s" does not exist' % database
+        print(error_msg)
+        return
+    # Otherwise initialize the database
+    else:
+      db = TinyDB(database)
+      check = Query()
 
     fig_path = os.path.abspath(fig_path) + '/'
 
