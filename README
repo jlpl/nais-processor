@@ -45,6 +45,7 @@ Create a yaml configuration file. For one of the 5-series models:
     pressure_name: 'baro.mean'
     inlet_length: 0.78 # in meters
     location: 'Jungfraujoch'
+    sealevel_correction: False
     data_folder: '/home/user/data/raw/'
     processed_folder: '/home/user/data/processed/'
     figure_folder: '/home/user/data/figures/'
@@ -67,6 +68,7 @@ For NAIS1, which does not measure T/P and only has one sensor for the flow rate:
     pressure_name: ''
     pipe_length: 2.9 # inlet length in meters
     location: 'Svalbard'
+    sealevel_correction: False
     data_folder: '/home/user/data/raw/'
     processed_folder: '/home/user/data/processed/'
     figure_folder: '/home/user/data/figures/'

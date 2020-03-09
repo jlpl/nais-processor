@@ -202,6 +202,7 @@ def nais_processor(config_file):
         with open(config_file,'r') as stream:
             try:
                 config = yaml.load(stream)
+                sealevel_correction = config['sealevel_correction']
                 pressure_name = config['pressure_name']
                 temperature_name = config['temperature_name']
                 sampleflow_name = config['sampleflow_name']
@@ -430,9 +431,10 @@ def nais_processor(config_file):
                 continue
 
             # Correct the number concentrations to standard conditions
-            stp_corr_ions = (pres_ref*temp_ions)/(temp_ref*pres_ions)
-            neg_ions = (stp_corr_ions*neg_ions.T).T
-            pos_ions = (stp_corr_ions*pos_ions.T).T
+            if sealevel_correction:
+                stp_corr_ions = (pres_ref*temp_ions)/(temp_ref*pres_ions)
+                neg_ions = (stp_corr_ions*neg_ions.T).T
+                pos_ions = (stp_corr_ions*pos_ions.T).T
 
             # Extract sample flow rate data from the diagnostic files
             try:
@@ -581,9 +583,10 @@ def nais_processor(config_file):
                 db.update(add('error', [error_msg]), check.timestamp==x['timestamp'])
                 continue
 
-            stp_corr_particles = (pres_ref*temp_particles)/(temp_ref*pres_particles)
-            neg_particles = (stp_corr_particles*neg_particles.T).T
-            pos_particles = (stp_corr_particles*pos_particles.T).T
+            if sealevel_correction:
+                stp_corr_particles = (pres_ref*temp_particles)/(temp_ref*pres_particles)
+                neg_particles = (stp_corr_particles*neg_particles.T).T
+                pos_particles = (stp_corr_particles*pos_particles.T).T
 
             # Sampleflow
             try:
