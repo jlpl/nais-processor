@@ -14,18 +14,38 @@ import sys
 from dateutil.parser import parse
 from tinydb import TinyDB, Query
 from tinydb.operations import add
+from scipy.optimize import minimize
 
-dp_ion_lowres = np.array([7.949610066873187275e-01,9.181737924552214603e-01,1.060513600503926179e+00,1.224959679823698799e+00,1.414958699738506631e+00,1.634499249798819331e+00,1.888198514085806856e+00,2.181403433339687226e+00,2.520308747865528165e+00,2.912095102815642989e+00,3.365090891236600878e+00,3.888962384293289887e+00,4.494937535166431353e+00,5.196070414640996837e+00,6.007554438162747701e+00,6.947095098447752193e+00,8.035355151375323857e+00,9.296489193192451594e+00,1.075878902024538242e+01,1.245546773082500103e+01,1.442561898219513949e+01,1.671539984850161886e+01,1.937950186998520152e+01,2.248299804137784363e+01,2.610368545677439300e+01,3.033508982931992648e+01,3.529036394466827886e+01,4.110740875515996606e+01])
+# All possible names and naming formats encountered in current NAIS data files
+ion_filename_formats = [
+'%Y-%m-%d.ions.nds',
+'%Y%m%d-block-ions.spectra']
 
-dp_ion_hires = np.array([7.949610066875409942e-01,8.241182580927455259e-01,8.543462802115115995e-01,8.856844966190522417e-01,9.181737924559271180e-01,9.518565575670346890e-01,9.867767691571656119e-01,1.022980023143976958e+00,1.060513600503939280e+00,1.099426538829467725e+00,1.139769706974383290e+00,1.181595851620098836e+00,1.224959679823832692e+00,1.269917926237073669e+00,1.316529439401527446e+00,1.364855258822949002e+00,1.414958699738505521e+00,1.466905426169209825e+00,1.520763551055280605e+00,1.576603729908572893e+00,1.634499249758283312e+00,1.694526135045845150e+00,1.756763254297374122e+00,1.821292427408487402e+00,1.888198514077982448e+00,1.957569584416486874e+00,2.029496978295826093e+00,2.104075485232879572e+00,2.181403433339692999e+00,2.261582859332240680e+00,2.344719627899444880e+00,2.430923596381127538e+00,2.520308748234819429e+00,2.612993381959131334e+00,2.709100248607977601e+00,2.808756747008758214e+00,2.912095102815391190e+00,3.019252527502206185e+00,3.130371476488065241e+00,3.245599771518457466e+00,3.365090891236902415e+00,3.489004141625421163e+00,3.617504913802647604e+00,3.750764898980823325e+00,3.888962384292350194e+00,4.032282462010540414e+00,4.180917334988799361e+00,4.335066596457491706e+00,4.494937535166420695e+00,4.660745425685828280e+00,4.832713857244105959e+00,5.011075095921604827e+00,5.196070414634600176e+00,5.387950447963188338e+00,5.586975636988666061e+00,5.793416574994243007e+00,6.007554436026940614e+00,6.229681456686657626e+00,6.460101359513265251e+00,6.699129841480823799e+00,6.947095098447658934e+00,7.204338334753603412e+00,7.471214336832219693e+00,7.748092044569639292e+00,8.035355151259254924e+00,8.333402769720130721e+00,8.642650082548662738e+00,8.963529060188569986e+00,9.296489193192432055e+00,9.641998264711249433e+00,1.000054318925402619e+01,1.037263084818457415e+01,1.075878902020633987e+01,1.115956729412175541e+01,1.157553811904305796e+01,1.200729781901941351e+01,1.245546773067095359e+01,1.292069536930353912e+01,1.340365566604162062e+01,1.390505228292856543e+01,1.442561898541390164e+01,1.496612109930933521e+01,1.552735707366413109e+01,1.611016009905102919e+01,1.671539984589247041e+01,1.734398428907315903e+01,1.799686165161790541e+01,1.867502249416057936e+01,1.937950186998513757e+01,2.011138166759334922e+01,2.087179308880621065e+01,2.166191924893708176e+01,2.248299804205197461e+01,2.333632504917748918e+01,2.422325676528101823e+01,2.514521399524151590e+01,2.610368545923754624e+01,2.710023166043850651e+01,2.813648906294003282e+01,2.921417447477816509e+01,3.033508982951557797e+01,3.150112726419725817e+01,3.271427458287274703e+01,3.397662110330684015e+01,3.529036394400620225e+01,3.665781484216577724e+01,3.808140737765210559e+01,3.956370485580886509e+01,4.110740875118314364e+01])
+particle_filename_formats = [
+'%Y-%m-%d.particles.nds',
+'%Y%m%d-block-particles.spectra']
 
-dp_par_lowres = np.array([7.498942093324539870e-01,8.659643233600640144e-01,9.999999999999980016e-01,1.154781984689456031e+00,1.333521432163321974e+00,1.539926526059490097e+00,1.778279410038920094e+00,2.053525026457140079e+00,2.371373705661659947e+00,2.738419634264360081e+00,3.162277660168379967e+00,3.651741272548380213e+00,4.216965034285819591e+00,4.869675251658620141e+00,5.623413251903479626e+00,6.493816315762099833e+00,7.498942093324560076e+00,8.659643233600640144e+00,1.000000000000000000e+01,1.154781984689457985e+01,1.333521432163323972e+01,1.539926526059490008e+01,1.778279410038922137e+01,2.053525026457139901e+01,2.371373705661660125e+01,2.738419634264360170e+01,3.162277660168379967e+01,3.651741272548380124e+01,4.216965034285819769e+01])
+diagnostic_filename_formats = [
+'%Y-%m-%d.log',
+'%Y%m%d-block.records']
 
-dp_par_hires = np.array([7.498942093324509894e-01,7.773650302387707933e-01,8.058421877614766471e-01,8.353625469578208618e-01,8.659643233600599066e-01,8.976871324473085778e-01,9.305720409296931450e-01,9.646616199111932577e-01,9.999999999999937828e-01,1.036632928437691614e+00,1.074607828321310965e+00,1.113973859994795701e+00,1.154781984689451368e+00,1.197085030495722791e+00,1.240937760751712249e+00,1.286396944936966991e+00,1.333521432163316423e+00,1.382372227357891781e+00,1.433012570236954719e+00,1.485508017172767037e+00,1.539926526059483658e+00,1.596338544287933647e+00,1.654817099943172609e+00,1.715437896342869806e+00,1.778279410038913433e+00,1.843422992409100791e+00,1.910952974970430596e+00,1.980956778550328590e+00,2.053525026457135638e+00,2.128751661796361994e+00,2.206734069084578920e+00,2.287573200318384625e+00,2.371373705661643960e+00,2.458244068920186098e+00,2.548296747979334587e+00,2.641648320386080329e+00,2.738419634264348979e+00,2.838735964758742458e+00,2.942727176209269491e+00,3.050527890267013209e+00,3.162277660168366644e+00,3.278121151393445398e+00,3.398208328942545542e+00,3.522694651473087468e+00,3.651741272548362449e+00,3.785515249258615267e+00,3.924189758484520674e+00,4.067944321083031944e+00,4.216965034285806269e+00,4.371444812611072983e+00,4.531583637600800962e+00,4.697588816706474546e+00,4.869675251658613035e+00,5.048065716667452740e+00,5.232991146814928385e+00,5.424690937011307668e+00,5.623413251903471632e+00,5.829415347136054137e+00,6.042963902381307761e+00,6.264335366568834829e+00,6.493816315762091840e+00,6.731703824144960713e+00,6.978305848598641781e+00,7.233941627366726301e+00,7.498942093324536096e+00,7.773650302387736133e+00,8.058421877614796003e+00,8.353625469578238594e+00,8.659643233600629486e+00,8.976871324473117753e+00,9.305720409296965201e+00,9.646616199111967660e+00,9.999999999999975131e+00,1.036632928437695433e+01,1.074607828321314962e+01,1.113973859994799831e+01,1.154781984689455676e+01,1.197085030495727231e+01,1.240937760751716823e+01,1.286396944936971742e+01,1.333521432163321130e+01,1.382372227357896577e+01,1.433012570236959782e+01,1.485508017172772099e+01,1.539926526059488943e+01,1.596338544287939420e+01,1.654817099943178249e+01,1.715437896342875845e+01,1.778279410038919650e+01,1.843422992409107408e+01,1.910952974970437523e+01,1.980956778550335784e+01,2.053525026457143454e+01,2.128751661796369632e+01,2.206734069084587091e+01,2.287573200318393063e+01,2.371373705661652664e+01,2.458244068920194891e+01,2.548296747979344090e+01,2.641648320386089921e+01,2.738419634264358749e+01,2.838735964758752317e+01,2.942727176209279705e+01,3.050527890267023423e+01,3.162277660168377835e+01,3.278121151393457211e+01,3.398208328942558154e+01,3.522694651473100436e+01,3.651741272548376571e+01,3.785515249258629922e+01,3.924189758484535417e+01,4.067944321083047043e+01,4.216965034285821901e+01])
+possible_sampleflow_names = [
+'pos_sampleflow.mean',
+'neg_sampleflow.mean',
+'pos_sampleflow',
+'neg_sampleflow',
+'sampleflow',
+'Flowaer']
 
-mob_ion_lowres = np.array([3.162277660168379937e-04,2.371373705661659990e-04,1.778279410038920258e-04,1.333521432163320159e-04,1.000000000000000048e-04,7.498942093324559917e-05,5.623413251903490022e-05,4.216965034285820205e-05,3.162277660168380208e-05,2.371373705661660125e-05,1.778279410038919852e-05,1.333521432163319990e-05,1.000000000000000082e-05,7.498942093324561442e-06,5.623413251903490361e-06,4.216965034285830030e-06,3.162277660168380038e-06,2.371373705661659871e-06,1.778279410038920148e-06,1.333521432163330027e-06,1.000000000000000167e-06,7.498942093324570124e-07,5.623413251903499890e-07,4.216965034285829924e-07,3.162277660168379721e-07,2.371373705661660136e-07,1.778279410038920042e-07,1.333521432163329868e-07])
+possible_temperature_names = [
+'temperature.mean',
+'temperature',
+]
 
-mob_ion_hires = np.array([3.162277660168379394e-04,2.942727176209282208e-04,2.738419634264362135e-04,2.548296747979347430e-04,2.371373705661656195e-04,2.206734069084591093e-04,2.053525026457147184e-04,1.910952974970441833e-04,1.778279410038924053e-04,1.654817099943182849e-04,1.539926526059493548e-04,1.433012570236964366e-04,1.333521432163325580e-04,1.240937760751721229e-04,1.154781984689459841e-04,1.074607828321319270e-04,1.000000000000001539e-04,9.305720409297006353e-05,8.659643233600669858e-05,8.058421877614834719e-05,7.498942093324574825e-05,6.978305848598679792e-05,6.493816315762129137e-05,6.042963902381343169e-05,5.623413251903505608e-05,5.232991146814961977e-05,4.869675251658644782e-05,4.531583637600830909e-05,4.216965034285835112e-05,3.924189758484547866e-05,3.651741272548388522e-05,3.398208328942570449e-05,3.162277660168389694e-05,2.942727176209291627e-05,2.738419634264370944e-05,2.548296747979355561e-05,2.371373705661663852e-05,2.206734069084598140e-05,2.053525026457154028e-05,1.910952974970448067e-05,1.778279410038930016e-05,1.654817099943188405e-05,1.539926526059498630e-05,1.433012570236968973e-05,1.333521432163329985e-05,1.240937760751725159e-05,1.154781984689463535e-05,1.074607828321322658e-05,1.000000000000004825e-05,9.305720409297036169e-06,8.659643233600697641e-06,8.058421877614859791e-06,7.498942093324598711e-06,6.978305848598699613e-06,6.493816315762147941e-06,6.042963902381361465e-06,5.623413251903522549e-06,5.232991146814976546e-06,4.869675251658659012e-06,4.531583637600844292e-06,4.216965034285847818e-06,3.924189758484559555e-06,3.651741272548399110e-06,3.398208328942580868e-06,3.162277660168399520e-06,2.942727176209300267e-06,2.738419634264378652e-06,2.548296747979362761e-06,2.371373705661670459e-06,2.206734069084603985e-06,2.053525026457159618e-06,1.910952974970453149e-06,1.778279410038934759e-06,1.654817099943192683e-06,1.539926526059502526e-06,1.433012570236972658e-06,1.333521432163333415e-06,1.240937760751728420e-06,1.154781984689466414e-06,1.074607828321325199e-06,1.000000000000007155e-06,9.305720409297056286e-07,8.659643233600717122e-07,8.058421877614878214e-07,7.498942093324614593e-07,6.978305848598716341e-07,6.493816315762163400e-07,6.042963902381375018e-07,5.623413251903534830e-07,5.232991146814988828e-07,4.869675251658670447e-07,4.531583637600854986e-07,4.216965034285857982e-07,3.924189758484568661e-07,3.651741272548407898e-07,3.398208328942588279e-07,3.162277660168406720e-07,2.942727176209307466e-07,2.738419634264385216e-07,2.548296747979369008e-07,2.371373705661676282e-07,2.206734069084609914e-07,2.053525026457164753e-07,1.910952974970458125e-07,1.778279410038939365e-07,1.654817099943196971e-07,1.539926526059506708e-07,1.433012570236976523e-07,1.333521432163337015e-07])
+possible_pressure_names = [
+'baro.mean',
+'baro']
+
 
 def visc(temp):
     """ Calculate viscosity of air """
@@ -129,38 +149,39 @@ def plot_sumfile(handle,v,clim=(10,100000)):
     cbar.set_label('dN/dlogDp, [cm-3]')
     return pcolorplot
 
+
+def cunn2(Dp):
+    """ Cunningham correction factor Makela et al. (1996) """
+
+    return 1.+2.*64.5/Dp*(1.246+0.420*np.exp(-0.87*Dp/(2.*64.5)))
+
+def diam_to_mob(Dp): # [Dp] = nm
+    """ Electrical mobility diameter -> electrical mobility """
+
+    e = 1.60217662e-19 # Coulomb
+    return (e*cunn2(Dp))/(3.*np.pi*1.83245e-5*Dp*1e-9)*1e4 # cm2 s-1 V-1
+
+def mob_to_diam(Zp):
+    """ Electrical mobility -> electrical mobility diameter """
+ 
+    def minimize_this(Dp,Zp): # [Dp] = nm, [Zp] = cm2 s-1 V-1
+        return np.abs(diam_to_mob(Dp)-Zp)
+    Dp0 = 0.1 # initial guess in nm
+    return minimize(minimize_this, Dp0, args=(Zp,), tol=1e-10).x[0] # nm
+
+
 def str2datenum(x):
-    """ Find yyyy[./- ]mm[./- ]dd formatted dates from filenames
-        and convert them to matlab datenum. If date not found 
-        return False """
-
-    name = os.path.split(x)[1] # Getting the file name
-    regex_match = re.search('(19|20)\d\d[- /.]{0,1}(0[1-9]|1[012])[- /.]{0,1}(0[1-9]|[12][0-9]|3[01])', name)
-    if regex_match!=None:
-        return int(datetime2datenum(pd.to_datetime(regex_match.group(0))))
-    else:
+    try:   
+        return int(datetime2datenum(pd.to_datetime(x)))
+    except:
         return False
-
-def datenum2str(x):
-    return datetime.strftime(datenum2datetime(x),'%Y%m%d')
-
-def is_it_nais_file(x,file_ending):
-    """ Determine if a NAIS data file was found or not """
-    if file_ending=='':
-      return False
-    name = os.path.split(x)[1]
-    regex_match = re.match('(19|20)\d\d[- /.]{0,1}(0[1-9]|1[012])[- /.]{0,1}(0[1-9]|[12][0-9]|3[01])'+file_ending,name)
-    if regex_match==None:
-      return False
-    else:
-      return True
 
 def nais_processor(config_file):
     """ Function that processes data from the NAIS 
     
     The function reads the raw NAIS data files from the load_path, 
     applies corrections (diffusion losses in the inlet line, conversion 
-    to standard conditions and R. Wagner's ion mode calibration) to the 
+    to standard conditions (optional) and R. Wagner's ion mode calibration) to the 
     measured number concentrations and saves the data as a University of 
     Helsinki sum-formatted number-size distribution to the save_path.
 
@@ -179,39 +200,25 @@ def nais_processor(config_file):
 
     Function arguments:
         Name of the configuration file (str)
-        Name of the database file (str)
 
     Example:
-        nais_processor('/home/user/data/nais.yml',
-                       '/home/user/data/nais.json')
+        nais_processor('/home/user/data/config.yml')
 
     """
-
-    # Ignore all warnings
     warnings.filterwarnings("ignore")
 
     # Find out today
     today = datetime.today().strftime('%Y%m%d')
+    today_datenum = str2datenum(today)
 
     # Check that the config file exists
     if os.path.isfile(config_file)==False:
-        error_msg = 'The file "%s" does not exist' % config_file
-        print(error_msg)
-        return
+        raise Exception('"%s" does not exist' % config_file)
     else:
         with open(config_file,'r') as stream:
             try:
                 config = yaml.load(stream)
                 sealevel_correction = config['sealevel_correction']
-                pressure_name = config['pressure_name']
-                temperature_name = config['temperature_name']
-                sampleflow_name = config['sampleflow_name']
-                particle_files = config['particle_files']
-                ion_files = config['ion_files']
-                diagnostic_files = config['diagnostic_files']
-                delimiter = config['delimiter']
-                inverter_reso = config['inverter_resolution']
-                model = config['model']
                 pipelength = config['inlet_length']
                 load_path = config['data_folder']
                 save_path = config['processed_folder']
@@ -219,151 +226,135 @@ def nais_processor(config_file):
                 end_date = config['end_date']
                 database = config['database_file']
             except Exception as error_msg:
-                print(error_msg)
-                return
+                raise Exception("bad configuration file")
 
     # Initialize the database
     try:
       db = TinyDB(database)
       check = Query()
-
-      # Clear all pre-existing errors
-      db.update({'error':[]},check.error.exists())
-
     except Exception as error_msg:
-        print(error_msg)
-        return
-    
+        raise Exception(error_msg)
+   
+    model = 'NAIS'
+
     # Test if the configuration information is valid
     try:
         float(pipelength)
     except:
-        error_msg = '"%s" must be a number' % pipelength
-        print(error_msg)
-        return
+        raise Exception('"%s" must be a number' % pipelength)
     if os.path.isdir(load_path)==False:
-        error_msg = 'the path "%s" does not exist' % load_path
-        print(error_msg)
-        return
+        raise Exception('"%s" does not exist' % load_path)
     if os.path.isdir(save_path)==False:
-        error_msg = 'the path "%s" does not exist' % save_path
-        print(error_msg)
-        return
+        raise Exception('"%s" does not exist' % save_path)
+
     start_datenum = str2datenum(start_date)
     end_datenum = str2datenum(end_date)
+
     if (start_datenum | end_datenum)==False:
-        error_msg = 'bad start or end date'
-        print(error_msg)
-        return
-    if (bool(ion_files) | bool(particle_files))==False:
-        error_msg = 'ion and particle file names are empty'
-        print(error_msg)
-        return
-    if sampleflow_name=='':
-        error_msg = 'sampleflow_name is empty'
-        print(error_msg)
-        return
-    if ((inverter_reso=='low') | (inverter_reso=='high'))==False:
-        error_msg = 'inverter_resolution must be "low" or "high"'
-        print(error_msg)
-        return
+        raise Exception('bad start or end date')
+
+    start_date_str = datenum2datetime(start_datenum).strftime("%Y%m%d")
+    end_date_str = datenum2datetime(end_datenum).strftime("%Y%m%d")
 
     # Convert load and save paths to absolute paths
-    load_path=os.path.abspath(load_path) + '/'
-    save_path=os.path.abspath(save_path) + '/'
+    load_path = os.path.abspath(load_path) + '/'
+    save_path = os.path.abspath(save_path) + '/'
 
-    # Search for new unprocessed raw data files in the source and put them into the database
+    # Logic to figure out the date limits
+    last_date = today if end_datenum > today_datenum else end_date
+    first_date = start_date
+
+    list_of_datetimes = pd.date_range(start = first_date,end=last_date)
+ 
+    list_of_dates = [x.strftime('%Y%m%d') for x in list_of_datetimes]
+
+    # list existing files:
+    list_of_existing_ion_files = [x['ions'] for x in db.search(check.ions.exists())]
+    list_of_existing_particle_files = [x['particles'] for x in db.search(check.particles.exists())]
+    list_of_existing_diagnostic_files = [x['diagnostics'] for x in db.search(check.diagnostics.exists())]
+        
+    #List all possible filenames in the date range for particles, ions and diagnostic files
+    for y in ion_filename_formats:
+        list_of_ion_files = [x.strftime(y) for x in list_of_datetimes]
+
+    for y in particle_filename_formats:
+        list_of_particle_files = [x.strftime(y) for x in list_of_datetimes]
+
+    for y in diagnostic_filename_formats:
+        list_of_diagnostic_files = [x.strftime(y) for x in list_of_datetimes]
+
+    # Initialize entries to the database with the timestamps
+    for x in list_of_dates:
+        if bool(db.search(check.timestamp==x)):
+            continue
+        else:
+            db.insert({'timestamp':x,'error':[]})
+
+    # Eliminate existing filenames from the lists
+    list_of_ion_missing_files = np.setdiff1d(list_of_ion_files,list_of_existing_ion_files)
+    list_of_particle_missing_files = np.setdiff1d(list_of_particle_files,list_of_existing_particle_files)
+    list_of_diagnostic_missing_files = np.setdiff1d(list_of_diagnostic_files,list_of_existing_diagnostic_files)
+    
+    # Descend into the raw data folder
     for root, dirs, files in os.walk(load_path):
-      for name in files:
-        
-        full_name = os.path.join(root, name)
-        
-        # Find ion files
-        if is_it_nais_file(full_name,ion_files)==True:
-          # Is the ion file already in the database?
-          if bool(db.search(check.ions==full_name))==True:
-            continue
-          else:
-            ion_datenum = str2datenum(full_name)
-            ion_datestr = datenum2str(ion_datenum)
-            # Is the raw file in the acceptable time range?
-            if ((ion_datenum>=start_datenum) & (ion_datenum<=end_datenum)):
-              # Raw data for that day does not exist at all
-              if bool(db.search(check.timestamp==ion_datestr))==False:
-                db.insert({'timestamp':ion_datestr, 'ions':full_name, 'error':[]})
-              # Raw data exists but not ion file
-              else:
-                db.update({'ions':full_name},check.timestamp==ion_datestr)
-            else:
-              continue
+ 
+      # Find matching files
+      ion_findex_all,ion_findex_actual = np.intersect1d(files,list_of_ion_missing_files,return_indices=True)[1:] 
+      particle_findex_all,particle_findex_actual = np.intersect1d(files,list_of_particle_missing_files,return_indices=True)[1:]
+      diagnostic_findex_all,diagnostic_findex_actual = np.intersect1d(files,list_of_diagnostic_missing_files,return_indices=True)[1:] 
 
-        # Find particle files
-        if is_it_nais_file(full_name,particle_files)==True:
-          if bool(db.search(check.particles==full_name))==True:
-            continue
-          else:
-            particle_datenum = str2datenum(full_name)
-            particle_datestr = datenum2str(particle_datenum)
-            if ((particle_datenum>=start_datenum) & (particle_datenum<=end_datenum)):
-              if bool(db.search(check.timestamp==particle_datestr))==False:
-                db.insert({'timestamp':particle_datestr, 'particles':full_name, 'error':[]})
-              else:
-                db.update({'particles':full_name},check.timestamp==particle_datestr)
-            else:
-              continue
- 
-        # Find diagnostic files
-        if is_it_nais_file(full_name,diagnostic_files)==True:
-          if bool(db.search(check.diagnostics==full_name))==True:
-            continue
-          else:
-            diagnostic_datenum = str2datenum(full_name)
-            diagnostic_datestr = datenum2str(diagnostic_datenum)
-            if ((diagnostic_datenum>=start_datenum) & (diagnostic_datenum<=end_datenum)):
-              if bool(db.search(check.timestamp==diagnostic_datestr))==False:
-                db.insert({'timestamp':diagnostic_datestr, 'diagnostics':full_name, 'error':[]})
-              else:
-                db.update({'diagnostics':full_name},check.timestamp==diagnostic_datestr)
-            else:
-              continue
- 
+      # Put the files found into the database
+      for i in range(0,len(ion_findex_all)):
+        full_name = os.path.join(root, files[ion_findex_all[i]])
+        ion_datestr = list_of_dates[ion_findex_actual[i]]
+        db.update({'ions':full_name},check.timestamp==ion_datestr)
+
+      for i in range(0,len(particle_findex_all)):
+        full_name = os.path.join(root, files[particle_findex_all[i]])
+        particle_datestr = list_of_dates[particle_findex_actual[i]]
+        db.update({'particles':full_name},check.timestamp==particle_datestr)
+
+      for i in range(0,len(ion_findex_all)):
+        full_name = os.path.join(root, files[diagnostic_findex_all[i]])
+        diagnostic_datestr = list_of_dates[diagnostic_findex_actual[i]]
+        db.update({'diagnostics':full_name},check.timestamp==diagnostic_datestr)
+
     # Define standard conditions
     temp_ref = 273.15 # K
     pres_ref = 101325.0 # Pa
-
-    # Resolve inverter resolution
-    if inverter_reso=='low':
-      dp_ion = dp_ion_lowres
-      dlogdp_ion = x2dlogx(dp_ion)
-      mob_ion = mob_ion_lowres
-      dlogmob_ion = x2dlogx(mob_ion)
-      dp_par = dp_par_lowres
-      dlogdp_par = x2dlogx(dp_par)
-    else:
-      dp_ion = dp_ion_hires
-      dlogdp_ion = x2dlogx(dp_ion)
-      mob_ion = mob_ion_hires
-      dlogmob_ion = x2dlogx(mob_ion)
-      dp_par = dp_par_hires
-      dlogdp_par = x2dlogx(dp_par)
     
-    # Iterate through the unprocessed ion data excluding today
-    for x in iter(db.search(   ~check.processed_neg_ion_file.exists()
-                             & ~check.processed_pos_ion_file.exists()
-                             & (check.timestamp!=today)
-                             & check.diagnostics.exists()   
-                             & check.ions.exists()                  )):
+    # Try to process unprocessed files or there is some error in processing
+    for x in iter(db.search( (check.error!=[]) |
+                             (check.diagnostics.exists() & 
+                             check.ions.exists() &
+                             ~check.processed_neg_ion_file.exists() &
+                             ~check.processed_pos_ion_file.exists())                             
+                           )):
 
         try:
 
-            print('processing %s' % x['ions'])
+            # A way to find out the delimiter automatically
+            with open(x['ions']) as fh:
+                line = fh.readline()
+                while line:
+                    if line[0]=='#':
+                        line = fh.readline()
+                        continue
+                    else:
+                        l = line
+                        break
+
+            result = re.search('(.)opmode',l)
+            delimiter = result.group(1)
+
+            print('processing %s' % os.path.split(x['ions'])[1])
 
             # Read the ion data
             ions = pd.read_table(x['ions'],
                                  sep=delimiter,
                                  comment='#',
+                                 error_bad_lines=False,
                                  engine='python',
-                                 #error_bad_lines=False,
                                  header=None)
 
             # Read the diagnostic data
@@ -371,30 +362,40 @@ def nais_processor(config_file):
                                     sep=delimiter,
                                     comment='#',
                                     engine='python',
-                                    #error_bad_lines=False,
+                                    error_bad_lines = False,
                                     header=None)
 
-            # Remove duplicate rows based on first column (time)
-            ions = ions.drop_duplicates(subset=None,
-                                        keep='first',
-                                        inplace=False)
+            # Remove rows with too few fields 
+            ions = ions[ions.count(1)>len(ions.columns)/3]
+            records = records[records.count(1)>len(records.columns)/3]
 
-            records = records.drop_duplicates(subset=None,
-                                              keep='first',
-                                              inplace=False)
+            # Remove duplicate rows based on first column (time)
+            ions = ions.drop_duplicates(subset=0)
+            records = records.drop_duplicates(subset=0)
 
             # Set the first row as the header and remove it from the actual data
             ions.columns = ions.iloc[0,:]
-            ions = ions.reindex(ions.index.drop(0))
-
+            ions = ions.drop(0)
             records.columns = records.iloc[0,:]
-            records = records.reindex(records.index.drop(0))
+            records = records.drop(0)
+
+            # Set the time row as index
+            ions = ions.set_index(ions.columns[0])
+            ions.index = [parse(y) for y in ions.index]
+
+            # Get the list of column headers
+            ion_columns = ions.columns
+            inverter_reso = int((len(ion_columns)-2)/4)
+     
+            mob_ion = np.array([float(re.findall(r"[-+]?\d*\.\d+|\d+",y)[0]) for y in ion_columns[2:2+inverter_reso]])
+            dp_ion = np.array([mob_to_diam(y) for y in mob_ion])
+
+            dlogdp_ion = x2dlogx(dp_ion)
+            dlogmob_ion = x2dlogx(mob_ion)
 
             # Calculate the ion number-size distribution
-            ions = ions.set_index(ions.columns[0])
-            ions.index = [parse(x) for x in ions.index]
-            neg_ions = ions.iloc[:,3:3+len(dp_ion)].astype(float).interpolate().values
-            pos_ions = ions.iloc[:,3+2*len(dp_ion):3+3*len(dp_ion)].astype(float).interpolate().values
+            neg_ions = ions.iloc[:,2:2+inverter_reso].astype(float).interpolate().values
+            pos_ions = ions.iloc[:,2+2*inverter_reso:2+3*inverter_reso].astype(float).interpolate().values
             neg_ions = neg_ions * dlogmob_ion / dlogdp_ion
             pos_ions = pos_ions * dlogmob_ion / dlogdp_ion
 
@@ -403,50 +404,57 @@ def nais_processor(config_file):
 
             # Then extract the ion records
             ion_records = records.loc['ions'].set_index(records.columns[0])
-            ion_records.index = [parse(x) for x in ion_records.index]
-            ion_records = ion_records.reindex(index=ions.index)
+            ion_records.index = [parse(y) for y in ion_records.index]            
 
+            # Match ion records to ions according to time
+            ion_records = ion_records.reindex(index=ions.index,method='nearest')
+
+            # Get the list of diagnostic parameters
             diag_params = list(records)
 
-            # Extract temperature data from the diagnostic files
+            temperature_name = ''
+            for temp_name in possible_temperature_names:
+                if temp_name in diag_params:
+                    temperature_name = temp_name
+                    break
+
+            # No temperature data, use standard conditions
             if temperature_name=='':
                 temp_ions = temp_ref*np.ones(neg_ions.shape[0])
-            elif temperature_name in diag_params:
-                temp_ions = 273.15 + ion_records[temperature_name].astype(float).interpolate().values.flatten()
+            # Read the temperature data
             else:
-                error_msg = '"%s" not found in diagnostic file' % temperature_name
-                print(error_msg)
-                db.update(add('error', [error_msg]), check.timestamp==x['timestamp'])
-                continue
+                temp_ions = 273.15 + ion_records[temperature_name].astype(float).interpolate().values.flatten()
+
+            pressure_name = ''
+            for pres_name in possible_pressure_names:
+                if pres_name in diag_params:
+                    pressure_name = pres_name
+                    break
 
             # Extract pressure data from the diagnostic files
             if pressure_name=='':
                 pres_ions = pres_ref*np.ones(neg_ions.shape[0])
-            elif pressure_name in diag_params:
-                pres_ions = 100.0 * ion_records[pressure_name].astype(float).interpolate().values.flatten()
             else:
-                error_msg = '"%s" not found in diagnostic file' % pressure_name
-                print(error_msg)
-                db.update(add('error', [error_msg]), check.timestamp==x['timestamp'])
-                continue
+                pres_ions = 100.0 * ion_records[pressure_name].astype(float).interpolate().values.flatten()
 
-            # Correct the number concentrations to standard conditions
+            # Correct the number concentrations to standard conditions (optional)
             if sealevel_correction:
                 stp_corr_ions = (pres_ref*temp_ions)/(temp_ref*pres_ions)
                 neg_ions = (stp_corr_ions*neg_ions.T).T
                 pos_ions = (stp_corr_ions*pos_ions.T).T
+
+            sampleflow_name = []
+            for flow_name in possible_sampleflow_names:
+                if flow_name in diag_params:
+                    sampleflow_name.append(flow_name)
 
             # Extract sample flow rate data from the diagnostic files
             try:
                 flow_ions = ion_records[sampleflow_name].astype(float).sum(axis=1).interpolate().values.flatten()
             except ValueError:
                 flow_ions = ion_records[sampleflow_name].astype(float).interpolate().values.flatten()
-            except Exception as error_msg:
-                print(error_msg)
-                db.update(add('error', [str(error_msg)]), check.timestamp==x['timestamp'])
-                continue
 
-            # Test if the sampleflow is in cm3/s or l/min and possibly convert to l/min
+            # Test if the sampleflow is in cm3/s (old models) or l/min and possibly convert to l/min
             if flow_ions[0]>100:
                 flow_ions = (flow_ions/1000.0) * 60.0
             else:
@@ -468,6 +476,11 @@ def nais_processor(config_file):
             roberts_corr = 0.713*dp_ion**0.120
             neg_ions = neg_ions / roberts_corr
             pos_ions = pos_ions / roberts_corr
+
+            # If all data is NaNs then skip
+            if (np.all(np.isnan(neg_ions)) | np.all(np.isnan(pos_ions))):
+                db.update(add('error', ['All ion data are NaNs']), check.timestamp==x['timestamp'])
+                continue
 
             # Integrate total ion number concentrations
             total_neg_ions = np.nansum(neg_ions*dlogdp_ion,axis=1)[np.newaxis].T
@@ -495,114 +508,147 @@ def nais_processor(config_file):
             # Update the database
             db.update({'processed_neg_ion_file': save_path+model+'n'+x['timestamp']+'nds.sum',
                        'processed_pos_ion_file': save_path+model+'p'+x['timestamp']+'nds.sum'}, check.timestamp==x['timestamp'])
-            
+            db.update({'error':[]}, check.timestamp==x['timestamp']) 
+
+            if ((time_ions[-1]-time_ions[0])<0.99):
+                db.update(add('error', ["Not full day of ion data"]), check.timestamp==x['timestamp'])
+           
         except Exception as error_msg:
-            print(error_msg)
             db.update(add('error', [str(error_msg)]), check.timestamp==x['timestamp'])
             continue
  
     # Iterate through the unprocessed particle data excluding today
-    for x in iter(db.search(   ~check.processed_neg_particle_file.exists()
-                             & ~check.processed_pos_particle_file.exists()
-                             & (check.timestamp!=today)
-                             & check.diagnostics.exists()   
-                             & check.particles.exists()      )):
+    for x in iter(db.search( (check.error!=[]) |
+                             (check.diagnostics.exists() & 
+                             check.particles.exists() &
+                             ~check.processed_neg_particle_file.exists() &
+                             ~check.processed_pos_particle_file.exists())                             
+                           )):
 
         try:
 
-            print('processing %s' % x['particles'])
+            # A way to find out the delimiter automatically
+            with open(x['particles']) as fh:
+                line = fh.readline()
+                while line:
+                    if line[0]=='#':
+                        line = fh.readline()
+                        continue
+                    else:
+                        l = line
+                        break
+
+            result = re.search('(.)opmode',l)
+            delimiter = result.group(1)
+
+            print('processing %s' % os.path.split(x['particles'])[1])
  
-            # Read the particle data 
+            # Read the particle data
             particles = pd.read_table(x['particles'],
+                                      header=None,
                                       sep=delimiter,
                                       comment='#',
                                       engine='python',
-                                      #error_bad_lines=False,
-                                      header=None)
+                                      error_bad_lines=False)
 
             # Read the diagnostic data
             records = pd.read_table(x['diagnostics'],
+                                    header=None,
                                     sep=delimiter,
                                     comment='#',
                                     engine='python',
-                                    #error_bad_lines=False,
-                                    header=None)
+                                    error_bad_lines=False)
 
-            # Remove duplicate rows based on first column (time)
-            particles = particles.drop_duplicates(subset = None,
-                                                  keep='first',
-                                                  inplace=False)
+            # Remove rows with too few fields 
+            particles = particles[particles.count(1)>len(particles.columns)/3]
+            records = records[records.count(1)>len(records.columns)/3]
 
-            records = records.drop_duplicates(subset=None,
-                                              keep='first',
-                                              inplace=False)
+            # Remove duplicate rows based on first row
+            particles = particles.drop_duplicates(subset=0)
+            records = records.drop_duplicates(subset=0)
 
             # Set the first row as the header and remove it from the actual data
             particles.columns = particles.iloc[0,:]
-            particles = particles.reindex(particles.index.drop(0))
-
+            particles = particles.drop(0)
             records.columns = records.iloc[0,:]
-            records = records.reindex(records.index.drop(0))
+            records = records.drop(0)
 
-            # Calculate the particle number-size distribution
             particles = particles.set_index(particles.columns[0])
-            particles.index = [parse(x) for x in particles.index]
-            neg_particles = particles.iloc[:,3:3+len(dp_par)].astype(float).interpolate().values
-            pos_particles = particles.iloc[:,3+2*len(dp_par):3+3*len(dp_par)].astype(float).interpolate().values
+            particles.index = [parse(y) for y in particles.index]
+
+            # Get the list of diagnostic parameters
+            particle_columns = particles.columns
+            inverter_reso = int((len(particle_columns)-2)/4)
+     
+            dp_par = 2.0*np.array([float(re.findall(r"[-+]?\d*\.\d+|\d+",t)[0]) for t in particle_columns[2:2+inverter_reso]])
+            dlogdp_par = x2dlogx(dp_par)
+
+            neg_particles = particles.iloc[:,2:2+inverter_reso].astype(float).interpolate().values
+            pos_particles = particles.iloc[:,2+2*inverter_reso:2+3*inverter_reso].astype(float).interpolate().values
 
             # Index records by the operation mode
             records = records.set_index('opmode')
 
             # And extract the particle records
             particle_records = records.loc['particles'].set_index(records.columns[0])
-            particle_records.index = [parse(x) for x in particle_records.index]
-            particle_records = particle_records.reindex(index=particles.index)
+            particle_records.index = [parse(y) for y in particle_records.index]
+
+            # Match the times in records to those in spectra
+            particle_records = particle_records.reindex(index=particles.index, method='nearest')
 
             # List all variable names in the diagnostic file
             diag_params = list(records)
 
-            # Temperature
+            temperature_name = ''
+            for temp_name in possible_temperature_names:
+                if temp_name in diag_params:
+                    temperature_name = temp_name
+                    break
+
+            # No temperature data, use standard conditions
             if temperature_name=='':
                 temp_particles = temp_ref*np.ones(neg_particles.shape[0])
-            elif temperature_name in diag_params:
-                temp_particles = 273.15 + particle_records[temperature_name].astype(float).interpolate().values.flatten()
+            # Read the temperature data
             else:
-                err_msg = '"%s" not found in diagnostic file' % temperature_name
-                print(err_msg)
-                db.update(add('error', [err_msg]), check.timestamp==x['timestamp'])
-                continue
+                temp_particles = 273.15 + particle_records[temperature_name].astype(float).interpolate().values.flatten()
 
-            # Pressure
+
+            pressure_name = ''
+            for pres_name in possible_pressure_names:
+                if pres_name in diag_params:
+                    pressure_name = pres_name
+                    break           
+
+            # Extract pressure data from the diagnostic files
             if pressure_name=='':
                 pres_particles = pres_ref*np.ones(neg_particles.shape[0])
-            elif pressure_name in diag_params:
-                pres_particles = 100.0*particle_records[pressure_name].astype(float).interpolate().values.flatten()
             else:
-                error_msg = '"%s" not found in diagnostic file' % pressure_name
-                print(error_msg)
-                db.update(add('error', [error_msg]), check.timestamp==x['timestamp'])
-                continue
+                pres_particles = 100.0 * particle_records[pressure_name].astype(float).interpolate().values.flatten()
 
+
+            # Correct the number concentrations to standard conditions (optional)
             if sealevel_correction:
                 stp_corr_particles = (pres_ref*temp_particles)/(temp_ref*pres_particles)
                 neg_particles = (stp_corr_particles*neg_particles.T).T
                 pos_particles = (stp_corr_particles*pos_particles.T).T
 
-            # Sampleflow
+            sampleflow_name = []
+            for flow_name in possible_sampleflow_names:
+                if flow_name in diag_params:
+                    sampleflow_name.append(flow_name)
+
+            # Extract sample flow rate data from the diagnostic files
             try:
                 flow_particles = particle_records[sampleflow_name].astype(float).sum(axis=1).interpolate().values.flatten()
             except ValueError:
                 flow_particles = particle_records[sampleflow_name].astype(float).interpolate().values.flatten()
-            except Exception as error_msg:
-                print(error_msg)
-                db.update(add('error', [str(error_msg)]), check.timestamp==x['timestamp'])
-                continue
 
-            # Test if the sampleflow is in cm3/s or l/min and convert to l/min
+            # Test if the sampleflow is in cm3/s (old models) or l/min and possibly convert to l/min
             if flow_particles[0]>100:
                 flow_particles = (flow_particles/1000.0) * 60.0
             else:
                 pass
+
 
             throughput_particles = np.zeros(neg_particles.shape)
             for j in range(0,throughput_particles.shape[0]):
@@ -614,6 +660,14 @@ def nais_processor(config_file):
 
             neg_particles = neg_particles / throughput_particles
             pos_particles = pos_particles / throughput_particles
+
+
+            # If all data is NaNs then skip
+            if (np.all(np.isnan(neg_particles)) | np.all(np.isnan(pos_particles))):
+                error_msg = 'All particle data are NaNs'
+                print(error_msg)
+                db.update(add('error', [error_msg]), check.timestamp==x['timestamp'])
+                continue
 
             # Integrate total number concentrations
             total_neg_particles = np.nansum(neg_particles*dlogdp_par,axis=1)[np.newaxis].T
@@ -644,51 +698,47 @@ def nais_processor(config_file):
             # Update the database
             db.update({'processed_neg_particle_file': save_path+model+'n'+x['timestamp']+'np.sum',
                        'processed_pos_particle_file': save_path+model+'p'+x['timestamp']+'np.sum'}, check.timestamp==x['timestamp'])
-            
+            db.update({'error':[]},check.timestamp==x['timestamp'])
+
+            if ((time_particles[-1]-time_particles[0])<0.99):
+                db.update(add('error', ["Not full day of particle data"]), check.timestamp==x['timestamp'])
+ 
         except Exception as error_msg:
-            print(error_msg) 
             db.update(add('error',[str(error_msg)]),check.timestamp==x['timestamp'])
             continue
+
 
 def nais_plotter(config_file):
     """ Function to plot the processed NAIS data """
 
     warnings.filterwarnings("ignore")
 
-    today = datetime.today().strftime('%Y%m%d')
-
     # Check that config file exists
     if os.path.isfile(config_file)==False:
-        error_msg = 'The file "%s" does not exist' % config_file
-        print(error_msg)
-        return
+        raise Exception('"%s" does not exist' % config_file)
     else:
       # Read from the configuration file
       with open(config_file,'r') as stream:
           try:
               config = yaml.load(stream)
-              model = config['model']
               location = config['location']
               fig_path = config['figure_folder']
               database = config['database_file']
           except Exception as error_msg:
-              print(error_msg)
-              return
+              raise Exception(error_msg)
 
     # Test if figure path exists
     if os.path.isdir(fig_path)==False:
-        error_msg = 'the path "%s" does not exist' % fig_path
-        print(error_msg)
-        return
+        raise Exception('"%s" does not exist' % fig_path)
     # Test if the database file does not exist
     if os.path.isfile(database)==False:
-        error_msg = 'The file "%s" does not exist' % database
-        print(error_msg)
-        return
+        raise Exception('"%s" does not exist' % database)
     # Otherwise initialize the database
     else:
-      db = TinyDB(database)
-      check = Query()
+        db = TinyDB(database)
+        check = Query()
+
+    model='NAIS'
 
     fig_path = os.path.abspath(fig_path) + '/'
 
@@ -704,11 +754,13 @@ def nais_plotter(config_file):
                          'legend.fontsize': fontsize})
 
     # Iterate through the unprocessed ion data excluding today
-    for x in iter(db.search(    check.processed_neg_ion_file.exists()   
-                              & check.processed_pos_ion_file.exists()
-                              & ~check.ion_figure.exists()               )):
-
-
+    for x in iter(db.search(    (~check.ion_figure.exists() &
+                                 check.processed_neg_ion_file.exists() &
+                                 check.processed_pos_ion_file.exists()) |
+                                 (check.ion_figure.exists() &
+                                 (check.error!=[])) )):
+    
+           
         try:
 
             print('Plotting %s and %s' % (x['processed_neg_ion_file'],x['processed_pos_ion_file']))
@@ -736,14 +788,16 @@ def nais_plotter(config_file):
             plt.close()
 
         except Exception as error_msg:
-            print(error_msg) 
             db.update(add('error',[str(error_msg)]), check.timestamp==x['timestamp'])
             continue
 
-    for x in iter(db.search(    check.processed_neg_particle_file.exists()
-                              & check.processed_pos_particle_file.exists()
-                              & ~check.particle_figure.exists()             )):
 
+    for x in iter(db.search(    (~check.particle_figure.exists() &
+                                 check.processed_neg_particle_file.exists() &
+                                 check.processed_pos_particle_file.exists()) |
+                                 (check.particle_figure.exists() &
+                                 (check.error!=[])) )):
+ 
         try:
 
             print('Plotting %s and %s' % (x['processed_neg_particle_file'],x['processed_pos_particle_file']))
@@ -771,7 +825,6 @@ def nais_plotter(config_file):
             plt.close()
 
         except Exception as error_msg:
-            print(error_msg) 
             db.update(add('error',[str(error_msg)]), check.timestamp==x['timestamp'])
             continue
 
