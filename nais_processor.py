@@ -73,6 +73,7 @@ models = [
 'nais-5-11',
 'nais-5-12']
 
+models.sort()
 
 def visc(temp):
     """ Calculate viscosity of air """
