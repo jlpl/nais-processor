@@ -1,3 +1,2 @@
-copy.sh
-nais_processor.pyc
+*.pyc
 __pycache__
