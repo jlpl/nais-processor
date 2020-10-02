@@ -29,6 +29,9 @@ diagnostic_filename_formats = [
 '%Y-%m-%d.log',
 '%Y%m%d-block.records']
 
+log_filename_formats = [
+'%Y%m%d.log']
+
 possible_sampleflow_names = [
 'pos_sampleflow.mean',
 'neg_sampleflow.mean',
@@ -45,6 +48,30 @@ possible_temperature_names = [
 possible_pressure_names = [
 'baro.mean',
 'baro']
+
+models = [
+'nais1',
+'nais2',
+'nais5',
+'nais12',
+'nais14',
+'nais15',
+'nais18',
+'nais26',
+'nais-4-3',
+'nais-4-9',
+'nais-5-1',
+'nais-5-2',
+'nais-5-3',
+'nais-5-4',
+'nais-5-5',
+'nais-5-6',
+'nais-5-7',
+'nais-5-8',
+'nais-5-9',
+'nais-5-10',
+'nais-5-11',
+'nais-5-12']
 
 
 def visc(temp):
@@ -176,6 +203,32 @@ def str2datenum(x):
     except:
         return False
 
+def find_delimiter(fn):
+    with open(fn) as f:
+        line = f.readline()
+        while line:
+            if line[0]=='#':
+                line = f.readline()
+                continue
+            else:
+                l = line
+                break
+    result = re.search('(.)opmode',l)
+    delimiter = result.group(1)
+    return delimiter
+
+def search_model(fn):
+    with open(fn) as f:
+        text = f.read()
+        matches = []
+        model = 'NAIS'
+        for x in models:
+            matches.append(re.findall(x,text,re.IGNORECASE))
+        for x in matches:
+            if x!=[]:
+                model=x[0]
+    return model.upper()
+ 
 def nais_processor(config_file):
     """ Function that processes data from the NAIS 
     
@@ -235,8 +288,6 @@ def nais_processor(config_file):
     except Exception as error_msg:
         raise Exception(error_msg)
    
-    model = 'NAIS'
-
     # Test if the configuration information is valid
     try:
         float(pipelength)
@@ -272,7 +323,8 @@ def nais_processor(config_file):
     list_of_existing_ion_files = [x['ions'] for x in db.search(check.ions.exists())]
     list_of_existing_particle_files = [x['particles'] for x in db.search(check.particles.exists())]
     list_of_existing_diagnostic_files = [x['diagnostics'] for x in db.search(check.diagnostics.exists())]
-        
+    list_of_existing_log_files = [x['logs'] for x in db.search(check.logs.exists())]    
+
     #List all possible filenames in the date range for particles, ions and diagnostic files
     for y in ion_filename_formats:
         list_of_ion_files = [x.strftime(y) for x in list_of_datetimes]
@@ -282,6 +334,9 @@ def nais_processor(config_file):
 
     for y in diagnostic_filename_formats:
         list_of_diagnostic_files = [x.strftime(y) for x in list_of_datetimes]
+
+    for y in log_filename_formats:
+        list_of_log_files = [x.strftime(y) for x in list_of_datetimes]
 
     # Initialize entries to the database with the timestamps
     for x in list_of_dates:
@@ -294,7 +349,8 @@ def nais_processor(config_file):
     list_of_ion_missing_files = np.setdiff1d(list_of_ion_files,list_of_existing_ion_files)
     list_of_particle_missing_files = np.setdiff1d(list_of_particle_files,list_of_existing_particle_files)
     list_of_diagnostic_missing_files = np.setdiff1d(list_of_diagnostic_files,list_of_existing_diagnostic_files)
-    
+    list_of_log_missing_files = np.setdiff1d(list_of_log_files,list_of_existing_log_files)
+
     # Descend into the raw data folder
     for root, dirs, files in os.walk(load_path):
  
@@ -302,6 +358,7 @@ def nais_processor(config_file):
       ion_findex_all,ion_findex_actual = np.intersect1d(files,list_of_ion_missing_files,return_indices=True)[1:] 
       particle_findex_all,particle_findex_actual = np.intersect1d(files,list_of_particle_missing_files,return_indices=True)[1:]
       diagnostic_findex_all,diagnostic_findex_actual = np.intersect1d(files,list_of_diagnostic_missing_files,return_indices=True)[1:] 
+      log_findex_all,log_findex_actual = np.intersect1d(files,list_of_log_missing_files,return_indices=True)[1:]
 
       # Put the files found into the database
       for i in range(0,len(ion_findex_all)):
@@ -314,10 +371,16 @@ def nais_processor(config_file):
         particle_datestr = list_of_dates[particle_findex_actual[i]]
         db.update({'particles':full_name},check.timestamp==particle_datestr)
 
-      for i in range(0,len(ion_findex_all)):
+      for i in range(0,len(diagnostic_findex_all)):
         full_name = os.path.join(root, files[diagnostic_findex_all[i]])
         diagnostic_datestr = list_of_dates[diagnostic_findex_actual[i]]
         db.update({'diagnostics':full_name},check.timestamp==diagnostic_datestr)
+
+      for i in range(0,len(log_findex_all)):
+        full_name = os.path.join(root, files[log_findex_all[i]])
+        log_datestr = list_of_dates[log_findex_actual[i]]
+        db.update({'logs':full_name},check.timestamp==log_datestr)
+
 
     # Define standard conditions
     temp_ref = 273.15 # K
@@ -333,19 +396,16 @@ def nais_processor(config_file):
 
         try:
 
-            # A way to find out the delimiter automatically
-            with open(x['ions']) as fh:
-                line = fh.readline()
-                while line:
-                    if line[0]=='#':
-                        line = fh.readline()
-                        continue
-                    else:
-                        l = line
-                        break
 
-            result = re.search('(.)opmode',l)
-            delimiter = result.group(1)
+            # search for nais model
+            if bool(db.search((check.timestamp==x['timestamp']) 
+                    & check.logs.exists())):
+                model = search_model(x['logs'])
+            if model=='NAIS':
+                model = search_model(x['ions'])
+
+            # search for delimiter
+            delimiter = find_delimiter(x['ions'])
 
             print('processing %s' % os.path.split(x['ions'])[1])
 
@@ -527,19 +587,15 @@ def nais_processor(config_file):
 
         try:
 
-            # A way to find out the delimiter automatically
-            with open(x['particles']) as fh:
-                line = fh.readline()
-                while line:
-                    if line[0]=='#':
-                        line = fh.readline()
-                        continue
-                    else:
-                        l = line
-                        break
+            # search for nais model
+            if bool(db.search((check.timestamp==x['timestamp']) 
+                    & check.logs.exists())):
+                model = search_model(x['logs'])
+            if model=='NAIS':
+                model = search_model(x['particles'])
 
-            result = re.search('(.)opmode',l)
-            delimiter = result.group(1)
+            # find delimiter
+            delimiter=find_delimiter(x['particles'])
 
             print('processing %s' % os.path.split(x['particles'])[1])
  
@@ -738,8 +794,6 @@ def nais_plotter(config_file):
         db = TinyDB(database)
         check = Query()
 
-    model='NAIS'
-
     fig_path = os.path.abspath(fig_path) + '/'
 
     plt.style.use('dark_background')
@@ -763,10 +817,13 @@ def nais_plotter(config_file):
            
         try:
 
-            print('Plotting %s and %s' % (x['processed_neg_ion_file'],x['processed_pos_ion_file']))
+            print('Plotting %s and %s' % (os.path.split(x['processed_neg_ion_file'])[1],
+                                          os.path.split(x['processed_pos_ion_file'])[1]))
 
             pos_ion_data = np.loadtxt(x['processed_pos_ion_file'])
             neg_ion_data = np.loadtxt(x['processed_neg_ion_file'])
+
+            model = re.findall('(.*)p[0-9]',os.path.split(x['processed_pos_ion_file'])[1])[0]
 
             fig,ax = plt.subplots(2,1,figsize=(7,7.5),dpi=100)
             ax = ax.flatten()
@@ -800,10 +857,13 @@ def nais_plotter(config_file):
  
         try:
 
-            print('Plotting %s and %s' % (x['processed_neg_particle_file'],x['processed_pos_particle_file']))
+            print('Plotting %s and %s' % (os.path.split(x['processed_neg_particle_file'])[1],
+                                          os.path.split(x['processed_pos_particle_file'])[1]))
 
             pos_particle_data = np.loadtxt(x['processed_pos_particle_file'])
             neg_particle_data = np.loadtxt(x['processed_neg_particle_file'])
+
+            model = re.findall('(.*)p[0-9]',os.path.split(x['processed_pos_particle_file'])[1])[0]
 
             fig,ax = plt.subplots(2,1,figsize=(7,7.5),dpi=100)
             ax = ax.flatten()
