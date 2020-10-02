@@ -44,4 +44,8 @@ nais_plotter('config.yml')
 - For continuous measurements choose `end_date` in distant future. The NAIS creates a new file once a day, so run `process.py` once a day.
 - The locations of raw files, processed files and figures as well as possible errors during processing are written in the `database_file`. Inspect the database with `jq` and query with `tinydb`.
 
+## License
+
+This project is licensed under the terms of the GNU GPLv3.
+
 
