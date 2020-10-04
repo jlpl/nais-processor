@@ -14,7 +14,40 @@ import sys
 from dateutil.parser import parse
 from tinydb import TinyDB, Query
 from tinydb.operations import add
-from scipy.optimize import minimize
+
+# Fixed diameter and mobility bins
+dp_ion = np.array([7.949610066873187275e-01,9.181737924552214603e-01,1.060513600503926179e+00,1.224959679823698799e+00,1.414958699738506631e+00,1.634499249798819331e+00,1.888198514085806856e+00,2.181403433339687226e+00,2.520308747865528165e+00,2.912095102815642989e+00,3.365090891236600878e+00,3.888962384293289887e+00,4.494937535166431353e+00,5.196070414640996837e+00,6.007554438162747701e+00,6.947095098447752193e+00,8.035355151375323857e+00,9.296489193192451594e+00,1.075878902024538242e+01,1.245546773082500103e+01,1.442561898219513949e+01,1.671539984850161886e+01,1.937950186998520152e+01,2.248299804137784363e+01,2.610368545677439300e+01,3.033508982931992648e+01,3.529036394466827886e+01,4.110740875515996606e+01])
+dp_par = np.array([7.498942093324539870e-01,8.659643233600640144e-01,9.999999999999980016e-01,1.154781984689456031e+00,1.333521432163321974e+00,1.539926526059490097e+00,1.778279410038920094e+00,2.053525026457140079e+00,2.371373705661659947e+00,2.738419634264360081e+00,3.162277660168379967e+00,3.651741272548380213e+00,4.216965034285819591e+00,4.869675251658620141e+00,5.623413251903479626e+00,6.493816315762099833e+00,7.498942093324560076e+00,8.659643233600640144e+00,1.000000000000000000e+01,1.154781984689457985e+01,1.333521432163323972e+01,1.539926526059490008e+01,1.778279410038922137e+01,2.053525026457139901e+01,2.371373705661660125e+01,2.738419634264360170e+01,3.162277660168379967e+01,3.651741272548380124e+01,4.216965034285819769e+01])
+mob_ion = np.array([3.162277660168379937e-04,2.371373705661659990e-04,1.778279410038920258e-04,1.333521432163320159e-04,1.000000000000000048e-04,7.498942093324559917e-05,5.623413251903490022e-05,4.216965034285820205e-05,3.162277660168380208e-05,2.371373705661660125e-05,1.778279410038919852e-05,1.333521432163319990e-05,1.000000000000000082e-05,7.498942093324561442e-06,5.623413251903490361e-06,4.216965034285830030e-06,3.162277660168380038e-06,2.371373705661659871e-06,1.778279410038920148e-06,1.333521432163330027e-06,1.000000000000000167e-06,7.498942093324570124e-07,5.623413251903499890e-07,4.216965034285829924e-07,3.162277660168379721e-07,2.371373705661660136e-07,1.778279410038920042e-07,1.333521432163329868e-07])*1e4
+
+# Some other values calculated from the fixed bins
+mob_ion_geomeans=np.array([2.73841963e-04, 2.05352503e-04, 1.53992653e-04, 1.15478198e-04,
+       8.65964323e-05, 6.49381632e-05, 4.86967525e-05, 3.65174127e-05,
+       2.73841963e-05, 2.05352503e-05, 1.53992653e-05, 1.15478198e-05,
+       8.65964323e-06, 6.49381632e-06, 4.86967525e-06, 3.65174127e-06,
+       2.73841963e-06, 2.05352503e-06, 1.53992653e-06, 1.15478198e-06,
+       8.65964323e-07, 6.49381632e-07, 4.86967525e-07, 3.65174127e-07,
+       2.73841963e-07, 2.05352503e-07, 1.53992653e-07])*1e4
+dp_par_geomeans=np.array([ 0.80584219,  0.93057204,  1.07460783,  1.24093776,  1.43301257,
+        1.6548171 ,  1.91095297,  2.20673407,  2.54829675,  2.94272718,
+        3.39820833,  3.92418976,  4.53158364,  5.23299115,  6.0429639 ,
+        6.97830585,  8.05842188,  9.30572041, 10.74607828, 12.40937761,
+       14.3301257 , 16.548171  , 19.10952975, 22.06734069, 25.48296748,
+       29.42727176, 33.98208329, 39.24189758])
+dlogmob_ion=np.array([0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+       0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+       0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+       0.125])
+dlogdp_ion=np.array([0.06257907, 0.06258521, 0.06259845, 0.06261376, 0.06263147,
+       0.06265194, 0.06267563, 0.06270305, 0.06273478, 0.06277153,
+       0.06281409, 0.06286343, 0.06292064, 0.06298703, 0.06306411,
+       0.06315368, 0.06325786, 0.06337916, 0.06352054, 0.06368553,
+       0.06387836, 0.06410408, 0.06436873, 0.06467961, 0.06504553,
+       0.06547715, 0.06598741, 0.06626396])
+dlogdp_par=np.array([0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
+       0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
+       0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
+       0.0625, 0.0625, 0.0625, 0.0625, 0.0625])
 
 # All possible names and naming formats encountered in current NAIS data files
 ion_filename_formats = [
@@ -28,9 +61,6 @@ particle_filename_formats = [
 diagnostic_filename_formats = [
 '%Y-%m-%d.log',
 '%Y%m%d-block.records']
-
-log_filename_formats = [
-'%Y%m%d.log']
 
 possible_sampleflow_names = [
 'pos_sampleflow.mean',
@@ -49,31 +79,6 @@ possible_pressure_names = [
 'baro.mean',
 'baro']
 
-models = [
-'nais1',
-'nais2',
-'nais5',
-'nais12',
-'nais14',
-'nais15',
-'nais18',
-'nais26',
-'nais-4-3',
-'nais-4-9',
-'nais-5-1',
-'nais-5-2',
-'nais-5-3',
-'nais-5-4',
-'nais-5-5',
-'nais-5-6',
-'nais-5-7',
-'nais-5-8',
-'nais-5-9',
-'nais-5-10',
-'nais-5-11',
-'nais-5-12']
-
-models.sort()
 
 def visc(temp):
     """ Calculate viscosity of air """
@@ -118,18 +123,18 @@ def tubeloss(dpp,pflow,plength,temp,press):
                     *np.exp(-22.3*rmuu[i])+0.032*np.exp(-57.*rmuu[i])
     return pene
 
-def x2dlogx(x):
-    """ Calculate log-differences for monotonically
-    increasing or decreasing vector x """
-
-    logx = np.log10(x)
-    logx_mid = (logx[1:] + logx[:-1])/2.0 
-    logx_mid_first_value = logx[0] + (logx[0] - logx_mid[0])
-    logx_mid_last_value  = logx[-1] - (logx_mid[-1] - logx[-1])
-    logx_mid = np.insert(logx_mid,0,logx_mid_first_value)
-    logx_mid = np.append(logx_mid,logx_mid_last_value)
-    dlogx = np.abs(np.diff(logx_mid))
-    return dlogx
+#def x2dlogx(x):
+#    """ Calculate log-differences for monotonically
+#    increasing or decreasing vector x """
+#
+#    logx = np.log10(x)
+#    logx_mid = (logx[1:] + logx[:-1])/2.0 
+#    logx_mid_first_value = logx[0] + (logx[0] - logx_mid[0])
+#    logx_mid_last_value  = logx[-1] - (logx_mid[-1] - logx[-1])
+#    logx_mid = np.insert(logx_mid,0,logx_mid_first_value)
+#    logx_mid = np.append(logx_mid,logx_mid_last_value)
+#    dlogx = np.abs(np.diff(logx_mid))
+#    return dlogx
 
 def datetime2datenum(dt):
     """ Convert from python datetime to matlab datenum """
@@ -140,12 +145,12 @@ def datetime2datenum(dt):
            / (24.0 * 60.0 * 60.0)
     return mdn.toordinal() + frac
 
-def datenum2datetime(matlab_datenum):
-    """ Convert from matlab datenum to python datetime """
-
-    return datetime.fromordinal(int(matlab_datenum)) \
-    + timedelta(days=matlab_datenum%1) \
-    - timedelta(days = 366)
+#def datenum2datetime(matlab_datenum):
+#    """ Convert from matlab datenum to python datetime """
+#
+#    return datetime.fromordinal(int(matlab_datenum)) \
+#    + timedelta(days=matlab_datenum%1) \
+#    - timedelta(days = 366)
 
 def plot_sumfile(handle,v,clim=(10,100000)):
     """ Plot UHEL's sum-formatted aerosol number-size distribution """
@@ -177,33 +182,6 @@ def plot_sumfile(handle,v,clim=(10,100000)):
     cbar.set_label('dN/dlogDp, [cm-3]')
     return pcolorplot
 
-
-def cunn2(Dp):
-    """ Cunningham correction factor Makela et al. (1996) """
-
-    return 1.+2.*64.5/Dp*(1.246+0.420*np.exp(-0.87*Dp/(2.*64.5)))
-
-def diam_to_mob(Dp): # [Dp] = nm
-    """ Electrical mobility diameter -> electrical mobility """
-
-    e = 1.60217662e-19 # Coulomb
-    return (e*cunn2(Dp))/(3.*np.pi*1.83245e-5*Dp*1e-9)*1e4 # cm2 s-1 V-1
-
-def mob_to_diam(Zp):
-    """ Electrical mobility -> electrical mobility diameter """
- 
-    def minimize_this(Dp,Zp): # [Dp] = nm, [Zp] = cm2 s-1 V-1
-        return np.abs(diam_to_mob(Dp)-Zp)
-    Dp0 = 0.1 # initial guess in nm
-    return minimize(minimize_this, Dp0, args=(Zp,), tol=1e-10).x[0] # nm
-
-
-def str2datenum(x):
-    try:   
-        return int(datetime2datenum(pd.to_datetime(x)))
-    except:
-        return False
-
 def find_delimiter(fn):
     with open(fn) as f:
         line = f.readline()
@@ -218,18 +196,37 @@ def find_delimiter(fn):
     delimiter = result.group(1)
     return delimiter
 
-def search_model(fn):
-    with open(fn) as f:
-        text = f.read()
-        matches = []
-        model = 'NAIS'
-        for x in models:
-            matches.append(re.findall(x,text,re.IGNORECASE))
-        for x in matches:
-            if x!=[]:
-                model=x[0]
-    return model.upper()
- 
+def average_mob(y,h):
+
+    data = np.nan*np.ones((y.shape[0],len(mob_ion)))
+
+    for i in range(0,len(mob_ion_geomeans)):
+        if i==0:
+            y_block = y[:,h>mob_ion_geomeans[i]]
+        elif i==(len(mob_ion_geomeans)-1):
+            y_block = y[:,h<=mob_ion_geomeans[i]]
+        else:
+            y_block = y[:,((h>mob_ion_geomeans[i]) & (h<=mob_ion_geomeans[i-1]))]
+        data[:,i] = np.nanmean(y_block,axis=1)
+        
+    return data
+
+def average_dp(y,h):
+
+    data = np.nan*np.ones((y.shape[0],len(dp_par)))
+
+    for i in range(0,len(dp_par_geomeans)):
+        if i==0:
+            y_block = y[:,h<dp_par_geomeans[i]]
+        elif i==(len(dp_par_geomeans)-1):
+            y_block = y[:,h>=dp_par_geomeans[i]]
+        else:
+            y_block = y[:,((h<dp_par_geomeans[i]) & (h>=dp_par_geomeans[i-1]))]
+        data[:,i] = np.nanmean(y_block,axis=1)
+
+    return data
+
+
 def nais_processor(config_file):
     """ Function that processes data from the NAIS 
     
@@ -262,8 +259,8 @@ def nais_processor(config_file):
     warnings.filterwarnings("ignore")
 
     # Find out today
-    today = datetime.today().strftime('%Y%m%d')
-    today_datenum = str2datenum(today)
+    today_dt = datetime.today()
+    today = today_dt.strftime('%Y%m%d')
 
     # Check that the config file exists
     if os.path.isfile(config_file)==False:
@@ -272,13 +269,20 @@ def nais_processor(config_file):
         with open(config_file,'r') as stream:
             try:
                 config = yaml.load(stream)
-                sealevel_correction = config['sealevel_correction']
                 pipelength = config['inlet_length']
                 load_path = config['data_folder']
                 save_path = config['processed_folder']
                 start_date = config['start_date']
                 end_date = config['end_date']
                 database = config['database_file']
+                if 'pipelength'in config:
+                    pipelength = config['pipelength']
+                else:
+                    pipelength=0.0
+                if 'sealevel_correction' in config:
+                    sealevel_correction = config['sealevel_correction']
+                else:
+                    sealevel_correction = False
             except Exception as error_msg:
                 raise Exception("bad configuration file")
 
@@ -294,37 +298,37 @@ def nais_processor(config_file):
         float(pipelength)
     except:
         raise Exception('"%s" must be a number' % pipelength)
-    if os.path.isdir(load_path)==False:
+    if not os.path.exists(load_path):
         raise Exception('"%s" does not exist' % load_path)
-    if os.path.isdir(save_path)==False:
-        raise Exception('"%s" does not exist' % save_path)
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    try:
+       start_dt = pd.to_datetime(start_date)
+       end_dt = pd.to_datetime(end_date)
+    except:
+       raise Exception('bad start_date or end_date')
 
-    start_datenum = str2datenum(start_date)
-    end_datenum = str2datenum(end_date)
+    model = 'NAIS'
 
-    if (start_datenum | end_datenum)==False:
-        raise Exception('bad start or end date')
-
-    start_date_str = datenum2datetime(start_datenum).strftime("%Y%m%d")
-    end_date_str = datenum2datetime(end_datenum).strftime("%Y%m%d")
+    start_date_str = start_dt.strftime("%Y%m%d")
+    end_date_str = end_dt.strftime("%Y%m%d")
 
     # Convert load and save paths to absolute paths
     load_path = os.path.abspath(load_path) + '/'
     save_path = os.path.abspath(save_path) + '/'
 
     # Logic to figure out the date limits
-    last_date = today if end_datenum > today_datenum else end_date
+    last_date = today if end_dt > today_dt else end_dt
     first_date = start_date
 
-    list_of_datetimes = pd.date_range(start = first_date,end=last_date)
- 
+    # Make a list of dates
+    list_of_datetimes = pd.date_range(start=first_date, end=last_date)
     list_of_dates = [x.strftime('%Y%m%d') for x in list_of_datetimes]
 
     # list existing files:
     list_of_existing_ion_files = [x['ions'] for x in db.search(check.ions.exists())]
     list_of_existing_particle_files = [x['particles'] for x in db.search(check.particles.exists())]
     list_of_existing_diagnostic_files = [x['diagnostics'] for x in db.search(check.diagnostics.exists())]
-    list_of_existing_log_files = [x['logs'] for x in db.search(check.logs.exists())]    
 
     #List all possible filenames in the date range for particles, ions and diagnostic files
     for y in ion_filename_formats:
@@ -335,9 +339,6 @@ def nais_processor(config_file):
 
     for y in diagnostic_filename_formats:
         list_of_diagnostic_files = [x.strftime(y) for x in list_of_datetimes]
-
-    for y in log_filename_formats:
-        list_of_log_files = [x.strftime(y) for x in list_of_datetimes]
 
     # Initialize entries to the database with the timestamps
     for x in list_of_dates:
@@ -350,7 +351,6 @@ def nais_processor(config_file):
     list_of_ion_missing_files = np.setdiff1d(list_of_ion_files,list_of_existing_ion_files)
     list_of_particle_missing_files = np.setdiff1d(list_of_particle_files,list_of_existing_particle_files)
     list_of_diagnostic_missing_files = np.setdiff1d(list_of_diagnostic_files,list_of_existing_diagnostic_files)
-    list_of_log_missing_files = np.setdiff1d(list_of_log_files,list_of_existing_log_files)
 
     # Descend into the raw data folder
     for root, dirs, files in os.walk(load_path):
@@ -359,7 +359,6 @@ def nais_processor(config_file):
       ion_findex_all,ion_findex_actual = np.intersect1d(files,list_of_ion_missing_files,return_indices=True)[1:] 
       particle_findex_all,particle_findex_actual = np.intersect1d(files,list_of_particle_missing_files,return_indices=True)[1:]
       diagnostic_findex_all,diagnostic_findex_actual = np.intersect1d(files,list_of_diagnostic_missing_files,return_indices=True)[1:] 
-      log_findex_all,log_findex_actual = np.intersect1d(files,list_of_log_missing_files,return_indices=True)[1:]
 
       # Put the files found into the database
       for i in range(0,len(ion_findex_all)):
@@ -377,11 +376,6 @@ def nais_processor(config_file):
         diagnostic_datestr = list_of_dates[diagnostic_findex_actual[i]]
         db.update({'diagnostics':full_name},check.timestamp==diagnostic_datestr)
 
-      for i in range(0,len(log_findex_all)):
-        full_name = os.path.join(root, files[log_findex_all[i]])
-        log_datestr = list_of_dates[log_findex_actual[i]]
-        db.update({'logs':full_name},check.timestamp==log_datestr)
-
 
     # Define standard conditions
     temp_ref = 273.15 # K
@@ -397,13 +391,6 @@ def nais_processor(config_file):
 
         try:
 
-
-            # search for nais model
-            if bool(db.search((check.timestamp==x['timestamp']) 
-                    & check.logs.exists())):
-                model = search_model(x['logs'])
-            if model=='NAIS':
-                model = search_model(x['ions'])
 
             # search for delimiter
             delimiter = find_delimiter(x['ions'])
@@ -426,7 +413,7 @@ def nais_processor(config_file):
                                     error_bad_lines = False,
                                     header=None)
 
-            # Remove rows with too few fields 
+            # Remove rows with too few fields
             ions = ions[ions.count(1)>len(ions.columns)/3]
             records = records[records.count(1)>len(records.columns)/3]
 
@@ -446,17 +433,21 @@ def nais_processor(config_file):
 
             # Get the list of column headers
             ion_columns = ions.columns
+
+            # figure out inverter resolution
             inverter_reso = int((len(ion_columns)-2)/4)
      
-            mob_ion = np.array([float(re.findall(r"[-+]?\d*\.\d+|\d+",y)[0]) for y in ion_columns[2:2+inverter_reso]])
-            dp_ion = np.array([mob_to_diam(y) for y in mob_ion])
+            # get the mobilities after the particular inversion
+            mob_ion_inv = np.array([float(re.findall(r"[-+]?\d*\.\d+|\d+",y)[0]) for y in ion_columns[2:2+inverter_reso]])
 
-            dlogdp_ion = x2dlogx(dp_ion)
-            dlogmob_ion = x2dlogx(mob_ion)
-
-            # Calculate the ion number-size distribution
+            # get the number densities
             neg_ions = ions.iloc[:,2:2+inverter_reso].astype(float).interpolate().values
             pos_ions = ions.iloc[:,2+2*inverter_reso:2+3*inverter_reso].astype(float).interpolate().values
+
+            # average to the fixed ion mobs
+            neg_ions = average_mob(neg_ions,mob_ion_inv)
+            pos_ions = average_mob(pos_ions,mob_ion_inv)
+
             neg_ions = neg_ions * dlogmob_ion / dlogdp_ion
             pos_ions = pos_ions * dlogmob_ion / dlogdp_ion
 
@@ -524,11 +515,7 @@ def nais_processor(config_file):
             # Diffusion loss correction
             throughput_ions = np.zeros(neg_ions.shape)
             for j in range(0,throughput_ions.shape[0]):
-                throughput_ions[j,:] = tubeloss(dp_ion*1e-9,
-                                                flow_ions[j]*1.667e-5,
-                                                pipelength,
-                                                temp_ions[j],
-                                                pres_ions[j])
+                throughput_ions[j,:] = tubeloss(dp_ion*1e-9,flow_ions[j]*1.667e-5,pipelength,temp_ions[j],pres_ions[j])
 
             neg_ions = neg_ions / throughput_ions
             pos_ions = pos_ions / throughput_ions
@@ -588,13 +575,6 @@ def nais_processor(config_file):
 
         try:
 
-            # search for nais model
-            if bool(db.search((check.timestamp==x['timestamp']) 
-                    & check.logs.exists())):
-                model = search_model(x['logs'])
-            if model=='NAIS':
-                model = search_model(x['particles'])
-
             # find delimiter
             delimiter=find_delimiter(x['particles'])
 
@@ -637,11 +617,13 @@ def nais_processor(config_file):
             particle_columns = particles.columns
             inverter_reso = int((len(particle_columns)-2)/4)
      
-            dp_par = 2.0*np.array([float(re.findall(r"[-+]?\d*\.\d+|\d+",t)[0]) for t in particle_columns[2:2+inverter_reso]])
-            dlogdp_par = x2dlogx(dp_par)
+            dp_par_inv = 2.0*np.array([float(re.findall(r"[-+]?\d*\.\d+|\d+",t)[0]) for t in particle_columns[2:2+inverter_reso]])
 
             neg_particles = particles.iloc[:,2:2+inverter_reso].astype(float).interpolate().values
             pos_particles = particles.iloc[:,2+2*inverter_reso:2+3*inverter_reso].astype(float).interpolate().values
+
+            neg_particles = average_dp(neg_particles,dp_par_inv)
+            pos_particles = average_dp(pos_particles,dp_par_inv)
 
             # Index records by the operation mode
             records = records.set_index('opmode')
@@ -706,18 +688,12 @@ def nais_processor(config_file):
             else:
                 pass
 
-
             throughput_particles = np.zeros(neg_particles.shape)
             for j in range(0,throughput_particles.shape[0]):
-                throughput_particles[j,:] = tubeloss(dp_par*1e-9,
-                                                     flow_particles[j]*1.667e-5,
-                                                     pipelength,
-                                                     temp_particles[j],
-                                                     pres_particles[j])
+                throughput_particles[j,:] = tubeloss(dp_par*1e-9,flow_particles[j]*1.667e-5,pipelength,temp_particles[j],pres_particles[j])
 
             neg_particles = neg_particles / throughput_particles
             pos_particles = pos_particles / throughput_particles
-
 
             # If all data is NaNs then skip
             if (np.all(np.isnan(neg_particles)) | np.all(np.isnan(pos_particles))):
@@ -785,8 +761,8 @@ def nais_plotter(config_file):
               raise Exception(error_msg)
 
     # Test if figure path exists
-    if os.path.isdir(fig_path)==False:
-        raise Exception('"%s" does not exist' % fig_path)
+    if not os.path.exists(fig_path):
+        os.makedirs(fig_path)
     # Test if the database file does not exist
     if os.path.isfile(database)==False:
         raise Exception('"%s" does not exist' % database)
@@ -837,7 +813,7 @@ def nais_plotter(config_file):
 
             plt.tight_layout(rect=[0, 0.0, 1, 0.96])
 
-            fig.suptitle(model + ' ' + x['timestamp'] + ' ' + location, y=0.98)
+            fig.suptitle(model + ' ' + x['timestamp'] + '\n' + location, y=1.0)
 
             plt.savefig(fig_path+model+'_ions_'+ x['timestamp'] +'.png',dpi=100)
 
@@ -877,7 +853,7 @@ def nais_plotter(config_file):
 
             plt.tight_layout(rect=[0, 0.0, 1, 0.96])
 
-            fig.suptitle(model + ' ' + x['timestamp'] + ' ' + location, y=0.98)
+            fig.suptitle(model + ' ' + x['timestamp'] + '\n' + location, y=1.0)
 
             plt.savefig(fig_path+model+'_particles_'+ x['timestamp'] +'.png',dpi=100)
 

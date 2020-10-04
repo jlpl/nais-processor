@@ -8,7 +8,6 @@ dependencies:
     - matplotlib
     - pandas
     - pyyaml
-    - scipy
     - tinydb
     - ipython
     - jq
