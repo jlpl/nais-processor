@@ -112,45 +112,27 @@ def diffuus(dpp,temp,press):
 def tubeloss(dpp,pflow,plength,temp,press):
     """ Laminar diffusion losses in circular straight conduit """
 
-    rmuu = np.pi*diffuus(dpp,temp,press)*plength/pflow;
-    pene = np.zeros(rmuu.shape)
-    for i in range(0,len(dpp)):
-        if rmuu[i] < 0.02:
-            pene[i]=1. - 2.56*rmuu[i]**(2./3.) \
-                    + 1.2*rmuu[i]+0.177*rmuu[i]**(4./3.)
-        else:
-            pene[i]=0.819*np.exp(-3.657*rmuu[i])+0.097 \
-                    *np.exp(-22.3*rmuu[i])+0.032*np.exp(-57.*rmuu[i])
-    return pene
+    DPP,TEMP = np.meshgrid(dpp,temp)
+    DPP,PRESS = np.meshgrid(dpp,press)
+    DPP,PFLOW = np.meshgrid(dpp,pflow)
 
-#def x2dlogx(x):
-#    """ Calculate log-differences for monotonically
-#    increasing or decreasing vector x """
-#
-#    logx = np.log10(x)
-#    logx_mid = (logx[1:] + logx[:-1])/2.0 
-#    logx_mid_first_value = logx[0] + (logx[0] - logx_mid[0])
-#    logx_mid_last_value  = logx[-1] - (logx_mid[-1] - logx[-1])
-#    logx_mid = np.insert(logx_mid,0,logx_mid_first_value)
-#    logx_mid = np.append(logx_mid,logx_mid_last_value)
-#    dlogx = np.abs(np.diff(logx_mid))
-#    return dlogx
+    rmuu = np.pi*diffuus(DPP,TEMP,PRESS)*plength/PFLOW;
+    pene = np.zeros(rmuu.shape)
+
+    cond1=rmuu<0.02
+    cond2=rmuu>=0.02
+    pene[cond1]=1. - 2.56*rmuu[cond1]**(2./3.) + 1.2*rmuu[cond1]+0.177*rmuu[cond1]**(4./3.)
+    pene[cond2]=1. - 2.56*rmuu[cond2]**(2./3.) + 1.2*rmuu[cond2]+0.177*rmuu[cond2]**(4./3.)
+
+    return pene
 
 def datetime2datenum(dt):
     """ Convert from python datetime to matlab datenum """
 
-    ord = dt.toordinal()
     mdn = dt + timedelta(days = 366)
     frac = (dt-datetime(dt.year,dt.month,dt.day,0,0,0,tzinfo=dt.tzinfo)).seconds \
            / (24.0 * 60.0 * 60.0)
     return mdn.toordinal() + frac
-
-#def datenum2datetime(matlab_datenum):
-#    """ Convert from matlab datenum to python datetime """
-#
-#    return datetime.fromordinal(int(matlab_datenum)) \
-#    + timedelta(days=matlab_datenum%1) \
-#    - timedelta(days = 366)
 
 def plot_sumfile(handle,v,clim=(10,100000)):
     """ Plot UHEL's sum-formatted aerosol number-size distribution """
@@ -269,14 +251,16 @@ def nais_processor(config_file):
         with open(config_file,'r') as stream:
             try:
                 config = yaml.load(stream)
-                pipelength = config['inlet_length']
                 load_path = config['data_folder']
                 save_path = config['processed_folder']
                 start_date = config['start_date']
-                end_date = config['end_date']
                 database = config['database_file']
-                if 'pipelength'in config:
-                    pipelength = config['pipelength']
+                if 'end_date' in config:
+                    end_date = config['end_date']
+                else:
+                    end_date = today
+                if 'inlet_length'in config:
+                    pipelength = config['inlet_length']
                 else:
                     pipelength=0.0
                 if 'sealevel_correction' in config:
@@ -317,64 +301,76 @@ def nais_processor(config_file):
     load_path = os.path.abspath(load_path) + '/'
     save_path = os.path.abspath(save_path) + '/'
 
-    # Logic to figure out the date limits
-    last_date = today if end_dt > today_dt else end_dt
+    last_date = end_date
     first_date = start_date
 
-    # Make a list of dates
+    # Make a list of datetimes
     list_of_datetimes = pd.date_range(start=first_date, end=last_date)
-    list_of_dates = [x.strftime('%Y%m%d') for x in list_of_datetimes]
 
     # list existing files:
-    list_of_existing_ion_files = [x['ions'] for x in db.search(check.ions.exists())]
-    list_of_existing_particle_files = [x['particles'] for x in db.search(check.particles.exists())]
-    list_of_existing_diagnostic_files = [x['diagnostics'] for x in db.search(check.diagnostics.exists())]
+    list_of_existing_ion_files = [os.path.split(x['ions'])[1] for x in db.search(check.ions.exists())]
+    list_of_existing_particle_files = [os.path.split(x['particles'])[1] for x in db.search(check.particles.exists())]
+    list_of_existing_diagnostic_files = [os.path.split(x['diagnostics'])[1] for x in db.search(check.diagnostics.exists())]
 
     #List all possible filenames in the date range for particles, ions and diagnostic files
+    list_of_ion_files=[]
+    list_of_ion_file_dates=[]
     for y in ion_filename_formats:
-        list_of_ion_files = [x.strftime(y) for x in list_of_datetimes]
+        list_of_ion_files = list_of_ion_files + [x.strftime(y) for x in list_of_datetimes if x.strftime(y) not in list_of_existing_ion_files]
+        list_of_ion_file_dates = list_of_ion_file_dates + [x.strftime('%Y%m%d') for x in list_of_datetimes if x.strftime(y) not in list_of_existing_ion_files] 
 
+    list_of_particle_files = []
+    list_of_particle_file_dates = []
     for y in particle_filename_formats:
-        list_of_particle_files = [x.strftime(y) for x in list_of_datetimes]
+        list_of_particle_files = list_of_particle_files + [x.strftime(y) for x in list_of_datetimes if x.strftime(y) not in list_of_existing_particle_files]
+        list_of_particle_file_dates = list_of_particle_file_dates + [x.strftime('%Y%m%d') for x in list_of_datetimes if x.strftime(y) not in list_of_existing_particle_files]
 
+    list_of_diagnostic_files=[]
+    list_of_diagnostic_file_dates=[]
     for y in diagnostic_filename_formats:
-        list_of_diagnostic_files = [x.strftime(y) for x in list_of_datetimes]
+        list_of_diagnostic_files = list_of_diagnostic_files + [x.strftime(y) for x in list_of_datetimes if x.strftime(y) not in list_of_existing_diagnostic_files]
+        list_of_diagnostic_file_dates = list_of_diagnostic_file_dates + [x.strftime('%Y%m%d') for x in list_of_datetimes if x.strftime(y) not in list_of_existing_diagnostic_files]
 
     # Initialize entries to the database with the timestamps
+    list_of_dates = [x.strftime('%Y%m%d') for x in list_of_datetimes]
     for x in list_of_dates:
         if bool(db.search(check.timestamp==x)):
             continue
         else:
             db.insert({'timestamp':x,'error':[]})
 
-    # Eliminate existing filenames from the lists
-    list_of_ion_missing_files = np.setdiff1d(list_of_ion_files,list_of_existing_ion_files)
-    list_of_particle_missing_files = np.setdiff1d(list_of_particle_files,list_of_existing_particle_files)
-    list_of_diagnostic_missing_files = np.setdiff1d(list_of_diagnostic_files,list_of_existing_diagnostic_files)
-
     # Descend into the raw data folder
     for root, dirs, files in os.walk(load_path):
  
       # Find matching files
-      ion_findex_all,ion_findex_actual = np.intersect1d(files,list_of_ion_missing_files,return_indices=True)[1:] 
-      particle_findex_all,particle_findex_actual = np.intersect1d(files,list_of_particle_missing_files,return_indices=True)[1:]
-      diagnostic_findex_all,diagnostic_findex_actual = np.intersect1d(files,list_of_diagnostic_missing_files,return_indices=True)[1:] 
+      ion_findex_all,ion_findex_actual = np.intersect1d(files,list_of_ion_files,return_indices=True)[1:] 
+      particle_findex_all,particle_findex_actual = np.intersect1d(files,list_of_particle_files,return_indices=True)[1:]
+      diagnostic_findex_all,diagnostic_findex_actual = np.intersect1d(files,list_of_diagnostic_files,return_indices=True)[1:] 
 
       # Put the files found into the database
       for i in range(0,len(ion_findex_all)):
         full_name = os.path.join(root, files[ion_findex_all[i]])
-        ion_datestr = list_of_dates[ion_findex_actual[i]]
-        db.update({'ions':full_name},check.timestamp==ion_datestr)
+        ion_datestr = list_of_ion_file_dates[ion_findex_actual[i]]
+
+        # If there is raw data file: don't replace it.
+        if bool(db.search((check.timestamp==ion_datestr) & ~check.ions.exists())):
+            db.update({'ions':full_name},check.timestamp==ion_datestr)
 
       for i in range(0,len(particle_findex_all)):
         full_name = os.path.join(root, files[particle_findex_all[i]])
-        particle_datestr = list_of_dates[particle_findex_actual[i]]
+        particle_datestr = list_of_particle_file_dates[particle_findex_actual[i]]
         db.update({'particles':full_name},check.timestamp==particle_datestr)
+
+        if bool(db.search((check.timestamp==particle_datestr) & ~check.particles.exists())):
+            db.update({'particles':full_name},check.timestamp==particle_datestr)
 
       for i in range(0,len(diagnostic_findex_all)):
         full_name = os.path.join(root, files[diagnostic_findex_all[i]])
-        diagnostic_datestr = list_of_dates[diagnostic_findex_actual[i]]
+        diagnostic_datestr = list_of_diagnostic_file_dates[diagnostic_findex_actual[i]]
         db.update({'diagnostics':full_name},check.timestamp==diagnostic_datestr)
+
+        if bool(db.search((check.timestamp==diagnostic_datestr) & ~check.diagnostics.exists())):
+            db.update({'diagnostics':full_name},check.timestamp==diagnostic_datestr)
 
 
     # Define standard conditions
@@ -382,11 +378,12 @@ def nais_processor(config_file):
     pres_ref = 101325.0 # Pa
     
     # Try to process unprocessed files or there is some error in processing
-    for x in iter(db.search( (check.error!=[]) |
+    for x in iter(db.search( ((check.error!=[]) & (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str)) |
                              (check.diagnostics.exists() & 
                              check.ions.exists() &
                              ~check.processed_neg_ion_file.exists() &
-                             ~check.processed_pos_ion_file.exists())                             
+                             ~check.processed_pos_ion_file.exists() &
+                             (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str))                             
                            )):
 
         try:
@@ -513,9 +510,7 @@ def nais_processor(config_file):
                 pass
 
             # Diffusion loss correction
-            throughput_ions = np.zeros(neg_ions.shape)
-            for j in range(0,throughput_ions.shape[0]):
-                throughput_ions[j,:] = tubeloss(dp_ion*1e-9,flow_ions[j]*1.667e-5,pipelength,temp_ions[j],pres_ions[j])
+            throughput_ions = tubeloss(dp_ion*1e-9,flow_ions*1.667e-5,pipelength,temp_ions,pres_ions)
 
             neg_ions = neg_ions / throughput_ions
             pos_ions = pos_ions / throughput_ions
@@ -565,12 +560,13 @@ def nais_processor(config_file):
             db.update(add('error', [str(error_msg)]), check.timestamp==x['timestamp'])
             continue
  
-    # Iterate through the unprocessed particle data excluding today
-    for x in iter(db.search( (check.error!=[]) |
+    # Process particle data
+    for x in iter(db.search( ((check.error!=[]) & (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str)) |
                              (check.diagnostics.exists() & 
                              check.particles.exists() &
                              ~check.processed_neg_particle_file.exists() &
-                             ~check.processed_pos_particle_file.exists())                             
+                             ~check.processed_pos_particle_file.exists() &
+                             (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str))                             
                            )):
 
         try:
@@ -688,9 +684,7 @@ def nais_processor(config_file):
             else:
                 pass
 
-            throughput_particles = np.zeros(neg_particles.shape)
-            for j in range(0,throughput_particles.shape[0]):
-                throughput_particles[j,:] = tubeloss(dp_par*1e-9,flow_particles[j]*1.667e-5,pipelength,temp_particles[j],pres_particles[j])
+            throughput_particles = tubeloss(dp_par*1e-9,flow_particles*1.667e-5,pipelength,temp_particles,pres_particles)
 
             neg_particles = neg_particles / throughput_particles
             pos_particles = pos_particles / throughput_particles
@@ -746,6 +740,8 @@ def nais_plotter(config_file):
 
     warnings.filterwarnings("ignore")
 
+    today_dt = datetime.today()
+    today = today_dt.strftime('%Y%m%d')
     # Check that config file exists
     if os.path.isfile(config_file)==False:
         raise Exception('"%s" does not exist' % config_file)
@@ -757,8 +753,19 @@ def nais_plotter(config_file):
               location = config['location']
               fig_path = config['figure_folder']
               database = config['database_file']
+              start_date = config['start_date']
+              if 'end_date' in config:
+                    end_date = config['end_date']
+              else:
+                    end_date = today
           except Exception as error_msg:
               raise Exception(error_msg)
+
+    try:
+       start_dt = pd.to_datetime(start_date)
+       end_dt = pd.to_datetime(end_date)
+    except:
+       raise Exception('bad start_date or end_date')
 
     # Test if figure path exists
     if not os.path.exists(fig_path):
@@ -770,6 +777,9 @@ def nais_plotter(config_file):
     else:
         db = TinyDB(database)
         check = Query()
+
+    start_date_str = start_dt.strftime("%Y%m%d")
+    end_date_str = end_dt.strftime("%Y%m%d")
 
     fig_path = os.path.abspath(fig_path) + '/'
 
@@ -787,9 +797,9 @@ def nais_plotter(config_file):
     # Iterate through the unprocessed ion data excluding today
     for x in iter(db.search(    (~check.ion_figure.exists() &
                                  check.processed_neg_ion_file.exists() &
-                                 check.processed_pos_ion_file.exists()) |
+                                 check.processed_pos_ion_file.exists() & (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str)) |
                                  (check.ion_figure.exists() &
-                                 (check.error!=[])) )):
+                                 (check.error!=[]) & (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str) ))):
     
            
         try:
@@ -828,9 +838,9 @@ def nais_plotter(config_file):
 
     for x in iter(db.search(    (~check.particle_figure.exists() &
                                  check.processed_neg_particle_file.exists() &
-                                 check.processed_pos_particle_file.exists()) |
+                                 check.processed_pos_particle_file.exists() & (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str)) |
                                  (check.particle_figure.exists() &
-                                 (check.error!=[])) )):
+                                 (check.error!=[]) & (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str)) )):
  
         try:
 
