@@ -126,6 +126,27 @@ def tubeloss(dpp,pflow,plength,temp,press):
 
     return pene
 
+#    for i in range(0,len(dpp)):
+#        if rmuu[i] < 0.02:
+#            pene[i]=1. - 2.56*rmuu[i]**(2./3.) + 1.2*rmuu[i]+0.177*rmuu[i]**(4./3.)
+#        else:
+#            pene[i]=0.819*np.exp(-3.657*rmuu[i])+0.097 \
+#                    *np.exp(-22.3*rmuu[i])+0.032*np.exp(-57.*rmuu[i])
+#    return pene
+
+#def x2dlogx(x):
+#    """ Calculate log-differences for monotonically
+#    increasing or decreasing vector x """
+#
+#    logx = np.log10(x)
+#    logx_mid = (logx[1:] + logx[:-1])/2.0 
+#    logx_mid_first_value = logx[0] + (logx[0] - logx_mid[0])
+#    logx_mid_last_value  = logx[-1] - (logx_mid[-1] - logx[-1])
+#    logx_mid = np.insert(logx_mid,0,logx_mid_first_value)
+#    logx_mid = np.append(logx_mid,logx_mid_last_value)
+#    dlogx = np.abs(np.diff(logx_mid))
+#    return dlogx
+
 def datetime2datenum(dt):
     """ Convert from python datetime to matlab datenum """
 
@@ -133,6 +154,13 @@ def datetime2datenum(dt):
     frac = (dt-datetime(dt.year,dt.month,dt.day,0,0,0,tzinfo=dt.tzinfo)).seconds \
            / (24.0 * 60.0 * 60.0)
     return mdn.toordinal() + frac
+
+#def datenum2datetime(matlab_datenum):
+#    """ Convert from matlab datenum to python datetime """
+#
+#    return datetime.fromordinal(int(matlab_datenum)) \
+#    + timedelta(days=matlab_datenum%1) \
+#    - timedelta(days = 366)
 
 def plot_sumfile(handle,v,clim=(10,100000)):
     """ Plot UHEL's sum-formatted aerosol number-size distribution """
@@ -177,6 +205,7 @@ def find_delimiter(fn):
     result = re.search('(.)opmode',l)
     delimiter = result.group(1)
     return delimiter
+
 
 def average_mob(y,h):
 
@@ -337,7 +366,7 @@ def nais_processor(config_file):
         if bool(db.search(check.timestamp==x)):
             continue
         else:
-            db.insert({'timestamp':x,'error':[]})
+            db.insert({'timestamp':x,'ion_error':'','particle_error':''})
 
     # Descend into the raw data folder
     for root, dirs, files in os.walk(load_path):
@@ -372,22 +401,38 @@ def nais_processor(config_file):
         if bool(db.search((check.timestamp==diagnostic_datestr) & ~check.diagnostics.exists())):
             db.update({'diagnostics':full_name},check.timestamp==diagnostic_datestr)
 
+    # From the database find the last days with processed data
+    processed_ion_days = db.search( (check.processed_neg_ion_file.exists() &
+                                     check.processed_pos_ion_file.exists()) )
+    if len(processed_ion_days)!=0:
+      last_ion_day=np.max([datetime.strptime(x['timestamp'],'%Y%m%d') for x in processed_ion_days]).strftime('%Y%m%d')
+    else:
+      last_ion_day='empty'
+    
+    processed_particle_days=db.search( (check.processed_neg_particle_file.exists() &
+                                        check.processed_pos_particle_file.exists()) )
+    if len(processed_particle_days)!=0:
+      last_particle_day=np.max([datetime.strptime(x['timestamp'],'%Y%m%d') for x in processed_particle_days]).strftime('%Y%m%d')
+    else:
+      last_particle_day='empty'
+ 
+
 
     # Define standard conditions
     temp_ref = 273.15 # K
     pres_ref = 101325.0 # Pa
     
     # Try to process unprocessed files or there is some error in processing
-    for x in iter(db.search( ((check.error!=[]) & (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str)) |
-                             (check.diagnostics.exists() & 
-                             check.ions.exists() &
+    # only do the time range in the config file
+    for x in iter(db.search( ((check.timestamp==last_ion_day) &
+                             (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str)) |
+                             (check.diagnostics.exists() & check.ions.exists() &
                              ~check.processed_neg_ion_file.exists() &
                              ~check.processed_pos_ion_file.exists() &
                              (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str))                             
                            )):
 
         try:
-
 
             # search for delimiter
             delimiter = find_delimiter(x['ions'])
@@ -522,7 +567,7 @@ def nais_processor(config_file):
 
             # If all data is NaNs then skip
             if (np.all(np.isnan(neg_ions)) | np.all(np.isnan(pos_ions))):
-                db.update(add('error', ['All ion data are NaNs']), check.timestamp==x['timestamp'])
+                db.update({'ion_error': 'All ion data are NaNs'}, check.timestamp==x['timestamp'])
                 continue
 
             # Integrate total ion number concentrations
@@ -551,19 +596,16 @@ def nais_processor(config_file):
             # Update the database
             db.update({'processed_neg_ion_file': save_path+model+'n'+x['timestamp']+'nds.sum',
                        'processed_pos_ion_file': save_path+model+'p'+x['timestamp']+'nds.sum'}, check.timestamp==x['timestamp'])
-            db.update({'error':[]}, check.timestamp==x['timestamp']) 
-
-            if ((time_ions[-1]-time_ions[0])<0.99):
-                db.update(add('error', ["Not full day of ion data"]), check.timestamp==x['timestamp'])
+            db.update({'ion_error':''}, check.timestamp==x['timestamp']) 
            
         except Exception as error_msg:
-            db.update(add('error', [str(error_msg)]), check.timestamp==x['timestamp'])
+            db.update({'ion_error': str(error_msg)}, check.timestamp==x['timestamp'])
             continue
  
-    # Process particle data
-    for x in iter(db.search( ((check.error!=[]) & (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str)) |
-                             (check.diagnostics.exists() & 
-                             check.particles.exists() &
+    # Iterate through the unprocessed particle data excluding today
+    for x in iter(db.search( ((check.timestamp==last_particle_day) & 
+                             (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str)) |
+                             (check.diagnostics.exists() & check.particles.exists() &
                              ~check.processed_neg_particle_file.exists() &
                              ~check.processed_pos_particle_file.exists() &
                              (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str))                             
@@ -634,7 +676,7 @@ def nais_processor(config_file):
             # List all variable names in the diagnostic file
             diag_params = list(records)
 
-            temperature_name = ''
+            temperature_name=''
             for temp_name in possible_temperature_names:
                 if temp_name in diag_params:
                     temperature_name = temp_name
@@ -691,9 +733,7 @@ def nais_processor(config_file):
 
             # If all data is NaNs then skip
             if (np.all(np.isnan(neg_particles)) | np.all(np.isnan(pos_particles))):
-                error_msg = 'All particle data are NaNs'
-                print(error_msg)
-                db.update(add('error', [error_msg]), check.timestamp==x['timestamp'])
+                db.update({'particle_error': 'All particle data are NaNs'}, check.timestamp==x['timestamp'])
                 continue
 
             # Integrate total number concentrations
@@ -725,13 +765,10 @@ def nais_processor(config_file):
             # Update the database
             db.update({'processed_neg_particle_file': save_path+model+'n'+x['timestamp']+'np.sum',
                        'processed_pos_particle_file': save_path+model+'p'+x['timestamp']+'np.sum'}, check.timestamp==x['timestamp'])
-            db.update({'error':[]},check.timestamp==x['timestamp'])
+            db.update({'particle_error':''},check.timestamp==x['timestamp'])
 
-            if ((time_particles[-1]-time_particles[0])<0.99):
-                db.update(add('error', ["Not full day of particle data"]), check.timestamp==x['timestamp'])
- 
         except Exception as error_msg:
-            db.update(add('error',[str(error_msg)]),check.timestamp==x['timestamp'])
+            db.update({'particle_error': str(error_msg)},check.timestamp==x['timestamp'])
             continue
 
 
@@ -794,12 +831,26 @@ def nais_plotter(config_file):
                          'figure.titlesize': fontsize,
                          'legend.fontsize': fontsize})
 
+    # Find last day with figures
+    processed_ion_days = db.search( check.ion_figure.exists() )
+    if len(processed_ion_days)!=0:
+      last_ion_day=np.max([datetime.strptime(x['timestamp'],'%Y%m%d') for x in processed_ion_days]).strftime('%Y%m%d')
+    else:
+      last_ion_day='empty'
+
+    processed_particle_days=db.search( check.particle_figure.exists() )
+    if len(processed_particle_days)!=0:
+      last_particle_day=np.max([datetime.strptime(x['timestamp'],'%Y%m%d') for x in processed_particle_days]).strftime('%Y%m%d')
+    else:
+      last_particle_day='empty'
+
     # Iterate through the unprocessed ion data excluding today
     for x in iter(db.search(    (~check.ion_figure.exists() &
                                  check.processed_neg_ion_file.exists() &
-                                 check.processed_pos_ion_file.exists() & (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str)) |
-                                 (check.ion_figure.exists() &
-                                 (check.error!=[]) & (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str) ))):
+                                 check.processed_pos_ion_file.exists() & 
+                                 (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str)) |
+                                 ((check.timestamp==last_ion_day) & 
+                                 (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str) ))):
     
            
         try:
@@ -831,16 +882,19 @@ def nais_plotter(config_file):
 
             plt.close()
 
+            db.update({'ion_fig_error':''},check.timestamp==x['timestamp'])
+
         except Exception as error_msg:
-            db.update(add('error',[str(error_msg)]), check.timestamp==x['timestamp'])
+            db.update({'ion_fig_error': str(error_msg)}, check.timestamp==x['timestamp'])
             continue
 
 
     for x in iter(db.search(    (~check.particle_figure.exists() &
                                  check.processed_neg_particle_file.exists() &
-                                 check.processed_pos_particle_file.exists() & (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str)) |
-                                 (check.particle_figure.exists() &
-                                 (check.error!=[]) & (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str)) )):
+                                 check.processed_pos_particle_file.exists() & 
+                                 (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str)) |
+                                 ((check.timestamp==last_particle_day) & 
+                                 (check.timestamp>=start_date_str) & (check.timestamp<=end_date_str)) )):
  
         try:
 
@@ -871,8 +925,10 @@ def nais_plotter(config_file):
 
             plt.close()
 
+            db.update({'particle_fig_error':''},check.timestamp==x['timestamp'])
+
         except Exception as error_msg:
-            db.update(add('error',[str(error_msg)]), check.timestamp==x['timestamp'])
+            db.update({'particle_fig_error': str(error_msg)}, check.timestamp==x['timestamp'])
             continue
 
 
