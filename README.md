@@ -4,9 +4,6 @@ Use this code package to process [NAIS](https://www.airel.ee/products/nais/) (Ne
 
 The code corrects for diffusion losses in the inlet line (Gromley and Kennedy, 1948) and applies an ion mode calibration (Wagner et al. 2016). Optionally the data can be corrected to standard conditions (273.15 K, 101325 Pa).
 
-NAIS data processed with this script can be found [here](
-https://script.google.com/macros/s/AKfycbyRjEYc2zo7OHn7YbqRFIM_dAdwpC7B3ozvzLpLOEwGw03Gx8VI/exec)
-
 ## Example usage
 
 
@@ -41,7 +38,6 @@ sealevel_correction: False
 
 from nais_processor import *
 nais_processor('config.yml')
-nais_plotter('config.yml')
 ```
 
 ## Hints
