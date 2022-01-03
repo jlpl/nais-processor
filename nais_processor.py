@@ -15,6 +15,7 @@ from dateutil.parser import parse
 from tinydb import TinyDB, Query
 from tinydb.operations import add
 import time
+import json
 
 # Fixed diameter and mobility bins
 dp_ion = np.array([7.949610066873187275e-01,9.181737924552214603e-01,1.060513600503926179e+00,1.224959679823698799e+00,1.414958699738506631e+00,1.634499249798819331e+00,1.888198514085806856e+00,2.181403433339687226e+00,2.520308747865528165e+00,2.912095102815642989e+00,3.365090891236600878e+00,3.888962384293289887e+00,4.494937535166431353e+00,5.196070414640996837e+00,6.007554438162747701e+00,6.947095098447752193e+00,8.035355151375323857e+00,9.296489193192451594e+00,1.075878902024538242e+01,1.245546773082500103e+01,1.442561898219513949e+01,1.671539984850161886e+01,1.937950186998520152e+01,2.248299804137784363e+01,2.610368545677439300e+01,3.033508982931992648e+01,3.529036394466827886e+01,4.110740875515996606e+01])
@@ -253,7 +254,8 @@ def nais_processor(config_file):
 
     # Check that the config file exists
     if os.path.isfile(config_file)==False:
-        raise Exception('"%s" does not exist' % config_file)
+        print('"%s" does not exist' % config_file)
+        return
     else:
         with open(config_file,'r') as stream:
             try:
@@ -279,20 +281,23 @@ def nais_processor(config_file):
                 else:
                     sealevel_correction = False
             except Exception as error_msg:
-                raise Exception("bad configuration file")
+                print("bad configuration file")
+                return
 
     # Initialize the database
     try:
       db = TinyDB(database)
       check = Query()
     except Exception as error_msg:
-        raise Exception(error_msg)
+        print(error_msg)
+        return
    
     # Test if the configuration information is valid
     try:
         float(pipelength)
     except:
-        raise Exception('"%s" must be a number' % pipelength)
+        print('"%s" must be a number' % pipelength)
+        return
     if not os.path.exists(save_path):
         os.makedirs(save_path)
     if not os.path.exists(fig_path):
@@ -301,9 +306,10 @@ def nais_processor(config_file):
        start_dt = pd.to_datetime(start_date)
        end_dt = pd.to_datetime(end_date)
     except:
-       raise Exception('bad start_date or end_date')
+       print('bad start_date or end_date')
+       return
 
-    print (config_file)
+    print(config_file)
     
     model = 'NAIS'
 
@@ -443,9 +449,9 @@ def nais_processor(config_file):
                                     error_bad_lines = False,
                                     header=None)
 
-            # Remove rows with too few fields
-            ions = ions[ions.count(1)>len(ions.columns)/3]
-            records = records[records.count(1)>len(records.columns)/3]
+            # Remove rows with too many NaNs
+            ions = ions[ions.count(1)>len(ions.columns)/2]
+            records = records[records.count(1)>len(records.columns)/2]
 
             # Remove duplicate rows based on first column (time)
             ions = ions.drop_duplicates(subset=0)
@@ -481,6 +487,16 @@ def nais_processor(config_file):
             neg_ions = neg_ions * dlogmob_ion / dlogdp_ion
             pos_ions = pos_ions * dlogmob_ion / dlogdp_ion
 
+ 
+            # If all data is NaNs then skip
+            if (np.all(np.isnan(neg_ions)) | np.all(np.isnan(pos_ions))):
+                db.update({'ion_error': 'All ion data are NaNs'}, check.timestamp==x['timestamp'])
+                continue
+          
+ 
+
+            # READ DIAGNOSTICS
+
             # Index records by the operation mode
             records = records.set_index('opmode')
 
@@ -499,64 +515,70 @@ def nais_processor(config_file):
                 if temp_name in diag_params:
                     temperature_name = temp_name
                     break
-
-            # No temperature data, use standard conditions
+            # No temperature data
             if temperature_name=='':
-                temp_ions = temp_ref*np.ones(neg_ions.shape[0])
+                temp_ions = None
             # Read the temperature data
             else:
                 temp_ions = 273.15 + ion_records[temperature_name].astype(float).interpolate().values.flatten()
+                # Check if the temperature is nonsense
+                if (np.all(np.isnan(temp_ions))):
+                    temp_ions = None
 
             pressure_name = ''
             for pres_name in possible_pressure_names:
                 if pres_name in diag_params:
                     pressure_name = pres_name
                     break
-
             # Extract pressure data from the diagnostic files
             if pressure_name=='':
-                pres_ions = pres_ref*np.ones(neg_ions.shape[0])
+                pres_ions=None
+                #pres_ions = pres_ref*np.ones(neg_ions.shape[0])
             else:
                 pres_ions = 100.0 * ion_records[pressure_name].astype(float).interpolate().values.flatten()
-
-            # Correct the number concentrations to standard conditions (optional)
-            if sealevel_correction:
-                stp_corr_ions = (pres_ref*temp_ions)/(temp_ref*pres_ions)
-                neg_ions = (stp_corr_ions*neg_ions.T).T
-                pos_ions = (stp_corr_ions*pos_ions.T).T
+                if (np.all(np.isnan(pres_ions))): 
+                    pres_ions = None
 
             sampleflow_name = []
             for flow_name in possible_sampleflow_names:
                 if flow_name in diag_params:
                     sampleflow_name.append(flow_name)
-
             # Extract sample flow rate data from the diagnostic files
             try:
                 flow_ions = ion_records[sampleflow_name].astype(float).sum(axis=1).interpolate().values.flatten()
             except ValueError:
                 flow_ions = ion_records[sampleflow_name].astype(float).interpolate().values.flatten()
-
+            if (np.all(np.isnan(flow_ions))):
+                flow_ions=None
             # Test if the sampleflow is in cm3/s (old models) or l/min and possibly convert to l/min
-            if flow_ions[0]>100:
-                flow_ions = (flow_ions/1000.0) * 60.0
             else:
-                pass
+                if flow_ions[0]>100:
+                    flow_ions = (flow_ions/1000.0) * 60.0
+                else:
+                    pass
+
+
+            # APPLY CORRECTIONS
+
+            # Correct the number concentrations to standard conditions (optional)
+            if (sealevel_correction & ((type(temp_ions)!=type(None))&(type(pres_ions)!=type(None)))):
+                stp_corr_ions = (pres_ref*temp_ions)/(temp_ref*pres_ions)
+                neg_ions = (stp_corr_ions*neg_ions.T).T
+                pos_ions = (stp_corr_ions*pos_ions.T).T
 
             # Diffusion loss correction
-            throughput_ions = tubeloss(dp_ion*1e-9,flow_ions*1.667e-5,pipelength,temp_ions,pres_ions)
-
-            neg_ions = neg_ions / throughput_ions
-            pos_ions = pos_ions / throughput_ions
-
+            if ((type(temp_ions)!=type(None)) & (type(pres_ions)!=type(None)) & (type(flow_ions)!=type(None))):
+                throughput_ions = tubeloss(dp_ion*1e-9,flow_ions*1.667e-5,pipelength,temp_ions,pres_ions)
+                neg_ions = neg_ions / throughput_ions
+                pos_ions = pos_ions / throughput_ions
+         
             # Robert Wagner's calibration (only ions)
             roberts_corr = 0.713*dp_ion**0.120
             neg_ions = neg_ions / roberts_corr
             pos_ions = pos_ions / roberts_corr
 
-            # If all data is NaNs then skip
-            if (np.all(np.isnan(neg_ions)) | np.all(np.isnan(pos_ions))):
-                db.update({'ion_error': 'All ion data are NaNs'}, check.timestamp==x['timestamp'])
-                continue
+
+            # CREATE FINAL DATA MATRICES
 
             # Integrate total ion number concentrations
             total_neg_ions = np.nansum(neg_ions*dlogdp_ion,axis=1)[np.newaxis].T
@@ -607,9 +629,21 @@ def nais_processor(config_file):
 
             plt.close()
 
-            
+
             # No errors
-            db.update({'ion_error':''}, check.timestamp==x['timestamp']) 
+            db.update({'ion_error':''}, check.timestamp==x['timestamp'])
+
+            
+            # Add if some diagnostic data was missing
+            if type(pres_ions)==type(None):
+                db.update(add('ion_error','"No pressure data"'), check.timestamp==x['timestamp'])
+
+            if type(temp_ions)==type(None):
+                db.update(add('ion_error','"No temperature data"'), check.timestamp==x['timestamp'])
+
+            if type(flow_ions)==type(None):
+                db.update(add('ion_error','"No flowrate data"'), check.timestamp==x['timestamp'])
+
            
         except Exception as error_msg:
             db.update({'ion_error': str(error_msg)}, check.timestamp==x['timestamp'])
@@ -648,8 +682,8 @@ def nais_processor(config_file):
                                     error_bad_lines=False)
 
             # Remove rows with too few fields 
-            particles = particles[particles.count(1)>len(particles.columns)/3]
-            records = records[records.count(1)>len(records.columns)/3]
+            particles = particles[particles.count(1)>len(particles.columns)/2]
+            records = records[records.count(1)>len(records.columns)/2]
 
             # Remove duplicate rows based on first row
             particles = particles.drop_duplicates(subset=0)
@@ -676,6 +710,12 @@ def nais_processor(config_file):
             neg_particles = average_dp(neg_particles,dp_par_inv)
             pos_particles = average_dp(pos_particles,dp_par_inv)
 
+            # If all data is NaNs then skip
+            if (np.all(np.isnan(neg_particles)) | np.all(np.isnan(pos_particles))):
+                db.update({'particle_error': 'All particle data are NaNs'}, check.timestamp==x['timestamp'])
+                continue
+
+
             # Index records by the operation mode
             records = records.set_index('opmode')
 
@@ -694,39 +734,31 @@ def nais_processor(config_file):
                 if temp_name in diag_params:
                     temperature_name = temp_name
                     break
-
-            # No temperature data, use standard conditions
             if temperature_name=='':
-                temp_particles = temp_ref*np.ones(neg_particles.shape[0])
+                temp_particles = None
             # Read the temperature data
             else:
                 temp_particles = 273.15 + particle_records[temperature_name].astype(float).interpolate().values.flatten()
-
+                if (np.all(np.isnan(temp_particles))):
+                    temp_particles=None
 
             pressure_name = ''
             for pres_name in possible_pressure_names:
                 if pres_name in diag_params:
                     pressure_name = pres_name
                     break           
-
             # Extract pressure data from the diagnostic files
             if pressure_name=='':
-                pres_particles = pres_ref*np.ones(neg_particles.shape[0])
+                pres_particles = None
             else:
                 pres_particles = 100.0 * particle_records[pressure_name].astype(float).interpolate().values.flatten()
-
-
-            # Correct the number concentrations to standard conditions (optional)
-            if sealevel_correction:
-                stp_corr_particles = (pres_ref*temp_particles)/(temp_ref*pres_particles)
-                neg_particles = (stp_corr_particles*neg_particles.T).T
-                pos_particles = (stp_corr_particles*pos_particles.T).T
+                if (np.all(np.isnan(pres_particles))):
+                    pres_particles=None
 
             sampleflow_name = []
             for flow_name in possible_sampleflow_names:
                 if flow_name in diag_params:
                     sampleflow_name.append(flow_name)
-
             # Extract sample flow rate data from the diagnostic files
             try:
                 flow_particles = particle_records[sampleflow_name].astype(float).sum(axis=1).interpolate().values.flatten()
@@ -734,20 +766,26 @@ def nais_processor(config_file):
                 flow_particles = particle_records[sampleflow_name].astype(float).interpolate().values.flatten()
 
             # Test if the sampleflow is in cm3/s (old models) or l/min and possibly convert to l/min
-            if flow_particles[0]>100:
-                flow_particles = (flow_particles/1000.0) * 60.0
-            else:
-                pass
+            if (np.all(np.isnan(flow_particles))):
+                flow_particles=None
+            else:   
+                if flow_particles[0]>100:
+                    flow_particles = (flow_particles/1000.0) * 60.0
+                else:
+                    pass
+    
 
-            throughput_particles = tubeloss(dp_par*1e-9,flow_particles*1.667e-5,pipelength,temp_particles,pres_particles)
+            # Correct the number concentrations to standard conditions (optional)
+            if (sealevel_correction & ((type(temp_particles)!=type(None))&(type(pres_particles)!=type(None)))):
+                stp_corr_particles = (pres_ref*temp_particles)/(temp_ref*pres_particles)
+                neg_particles = (stp_corr_particles*neg_particles.T).T
+                pos_particles = (stp_corr_particles*pos_particles.T).T
 
-            neg_particles = neg_particles / throughput_particles
-            pos_particles = pos_particles / throughput_particles
-
-            # If all data is NaNs then skip
-            if (np.all(np.isnan(neg_particles)) | np.all(np.isnan(pos_particles))):
-                db.update({'particle_error': 'All particle data are NaNs'}, check.timestamp==x['timestamp'])
-                continue
+            if ((type(temp_particles)!=type(None)) & (type(pres_particles)!=type(None)) & (type(flow_particles)!=type(None))):
+                throughput_particles = tubeloss(dp_par*1e-9,flow_particles*1.667e-5,pipelength,temp_particles,pres_particles)
+    
+                neg_particles = neg_particles / throughput_particles
+                pos_particles = pos_particles / throughput_particles
 
             # Integrate total number concentrations
             total_neg_particles = np.nansum(neg_particles*dlogdp_par,axis=1)[np.newaxis].T
@@ -800,6 +838,31 @@ def nais_processor(config_file):
 
             db.update({'particle_error':''},check.timestamp==x['timestamp'])
 
+            # Add if some diagnostic data was missing
+            if type(pres_particles)==type(None):
+                db.update(add('particle_error','"No pressure data"'), check.timestamp==x['timestamp'])
+
+            if type(temp_particles)==type(None):
+                db.update(add('particle_error','"No temperature data"'), check.timestamp==x['timestamp'])
+
+            if type(flow_particles)==type(None):
+                db.update(add('particle_error','"No flowrate data"'), check.timestamp==x['timestamp'])
+
+
+
         except Exception as error_msg:
             db.update({'particle_error': str(error_msg)},check.timestamp==x['timestamp'])
             continue
+
+
+    # Crete a yaml log file for improved readability
+    json_file_handle = open(database)
+    yaml_file_handle = open(database[:-4] + 'yml', 'w+')
+    json_db = json.load(json_file_handle)
+    yaml.dump(json_db,yaml_file_handle,allow_unicode=True)
+
+
+
+
+
+

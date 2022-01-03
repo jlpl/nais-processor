@@ -1,0 +1,12 @@
+database_file: './db.json'
+inlet_length: 1.0 # in meters
+location: 'My measurement site'
+data_folder: 
+    - '/path/to/raw/nais/data/2017'
+    - '/path/to/raw/nais/data/2018'
+    - '/path/to/raw/nais/data/2019'
+processed_folder: './processed/'
+figure_folder: './figures/'
+start_date: '2018-01-01'
+end_date: '2018-12-31'
+sealevel_correction: False
