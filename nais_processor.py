@@ -194,12 +194,14 @@ def average_mob(y,h):
     for i in range(0,len(mob_ion_geomeans)):
         if i==0:
             y_block = y[:,h>mob_ion_geomeans[i]]
-        elif i==(len(mob_ion_geomeans)-1):
-            y_block = y[:,h<=mob_ion_geomeans[i]]
         else:
             y_block = y[:,((h>mob_ion_geomeans[i]) & (h<=mob_ion_geomeans[i-1]))]
         data[:,i] = np.nanmean(y_block,axis=1)
         
+    y_block = y[:,h<=mob_ion_geomeans[i]]
+    data[:,i+1] = np.nanmean(y_block,axis=1)
+
+
     return data
 
 def average_dp(y,h):
@@ -209,11 +211,13 @@ def average_dp(y,h):
     for i in range(0,len(dp_par_geomeans)):
         if i==0:
             y_block = y[:,h<dp_par_geomeans[i]]
-        elif i==(len(dp_par_geomeans)-1):
-            y_block = y[:,h>=dp_par_geomeans[i]]
         else:
             y_block = y[:,((h<dp_par_geomeans[i]) & (h>=dp_par_geomeans[i-1]))]
+
         data[:,i] = np.nanmean(y_block,axis=1)
+ 
+    y_block = y[:,h>=dp_par_geomeans[i]]
+    data[:,i+1] = np.nanmean(y_block,axis=1)
 
     return data
 
@@ -337,11 +341,17 @@ def nais_processor(config_file):
 
     # Make a list of datetimes
     list_of_datetimes = pd.date_range(start=first_date, end=last_date)
+    #list_of_dates = [x.strftime('%Y%m%d') for x in list_of_datetimes]
 
     # list existing dates:
     list_of_existing_ion_file_dates = [x['timestamp'] for x in db.search(check.ions.exists())]
     list_of_existing_particle_file_dates = [x['timestamp'] for x in db.search(check.particles.exists())]
     list_of_existing_diagnostic_file_dates = [x['timestamp'] for x in db.search(check.diagnostics.exists())]
+
+#    # list existing files:
+#    list_of_existing_ion_files = [os.path.split(x['ions'])[1] for x in db.search(check.ions.exists())]
+#    list_of_existing_particle_files = [os.path.split(x['particles'])[1] for x in db.search(check.particles.exists())]
+#    list_of_existing_diagnostic_files = [os.path.split(x['diagnostics'])[1] for x in db.search(check.diagnostics.exists())]
 
     # ions
     for x in list_of_datetimes:
@@ -474,11 +484,11 @@ def nais_processor(config_file):
             inverter_reso = int((len(ion_columns)-2)/4)
      
             # get the mobilities after the particular inversion
-            mob_ion_inv = np.array([float(re.findall(r"[-+]?\d*\.\d+|\d+",y)[0]) for y in ion_columns[2:2+inverter_reso]])
+            mob_ion_inv = np.array([float(re.findall(r"[-+]?\d*\.\d+|\d+",y)[0]) for y in ion_columns[2:2+inverter_reso+1]])
 
             # get the number densities
-            neg_ions = ions.iloc[:,2:2+inverter_reso].astype(float).interpolate().values
-            pos_ions = ions.iloc[:,2+2*inverter_reso:2+3*inverter_reso].astype(float).interpolate().values
+            neg_ions = ions.iloc[:,2:2+inverter_reso+1].astype(float).interpolate().values
+            pos_ions = ions.iloc[:,2+2*inverter_reso:2+3*inverter_reso+1].astype(float).interpolate().values
 
             # average to the fixed ion mobs
             neg_ions = average_mob(neg_ions,mob_ion_inv)
@@ -702,10 +712,10 @@ def nais_processor(config_file):
             particle_columns = particles.columns
             inverter_reso = int((len(particle_columns)-2)/4)
      
-            dp_par_inv = 2.0*np.array([float(re.findall(r"[-+]?\d*\.\d+|\d+",t)[0]) for t in particle_columns[2:2+inverter_reso]])
+            dp_par_inv = 2.0*np.array([float(re.findall(r"[-+]?\d*\.\d+|\d+",t)[0]) for t in particle_columns[2:2+inverter_reso+1]])
 
-            neg_particles = particles.iloc[:,2:2+inverter_reso].astype(float).interpolate().values
-            pos_particles = particles.iloc[:,2+2*inverter_reso:2+3*inverter_reso].astype(float).interpolate().values
+            neg_particles = particles.iloc[:,2:2+inverter_reso+1].astype(float).interpolate().values
+            pos_particles = particles.iloc[:,2+2*inverter_reso:2+3*inverter_reso+1].astype(float).interpolate().values
 
             neg_particles = average_dp(neg_particles,dp_par_inv)
             pos_particles = average_dp(pos_particles,dp_par_inv)
