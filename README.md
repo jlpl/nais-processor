@@ -2,23 +2,89 @@
 
 Use this code package to process [NAIS](https://www.airel.ee/products/nais/) (Neutral cluster and Air Ion Spectrometer, Airel Ltd.) data files.
 
-The code corrects for diffusion losses in the inlet line (Gromley and Kennedy, 1948) and applies an ion mode calibration (Wagner et al. 2016). Optionally the data can be corrected to standard conditions (273.15 K, 101325 Pa), which can be useful when comparing aerosol particle data from various locations at different altitudes.
+The code corrects for diffusion losses in the inlet line (Gromley and Kennedy, 1948) and applies an ion mode calibration (Wagner et al. 2016). Optionally the data can be corrected to standard conditions (273.15 K, 101325 Pa), which can be useful when comparing aerosol particle and ion data from various locations at different altitudes.
 
-## Example using conda 
-
+## Installation
 ```
-$ git clone https://github.com/jlpl/nais-processor.git
-$ cd nais-processor
-$ conda env create -f nais_processor.yml
-$ conda activate nais-processor
-$ (nais-processor) python
+pip install nais-processor
+```
+
+## Example usage
+
+Open the python prompt and load methods from the `nais_processor` module.
+Then use the `make_config()` method to create a configuration file that
+is used at processing the data files.
+
+```python
+$ python
 >>> from nais_processor import *
->>> nais_processor('config.yml')
+>>> make_config()
+
+Enter name of configuration file.
+E.g. ./configs/campaign.yml
+> ./configs/nyc.yml
+
+Give path(s) to raw data. If multiple paths give them as comma separated list.
+E.g. /data/nais/2021,/data/nais/2022
+> /campaigns/nyc/nais/2015,/campaigns/nyc/nais/2016
+
+Path to where processed data is saved.
+E.g. ./data/campaign/processed
+> ./data/nyc/processed
+
+Path to where figures are saved. Leave empty if no figures.
+E.g. ./data/campaign/figures
+> ./data/nyc/figs
+
+Start of measurement (YYYY-MM-DD)
+> 2015-01-05
+
+End of measurement (YYYY-MM-DD)
+If empty processor assumes current day, use for continuous measurements.
+> 2016-06-08
+
+Enter name of database file
+E.g. ./logs/campaign.json
+> ./logs/nyc.json
+
+Measurement location
+E.g. Helsinki, Kumpula
+> New York City
+
+Apply corrections to data? (True/False)
+Requires a NAIS with temperature and pressure sensors.
+> True
+
+Length of the inlet in meters
+> 1.0
+
+Correct concentrations to sealevel conditions? (True/False)
+> False
+
+Configuration saved to: ./configs/nyc.yml
 ```
+Then process the data files by running `nais_processor()` method with the config file as the input argument.
 
-Where `config.yml` is a configuration file that contains information for processing. A configuration file template is provided.
+```python
+>>> nais_processor("./configs/nyc.yml")
+Configuration file: ./configs/nyc.yml
+processing 20190101
+processing 20190102
+processing 20190103
+...
+Done!
+```
+Run `do_figs()` with the config file in order to create plots of the processed data if needed.
 
-The code produces daily figures and data files for ion and particle data. These files are saved in the destinations given in the configuration file. 
+```python
+>>> do_figs("./configs/nyc.yml")
+plotting 20190101
+plotting 20190102
+plotting 20190103
+...
+Done!
+```
+The code produces daily processed data files and optionally figures for ion and particle data. These files are saved in the destinations given in the configuration file.
 
 The data files are named
 
@@ -36,13 +102,7 @@ The data files have the following structure:
 [1:,2:] = Normalized number concentrations, dN/dlogDp (cm-3)
 ```
 
-The locations of raw files, processed files and figures as well as possible errors during processing are written in the `database_file`, which is in JSON format. Also a YAML formatted database is written which is easier to read.
-
-## Hints
-
-- For continuous measurements: 
-    * Leave the `end_date` out in the configuration file, it will default to current date. 
-    * The NAIS creates a new file once a day, so run your processing script also once a day.
+The locations of raw files, processed files and possible figures are written in the `database_file`, which is in JSON format.
 
 ## License
 
