@@ -15,7 +15,7 @@ Open the python prompt and load methods from the `nais_processor` module.
 Then use the `make_config()` method to create a configuration file that
 is used at processing the data files.
 
-```python
+```
 $ python
 >>> from nais_processor import *
 >>> make_config()
@@ -65,7 +65,7 @@ Configuration saved to: ./configs/nyc.yml
 ```
 Then process the data files by running `nais_processor()` method with the config file as the input argument.
 
-```python
+```
 >>> nais_processor("./configs/nyc.yml")
 Configuration file: ./configs/nyc.yml
 processing 20150105
@@ -76,7 +76,7 @@ Done!
 ```
 Run `do_figs()` with the config file in order to create plots of the processed data if needed.
 
-```python
+```
 >>> do_figs("./configs/nyc.yml")
 plotting 20150105
 plotting 20150106
