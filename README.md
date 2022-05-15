@@ -68,9 +68,9 @@ Then process the data files by running `nais_processor()` method with the config
 ```python
 >>> nais_processor("./configs/nyc.yml")
 Configuration file: ./configs/nyc.yml
-processing 20190101
-processing 20190102
-processing 20190103
+processing 20150105
+processing 20150106
+processing 20150107
 ...
 Done!
 ```
@@ -78,9 +78,9 @@ Run `do_figs()` with the config file in order to create plots of the processed d
 
 ```python
 >>> do_figs("./configs/nyc.yml")
-plotting 20190101
-plotting 20190102
-plotting 20190103
+plotting 20150105
+plotting 20150106
+plotting 20150107
 ...
 Done!
 ```
