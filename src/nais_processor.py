@@ -1,3 +1,9 @@
+
+# TODO 
+# Option that db is not provided
+# Combined size distribution functions
+# Also make plots using imshow not pcolormesh (faster)
+
 import numpy as np
 from matplotlib import colors
 import matplotlib.pyplot as plt
@@ -17,17 +23,26 @@ from tinydb.operations import add
 import time
 import json
 
-# Fixed diameter and mobility bins
-dp_ion = np.array([7.949610066873187275e-01,9.181737924552214603e-01,
-1.060513600503926179e+00,1.224959679823698799e+00,1.414958699738506631e+00,
-1.634499249798819331e+00,1.888198514085806856e+00,2.181403433339687226e+00,
-2.520308747865528165e+00,2.912095102815642989e+00,3.365090891236600878e+00,
-3.888962384293289887e+00,4.494937535166431353e+00,5.196070414640996837e+00,
-6.007554438162747701e+00,6.947095098447752193e+00,8.035355151375323857e+00,
-9.296489193192451594e+00,1.075878902024538242e+01,1.245546773082500103e+01,
-1.442561898219513949e+01,1.671539984850161886e+01,1.937950186998520152e+01,
-2.248299804137784363e+01,2.610368545677439300e+01,3.033508982931992648e+01,
-3.529036394466827886e+01,4.110740875515996606e+01])
+## Fixed diameter and mobility bins
+#dp_ion = np.array([7.949610066873187275e-01,9.181737924552214603e-01,
+#1.060513600503926179e+00,1.224959679823698799e+00,1.414958699738506631e+00,
+#1.634499249798819331e+00,1.888198514085806856e+00,2.181403433339687226e+00,
+#2.520308747865528165e+00,2.912095102815642989e+00,3.365090891236600878e+00,
+#3.888962384293289887e+00,4.494937535166431353e+00,5.196070414640996837e+00,
+#6.007554438162747701e+00,6.947095098447752193e+00,8.035355151375323857e+00,
+#9.296489193192451594e+00,1.075878902024538242e+01,1.245546773082500103e+01,
+#1.442561898219513949e+01,1.671539984850161886e+01,1.937950186998520152e+01,
+#2.248299804137784363e+01,2.610368545677439300e+01,3.033508982931992648e+01,
+#3.529036394466827886e+01,4.110740875515996606e+01])
+
+dp_ion = np.array([
+8.09958076e-10, 9.35493448e-10, 1.08051577e-09, 1.24806016e-09,
+1.44163783e-09, 1.66531197e-09, 1.92378601e-09, 2.22250659e-09,
+2.56778373e-09, 2.96693142e-09, 3.42843230e-09, 3.96213109e-09,
+4.57946233e-09, 5.29371926e-09, 6.12037234e-09, 7.07744809e-09,
+8.18598146e-09, 9.47055879e-09, 1.09599731e-08, 1.26880195e-08,
+1.46944685e-08, 1.70262644e-08, 1.97390159e-08, 2.28988648e-08,
+2.65848556e-08, 3.08919715e-08, 3.59350698e-08, 4.18540474e-08])
 
 dp_par = np.array([7.498942093324539870e-01,8.659643233600640144e-01,
 9.999999999999980016e-01,1.154781984689456031e+00,1.333521432163321974e+00,
@@ -72,17 +87,27 @@ dlogmob_ion=np.array([0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.
        0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
        0.125])
 
-dlogdp_ion=np.array([0.06257907, 0.06258521, 0.06259845, 0.06261376, 0.06263147,
-       0.06265194, 0.06267563, 0.06270305, 0.06273478, 0.06277153,
-       0.06281409, 0.06286343, 0.06292064, 0.06298703, 0.06306411,
-       0.06315368, 0.06325786, 0.06337916, 0.06352054, 0.06368553,
-       0.06387836, 0.06410408, 0.06436873, 0.06467961, 0.06504553,
-       0.06547715, 0.06598741, 0.06626396])
+#dlogdp_ion=np.array([0.06257907, 0.06258521, 0.06259845, 0.06261376, 0.06263147,
+#       0.06265194, 0.06267563, 0.06270305, 0.06273478, 0.06277153,
+#       0.06281409, 0.06286343, 0.06292064, 0.06298703, 0.06306411,
+#       0.06315368, 0.06325786, 0.06337916, 0.06352054, 0.06368553,
+#       0.06387836, 0.06410408, 0.06436873, 0.06467961, 0.06504553,
+#       0.06547715, 0.06598741, 0.06626396])
+
+dlogdp_ion = np.array([
+0.06257821, 0.06259036, 0.06260441, 0.06262065, 0.06263943,
+0.06266116, 0.0626863 , 0.06271539, 0.06274906, 0.06278807,
+0.06283326, 0.06288565, 0.06294641, 0.06301694, 0.06309885,
+0.06319406, 0.06330485, 0.06343388, 0.06358435, 0.06376004,
+0.06396549, 0.06420612, 0.06448846, 0.06482035, 0.06521132,
+0.06567287, 0.06621897])
 
 dlogdp_par=np.array([0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
        0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
        0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
        0.0625, 0.0625, 0.0625, 0.0625, 0.0625])
+
+
 
 # Names and naming formats encountered
 filename_formats = [
@@ -616,9 +641,10 @@ def process_data(
 
     except:
         return None
-
-
-
+       
+    
+    
+    
 def nais_processor(config_file):
     """ Function that processes data from the NAIS
     
@@ -830,7 +856,13 @@ def nais_processor(config_file):
                  pipelength)
 
             if ion_datamatrices is not None:
-
+                
+                
+                bad_data = read_flags(x["diagnostics"])
+                ion_datamatrices = quality_check(ion_datamatrices,bad_data)    
+                
+                
+                
                 # Save the sum matrices using the standard names
                 np.savetxt(save_path+'NAISn'+x['timestamp']+'nds.sum',ion_datamatrices[0])
                 np.savetxt(save_path+'NAISp'+x['timestamp']+'nds.sum',ion_datamatrices[1])
@@ -1013,25 +1045,105 @@ def do_figs(config_file):
             db.update({'particle_figure': fig_path+'NAIS_particles_'+x['timestamp'] +'.png'}, check.timestamp==x['timestamp'])
             plt.close()
 
-
     print("Done!")
 
+def combine_spectra(config_file,begin_time,end_time,spectrum_type="negion"):
+    """
+    Combine processed particle or ion data from some time range 
+    and return it in a sum-formatted numpy array
+    """
 
+    # Check that the config file exists
+    if os.path.isfile(config_file) == False:
+        print('"%s" does not exist' % config_file)
+        return
+    else:
+        # Try to parse the config file
+        with open(config_file,'r') as stream:
+            try:
+                config = yaml.safe_load(stream)
+                save_path = config['processed_folder']
+                database = config['database_file']
+            except:
+                print("Something went wrong with parsing %s",config_file)
+                return
 
+    try:
+      db = TinyDB(database)
+      check = Query()
+    except:
+        print("Could not initialize database")
+        return
 
+    begin_dt=pd.to_datetime(begin_time)
+    end_dt=pd.to_datetime(end_time)
 
+    begin_dnum=datetime2datenum(begin_dt)
+    end_dnum=datetime2datenum(end_dt)
 
+    begin_date=begin_dt.strftime("%Y%m%d")
+    end_date=end_dt.strftime("%Y%m%d")
 
+    if spectrum_type=="negpar":
+        iterator = iter(db.search(
+            (check.processed_neg_particle_file.exists()) &
+            (check.timestamp>=begin_date) &
+            (check.timestamp<=end_date))
+            )
+    
+    elif spectrum_type=="pospar":
+        iterator = iter(db.search(
+            (check.processed_pos_particle_file.exists()) &
+            (check.timestamp>=begin_date) &
+            (check.timestamp<=end_date))
+            )
+ 
+    elif spectrum_type=="negion":
+        iterator = iter(db.search(
+            (check.processed_neg_ion_file.exists()) &
+            (check.timestamp>=begin_date) &
+            (check.timestamp<=end_date))
+            )
+ 
+    elif spectrum_type=="posion":
+        iterator = iter(db.search(
+            (check.processed_pos_ion_file.exists()) &
+            (check.timestamp>=begin_date) &
+            (check.timestamp<=end_date))
+            )
 
+    else:
+        print("ERROR: %s is not valid 'spectra_type'" % spectrum_type)
+        return
 
+    # Check if nothing was found
+    if any(iterator)==False:
+        print("No data found")
+        return
 
+    # Iterate through data that is within the interesting date range
+    iter_num=1
+    for x in iterator:
 
+        spectrum = np.loadtxt(x["processed_neg_particle_file"])
+        data = spectrum[1:,:]        
 
+        if (iter_num==1):
+            header = np.expand_dims(spectrum[0,:],axis=0)
+            combined_spectrum = data
+            iter_num = iter_num+1
+        else:
+            combined_spectrum = np.vstack((combined_spectrum,data))
+            
+    # Refine the time range
+    findex = np.argwhere((combined_spectrum[:,0]>=begin_dnum) & 
+                         (combined_spectrum[:,0]<=end_dnum)).flatten()
 
+    # Combine the data with the header and return
+    combined_spectrum = combined_spectrum[findex,:]
+    result = np.vstack((header,combined_spectrum))
 
-
-
-
+    return result
 
 
 

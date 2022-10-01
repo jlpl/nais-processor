@@ -104,6 +104,24 @@ The data files have the following structure:
 
 The locations of raw files, processed files and possible figures are written in the `database_file`, which is in JSON format.
 
+### Combining sumfiles
+
+Once you have processed your NAIS data you can combine multiple
+sumfiles into a single multi-day sumfile using the `combine_spectra()`
+function.
+
+Example:
+```
+import nais_processor as nais
+
+start_time="2020-07-04 20:00:00"
+end_time="2020-07-08 12:00:00"
+
+combined_data = nais.combine_spectra(
+    config_file,start_time,end_time,spectra_type="negion")
+```
+The spectra types are: `negion` (default), `posion`, `negpar` and `pospar`.
+
 ## License
 
 This project is licensed under the terms of the GNU GPLv3.
