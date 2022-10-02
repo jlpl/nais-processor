@@ -1,9 +1,3 @@
-
-# TODO 
-# Option that db is not provided
-# Combined size distribution functions
-# Also make plots using imshow not pcolormesh (faster)
-
 import numpy as np
 from matplotlib import colors
 import matplotlib.pyplot as plt
@@ -24,25 +18,13 @@ import time
 import json
 
 ## Fixed diameter and mobility bins
-#dp_ion = np.array([7.949610066873187275e-01,9.181737924552214603e-01,
-#1.060513600503926179e+00,1.224959679823698799e+00,1.414958699738506631e+00,
-#1.634499249798819331e+00,1.888198514085806856e+00,2.181403433339687226e+00,
-#2.520308747865528165e+00,2.912095102815642989e+00,3.365090891236600878e+00,
-#3.888962384293289887e+00,4.494937535166431353e+00,5.196070414640996837e+00,
-#6.007554438162747701e+00,6.947095098447752193e+00,8.035355151375323857e+00,
-#9.296489193192451594e+00,1.075878902024538242e+01,1.245546773082500103e+01,
-#1.442561898219513949e+01,1.671539984850161886e+01,1.937950186998520152e+01,
-#2.248299804137784363e+01,2.610368545677439300e+01,3.033508982931992648e+01,
-#3.529036394466827886e+01,4.110740875515996606e+01])
-
-dp_ion = np.array([
-8.09958076e-10, 9.35493448e-10, 1.08051577e-09, 1.24806016e-09,
-1.44163783e-09, 1.66531197e-09, 1.92378601e-09, 2.22250659e-09,
-2.56778373e-09, 2.96693142e-09, 3.42843230e-09, 3.96213109e-09,
-4.57946233e-09, 5.29371926e-09, 6.12037234e-09, 7.07744809e-09,
-8.18598146e-09, 9.47055879e-09, 1.09599731e-08, 1.26880195e-08,
-1.46944685e-08, 1.70262644e-08, 1.97390159e-08, 2.28988648e-08,
-2.65848556e-08, 3.08919715e-08, 3.59350698e-08, 4.18540474e-08])
+dp_ion = np.array([7.86360416e-10, 9.08232168e-10, 1.04902018e-09, 1.21167006e-09,
+       1.39958930e-09, 1.61672083e-09, 1.86762862e-09, 2.15759741e-09,
+       2.49274932e-09, 2.88018000e-09, 3.32811839e-09, 3.84611427e-09,
+       4.44525917e-09, 5.13844742e-09, 5.94068566e-09, 6.86946146e-09,
+       7.94518431e-09, 9.19171623e-09, 1.06370142e-08, 1.23139134e-08,
+       1.42610904e-08, 1.65242568e-08, 1.91576555e-08, 2.22259544e-08,
+       2.58066722e-08, 2.99933244e-08, 3.48995548e-08, 4.06646353e-08])*1e9
 
 dp_par = np.array([7.498942093324539870e-01,8.659643233600640144e-01,
 9.999999999999980016e-01,1.154781984689456031e+00,1.333521432163321974e+00,
@@ -75,7 +57,7 @@ mob_ion_geomeans=np.array([2.73841963e-04, 2.05352503e-04, 1.53992653e-04, 1.154
        8.65964323e-07, 6.49381632e-07, 4.86967525e-07, 3.65174127e-07,
        2.73841963e-07, 2.05352503e-07, 1.53992653e-07])*1e4
 
-dp_par_geomeans=np.array([ 0.80584219,  0.93057204,  1.07460783,  1.24093776,  1.43301257,
+dp_par_geomeans=np.array([0.80584219,  0.93057204,  1.07460783,  1.24093776,  1.43301257,
         1.6548171 ,  1.91095297,  2.20673407,  2.54829675,  2.94272718,
         3.39820833,  3.92418976,  4.53158364,  5.23299115,  6.0429639 ,
         6.97830585,  8.05842188,  9.30572041, 10.74607828, 12.40937761,
@@ -87,20 +69,12 @@ dlogmob_ion=np.array([0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.
        0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
        0.125])
 
-#dlogdp_ion=np.array([0.06257907, 0.06258521, 0.06259845, 0.06261376, 0.06263147,
-#       0.06265194, 0.06267563, 0.06270305, 0.06273478, 0.06277153,
-#       0.06281409, 0.06286343, 0.06292064, 0.06298703, 0.06306411,
-#       0.06315368, 0.06325786, 0.06337916, 0.06352054, 0.06368553,
-#       0.06387836, 0.06410408, 0.06436873, 0.06467961, 0.06504553,
-#       0.06547715, 0.06598741, 0.06626396])
-
-dlogdp_ion = np.array([
-0.06257821, 0.06259036, 0.06260441, 0.06262065, 0.06263943,
-0.06266116, 0.0626863 , 0.06271539, 0.06274906, 0.06278807,
-0.06283326, 0.06288565, 0.06294641, 0.06301694, 0.06309885,
-0.06319406, 0.06330485, 0.06343388, 0.06358435, 0.06376004,
-0.06396549, 0.06420612, 0.06448846, 0.06482035, 0.06521132,
-0.06567287, 0.06621897])
+dlogdp_ion = np.array([0.06257524, 0.0625811 , 0.06259375, 0.06260838, 0.06262533,
+       0.06264495, 0.06266769, 0.06269404, 0.06272461, 0.06276008,
+       0.06280128, 0.06284916, 0.06290487, 0.06296974, 0.06304539,
+       0.0631337 , 0.06323696, 0.06335788, 0.06349974, 0.0636665 ,
+       0.06386292, 0.06409481, 0.06436924, 0.06469482, 0.06508209,
+       0.06554394, 0.06609614, 0.06639699])
 
 dlogdp_par=np.array([0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
        0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
@@ -340,38 +314,66 @@ def datetime2datenum(dt):
            / (24.0 * 60.0 * 60.0)
     return mdn.toordinal() + frac
 
+def datenum2datetime(datenum):
+    """ Convert from matlab datenum to python datetime """
 
-# PLOTTING FUNCTION
-def plot_sumfile(handle,v,clim=(10,100000)):
-    """ Plot UHEL's sum-formatted aerosol number-size distribution """
+    return datetime.fromordinal(int(datenum)) + timedelta(days=datenum%1) - timedelta(days = 366)
+
+
+def log_ticks():
+    x=np.arange(1,10)
+    y=np.arange(-10,-4).astype(float)
+    tt=[]
+    tts=[]
+    for j in y:
+        for i in x:
+            tt.append(np.log10(np.round(i*10**j,int(np.abs(j)))))
+            if i==1:
+                tts.append("10$^{%d}$"%j)
+            else:
+                tts.append('')
     
-    time = v[1:,0] # This is datenum
+    tt=np.array(tt)
+    return tt,tts
+ 
+def plot_sumfile(handle,v,clims=(10,100000),hour_step=2,date_formatter="%Y-%m-%d %H:%M"):
+
+    time = v[1:,0]
     dp = v[0,2:]
     data = v[1:,2:]
-    data[data<=0]=1e-30 # No holes in plots
-    mesh_dp, mesh_time = np.meshgrid(dp,time)
-    pcolorplot = handle.pcolormesh(mesh_time,mesh_dp,data,
-                                   norm=colors.LogNorm(),
-                                   linewidth=0,rasterized=True,cmap='jet')
-    handle.set_yscale('log')
-    pcolorplot.set_clim(clim)
-    pcolorplot.set_edgecolor('face')
-    handle.autoscale(tight='true')
-    #handle.set_xlim((np.floor(time[0]),np.floor(time[0])+1)) # makes 24-h axis
+ 
+    tt,tts = log_ticks()
 
-    handle.grid('on',which='both',linestyle='--',color='w',lw=0.5)
-    handle.xaxis.set_major_locator(dts.HourLocator(interval=1))
-    handle.xaxis.set_major_formatter(dts.DateFormatter('%H'))
-    #handle.set_xticks(np.floor(time[0])+np.arange(0,25)/24.0)
-    #handle.set_xticklabels(["%2.2i" % x for x in np.arange(0,25)])
-    plt.setp(handle.get_xticklabels(), rotation=80)
+    norm = colors.LogNorm(vmin=clims[0],vmax=clims[1])
+    color_ticks = LogLocator(subs=range(10))
+        
+    handle.set_yticks(tt)
+    handle.set_yticklabels(tts)
+    
+    t1=dts.date2num(datenum2datetime(time.min()))
+    t2=dts.date2num(datenum2datetime(time.max()))
+    
+    img = handle.imshow(
+        np.flipud(data.T),
+        origin="upper",
+        aspect="auto",
+        interpolation="hanning",
+        cmap="turbo",
+        norm=norm,
+        extent=(t1,t2,np.log10(dp.min()),np.log10(dp.max()))
+    )
+    
+    handle.xaxis.set_major_locator(dts.HourLocator(interval=hour_step))
+    handle.xaxis.set_major_formatter(dts.DateFormatter(date_formatter))
+    plt.setp(handle.get_xticklabels(), rotation=90)
+    
+    box = handle.get_position()
+    c_handle = plt.axes([box.x0*1.025 + box.width * 1.025, box.y0, 0.01, box.height])
+    cbar = plt.colorbar(img,cax=c_handle,ticks=color_ticks)
+
     handle.set_ylabel('Dp, [m]')
     handle.set_xlabel('UTC'+'%+d'%v[0,0]+', [h]')
-    cbar = plt.colorbar(pcolorplot, ax=handle, 
-                        ticks=LogLocator(subs=range(10)))
     cbar.set_label('dN/dlogDp, [cm-3]')
-    return pcolorplot
-
 
 # PARSE THROUGH THE RAW DATA FILES
 def read_file(fn):
@@ -423,7 +425,6 @@ def read_file(fn):
     df.iloc[:,3:] = df.iloc[:,3:].replace([np.inf,-np.inf],np.nan)
               
     return df
-
 
 # FUNCTIONS TO AVERAGE DATA INTO FIXED BINS
 def average_mob(y,h):
@@ -534,10 +535,10 @@ def process_data(
         if (np.all(np.isnan(neg_df)) | 
             np.all(np.isnan(pos_df)) ):
             return None
-
+    
         if apply_corr:
             rec = rec.set_index('opmode')
-
+    
             # If relevant diagnostic data to make corrections does not exist: 
             # return nothing
             t_name,p_name,sf_names,sf_name = find_diagnostic_names(list(rec))
@@ -546,13 +547,13 @@ def process_data(
                 pass
             else:
                 return None
-
+    
             # Then extract the records that match the polarity
             if mode=="ions":
                 df_rec = rec.loc['ions'].set_index(rec.columns[0])
             if mode=="particles":
                 df_rec = rec.loc['particles'].set_index(rec.columns[0])
-
+    
             df_rec.index = [parse(y) for y in df_rec.index]            
     
             # Match records to data according to time
@@ -573,7 +574,7 @@ def process_data(
             if sf_name is not None:
                 flow_df = df_rec[sf_name].astype(float)
                 flow_df = flow_df.interpolate().values.flatten()            
-
+    
             # If any of the relevant data are all NaNs return nothing
             if (np.all(np.isnan(neg_df)) | 
                 np.all(np.isnan(pos_df)) |
@@ -636,14 +637,12 @@ def process_data(
         # Construct the sum-files
         negdf = np.concatenate((df_header,np.concatenate((time_df,total_neg_df,neg_df),axis=1)))
         posdf = np.concatenate((df_header,np.concatenate((time_df,total_pos_df,pos_df),axis=1)))
-
+    
         return [negdf,posdf]
-
+    
     except:
         return None
-       
-    
-    
+            
     
 def nais_processor(config_file):
     """ Function that processes data from the NAIS
@@ -702,6 +701,7 @@ def nais_processor(config_file):
                 database = config['database_file']
                 location = config['location']
                 end_date = config['end_date']
+                ignore_db = config["allow_reprocess"]
                 if len(end_date)==0:
                     end_date = today
                 pipelength = config['inlet_length']
@@ -813,22 +813,37 @@ def nais_processor(config_file):
     else:
         last_day=None
     
-    # Iterate through data that can be processed
-    # But is still not processed
-    for x in iter(db.search( 
+    # decide your data iterator
+
+    # reprocess data in db
+    if ignore_db:
+        iterator =  iter(db.search( 
         ((check.timestamp==last_day) & 
          (check.timestamp>=start_date_str) &
          (check.timestamp<=end_date_str)) |
          (check.diagnostics.exists() &
           (check.ions.exists() |
           check.particles.exists()) &
-          ~check.processed_neg_ion_file.exists() &
-          ~check.processed_pos_ion_file.exists() &
-          ~check.processed_neg_particle_file.exists() &
-          ~check.processed_pos_particle_file.exists() &
           (check.timestamp>=start_date_str) &
-          (check.timestamp<=end_date_str)))): 
-       
+          (check.timestamp<=end_date_str))))
+
+    # do not reprocess data in db
+    else:
+        iterator =  iter(db.search( 
+            ((check.timestamp==last_day) & 
+             (check.timestamp>=start_date_str) &
+             (check.timestamp<=end_date_str)) |
+             (check.diagnostics.exists() &
+              (check.ions.exists() |
+              check.particles.exists()) &
+              ~check.processed_neg_ion_file.exists() &
+              ~check.processed_pos_ion_file.exists() &
+              ~check.processed_neg_particle_file.exists() &
+              ~check.processed_pos_particle_file.exists() &
+              (check.timestamp>=start_date_str) &
+              (check.timestamp<=end_date_str)))) 
+    
+    for x in iterator: 
  
         print('processing %s' % x['timestamp'])
 
@@ -856,12 +871,6 @@ def nais_processor(config_file):
                  pipelength)
 
             if ion_datamatrices is not None:
-                
-                
-                bad_data = read_flags(x["diagnostics"])
-                ion_datamatrices = quality_check(ion_datamatrices,bad_data)    
-                
-                
                 
                 # Save the sum matrices using the standard names
                 np.savetxt(save_path+'NAISn'+x['timestamp']+'nds.sum',ion_datamatrices[0])
@@ -902,7 +911,7 @@ def nais_processor(config_file):
 
 
 
-def do_figs(config_file):
+def do_daily_figs(config_file):
     """ Plot the processed NAIS data 
 
     Function arguments:
@@ -931,6 +940,7 @@ def do_figs(config_file):
                 database = config['database_file']
                 location = config['location']
                 fig_path = config['figure_folder']
+                ignore_db = config['allow_reprocess']
                 if len(fig_path)==0:
                     fig_path = None
             except:
@@ -985,9 +995,21 @@ def do_figs(config_file):
     else:
         last_day=None
 
-    # Iterate through data that can be plotted, but is not
-    for x in iter(db.search(
-        (     
+    if ignore_db:
+        iterator = iter(db.search((     
+          (check.processed_neg_ion_file.exists() &
+          check.processed_pos_ion_file.exists() &
+          (check.timestamp==last_day)) |
+          (check.processed_neg_particle_file.exists() &
+          check.processed_pos_particle_file.exists() &
+          (check.timestamp==last_day)) |
+          (check.processed_neg_ion_file.exists() &
+          check.processed_pos_ion_file.exists()) |
+          (check.processed_neg_particle_file.exists() &
+          check.processed_pos_particle_file.exists()))))
+
+    else:
+        iterator = iter(db.search((     
           (check.processed_neg_ion_file.exists() &
           check.processed_pos_ion_file.exists() &
           (check.timestamp==last_day)) |
@@ -999,10 +1021,11 @@ def do_figs(config_file):
           ~check.ion_figure.exists()) |
           (check.processed_neg_particle_file.exists() &
           check.processed_pos_particle_file.exists() &
-          ~check.particle_figure.exists())
-        )
-      )
-    ):
+          ~check.particle_figure.exists()))))
+ 
+
+    # Iterate through data that can be plotted, but is not
+    for x in iterator: 
 
         print('plotting %s' % x['timestamp'])
 
@@ -1018,14 +1041,15 @@ def do_figs(config_file):
         if ions_exist:
             negion=np.loadtxt(x["processed_neg_ion_file"])
             posion=np.loadtxt(x["processed_pos_ion_file"])
-            fig,ax = plt.subplots(2,1,figsize=(7,7.5),dpi=100)
+            fig,ax = plt.subplots(2,1,figsize=(8,7))
             ax = ax.flatten()
-            plot_sumfile(ax[0],posion,clim=(10,10000))
-            plot_sumfile(ax[1],negion,clim=(10,10000))
-            ax[0].set_title('Positive ions')
-            ax[1].set_title('Negative ions')
-            plt.tight_layout(rect=[0, 0.0, 1, 0.96])
-            fig.suptitle('NAIS' + ' ' + x['timestamp'] + '\n' + location, y=1.0)
+            plot_sumfile(ax[0],posion,clims=(10,10000),hour_step=1,date_formatter="%H:%M")
+            plot_sumfile(ax[1],negion,clims=(10,10000),hour_step=1,date_formatter="%H:%M")
+            ax[0].set_xticklabels([])
+            ax[0].set_xlabel('')
+            ax[0].set_title('Negative ions',loc="left")
+            ax[1].set_title('Positive ions',loc="left")
+            fig.suptitle(x['timestamp'] + ' ' + location)
             plt.savefig(fig_path+'NAIS_ions_'+ x['timestamp'] +'.png',dpi=100,bbox_inches='tight')
             db.update({'ion_figure': fig_path+'NAIS_ions_'+ x['timestamp'] +'.png'}, check.timestamp==x['timestamp'])
             plt.close()
@@ -1033,14 +1057,15 @@ def do_figs(config_file):
         if particles_exist:
             negpar=np.loadtxt(x["processed_neg_particle_file"])
             pospar=np.loadtxt(x["processed_pos_particle_file"])
-            fig,ax = plt.subplots(2,1,figsize=(7,7.5),dpi=100)
+            fig,ax = plt.subplots(2,1,figsize=(8,7))
             ax = ax.flatten()
-            plot_sumfile(ax[0],pospar,clim=(10,100000))
-            plot_sumfile(ax[1],negpar,clim=(10,100000))
-            ax[0].set_title('Particles (positive polarity)')
-            ax[1].set_title('Particles (negative polarity)')
-            plt.tight_layout(rect=[0, 0.0, 1, 0.96])
-            fig.suptitle('NAIS' + ' ' + x['timestamp'] + '\n' + location, y=1.0)
+            plot_sumfile(ax[0],pospar,clims=(10,100000),hour_step=1,date_formatter="%H:%M")
+            plot_sumfile(ax[1],negpar,clims=(10,100000),hour_step=1,date_formatter="%H:%M")
+            ax[0].set_xticklabels([])
+            ax[0].set_xlabel('')
+            ax[0].set_title('Particles (positive polarity)',loc="left")
+            ax[1].set_title('Particles (negative polarity)',loc="left")
+            fig.suptitle(x['timestamp'] + ' ' + location)
             plt.savefig(fig_path+'NAIS_particles_'+ x['timestamp'] +'.png',dpi=100,bbox_inches='tight')
             db.update({'particle_figure': fig_path+'NAIS_particles_'+x['timestamp'] +'.png'}, check.timestamp==x['timestamp'])
             plt.close()
@@ -1102,31 +1127,32 @@ def combine_spectra(config_file,begin_time,end_time,spectrum_type="negion"):
         iterator = iter(db.search(
             (check.processed_neg_ion_file.exists()) &
             (check.timestamp>=begin_date) &
-            (check.timestamp<=end_date))
-            )
+            (check.timestamp<=end_date)))
  
     elif spectrum_type=="posion":
         iterator = iter(db.search(
             (check.processed_pos_ion_file.exists()) &
             (check.timestamp>=begin_date) &
-            (check.timestamp<=end_date))
-            )
-
+            (check.timestamp<=end_date)))
+ 
     else:
         print("ERROR: %s is not valid 'spectra_type'" % spectrum_type)
-        return
-
-    # Check if nothing was found
-    if any(iterator)==False:
-        print("No data found")
         return
 
     # Iterate through data that is within the interesting date range
     iter_num=1
     for x in iterator:
 
-        spectrum = np.loadtxt(x["processed_neg_particle_file"])
-        data = spectrum[1:,:]        
+        if spectrum_type=="negpar":
+            spectrum = np.loadtxt(x["processed_neg_particle_file"])
+        if spectrum_type=="pospar":
+            spectrum = np.loadtxt(x["processed_pos_particle_file"])
+        if spectrum_type=="negion":
+            spectrum = np.loadtxt(x["processed_neg_ion_file"])
+        if spectrum_type=="posion":
+            spectrum = np.loadtxt(x["processed_pos_ion_file"])
+
+        data = spectrum[1:,:]
 
         if (iter_num==1):
             header = np.expand_dims(spectrum[0,:],axis=0)
@@ -1135,15 +1161,18 @@ def combine_spectra(config_file,begin_time,end_time,spectrum_type="negion"):
         else:
             combined_spectrum = np.vstack((combined_spectrum,data))
             
-    # Refine the time range
-    findex = np.argwhere((combined_spectrum[:,0]>=begin_dnum) & 
-                         (combined_spectrum[:,0]<=end_dnum)).flatten()
+    
+    if iter_num==1:
+        print("No data found")
+        return
+    else:
+        # Combine the data with the header and return
+        findex = np.argwhere(
+            (combined_spectrum[:,0]>=begin_dnum) & 
+            (combined_spectrum[:,0]<=end_dnum)).flatten()
 
-    # Combine the data with the header and return
-    combined_spectrum = combined_spectrum[findex,:]
-    result = np.vstack((header,combined_spectrum))
+        return np.vstack((header,combined_spectrum[findex,:]))
 
-    return result
 
 
 
