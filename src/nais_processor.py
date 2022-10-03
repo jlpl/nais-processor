@@ -17,7 +17,24 @@ from tinydb.operations import add
 import time
 import json
 
-## Fixed diameter and mobility bins
+__pdoc__ = {
+    'visc': False,
+    'rlambda': False,
+    'cunn': False,
+    'diffuus': False,
+    'tubeloss': False,
+    'datetime2datenum': False,
+    'datenum2datetime': False,
+    'log_ticks': False,
+    'average_mob': False,
+    'average_dp': False,
+    'find_diagnostic_names': False,
+    'process_data': False,
+    'average_dp': False,
+    'average_dp': False,
+}
+
+# The final geometric mean diameters of diameter and mobility bins
 dp_ion = np.array([7.86360416e-10, 9.08232168e-10, 1.04902018e-09, 1.21167006e-09,
        1.39958930e-09, 1.61672083e-09, 1.86762862e-09, 2.15759741e-09,
        2.49274932e-09, 2.88018000e-09, 3.32811839e-09, 3.84611427e-09,
@@ -48,7 +65,6 @@ mob_ion = np.array([3.162277660168379937e-04,2.371373705661659990e-04,
 4.216965034285829924e-07,3.162277660168379721e-07,2.371373705661660136e-07,
 1.778279410038920042e-07,1.333521432163329868e-07])*1e4
 
-# Some other values calculated from the fixed bins
 mob_ion_geomeans=np.array([2.73841963e-04, 2.05352503e-04, 1.53992653e-04, 1.15478198e-04,
        8.65964323e-05, 6.49381632e-05, 4.86967525e-05, 3.65174127e-05,
        2.73841963e-05, 2.05352503e-05, 1.53992653e-05, 1.15478198e-05,
@@ -81,13 +97,11 @@ dlogdp_par=np.array([0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0
        0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
        0.0625, 0.0625, 0.0625, 0.0625, 0.0625])
 
-# Names and naming formats encountered
 filename_formats = [
 ['%Y-%m-%d.ions.nds','%Y-%m-%d.particles.nds','%Y-%m-%d.log'],
 ['%Y%m%d-block-ions.spectra','%Y%m%d-block-particles.spectra','%Y%m%d-block.records'],
 ['%Y%m%d-block-ions.spectra','%Y%m%d-block-particles.spectra','%Y%m%d-block.diagnostics']]
 
-# Possible names for diagnostic parameters
 possible_sampleflow_names = [
 'pos_sampleflow.mean',
 'neg_sampleflow.mean',
@@ -110,7 +124,14 @@ temp_ref = 273.15 # K, 0C
 pres_ref = 101325.0 # Pa, 1atm
 
 def make_config():
-    """ Make a configuration file for processing NAIS data """
+    """ 
+    Make a configuration file for processing NAIS data
+
+    Running `make_config()` asks information about the 
+    measurement and the data, then writes the configuration 
+    file to the specified location.
+
+    """
 
     # Collect data from the user
     print()
@@ -192,6 +213,10 @@ def make_config():
     while True:
         allow_reprocessing = input("> ")
         if ((allow_reprocessing=='True') or (allow_reprocessing=='False')):
+            if (allow_reprocessing=='True'):
+                allow_reprocessing=True
+            else:
+                allow_reprocessing=False
             break
         else:
             continue
@@ -266,7 +291,7 @@ def make_config():
 
 
 # Inlet losses
-##############################
+################################################################################
 def visc(temp):
     """ Calculate viscosity of air """
 
@@ -313,21 +338,19 @@ def tubeloss(dpp,pflow,plength,temp,press):
     return pene
 
 
-# CONVERT TO MATLAB DATENUM
+# Time format conversion
+################################################################################
 def datetime2datenum(dt):
-    """ Convert from python datetime to matlab datenum """
-
     mdn = dt + timedelta(days = 366)
     frac = (dt-datetime(dt.year,dt.month,dt.day,0,0,0,tzinfo=dt.tzinfo)).seconds \
            / (24.0 * 60.0 * 60.0)
     return mdn.toordinal() + frac
 
 def datenum2datetime(datenum):
-    """ Convert from matlab datenum to python datetime """
-
     return datetime.fromordinal(int(datenum)) + timedelta(days=datenum%1) - timedelta(days = 366)
 
-
+# Plotting
+################################################################################
 def log_ticks():
     x=np.arange(1,10)
     y=np.arange(-10,-4).astype(float)
@@ -345,6 +368,28 @@ def log_ticks():
     return tt,tts
  
 def plot_sumfile(handle,v,clims=(10,100000),hour_step=2,date_formatter="%Y-%m-%d %H:%M"):
+    """ 
+    Plot sum-formatted aerosol number size distribution 
+
+    Parameters
+    ----------
+
+    handle : matplotlib.Axes.axes
+        Axes object on which to plot
+
+    v : 2-d np.array
+        Aerosol size distribution matrix
+
+    clims : list/tuple, size 2
+        Data limits for the color
+
+    hour_step : int
+        Resolution on the time axis given in hours
+
+    date_formatter : str
+        Date format string
+
+    """
 
     time = v[1:,0]
     dp = v[0,2:]
@@ -373,7 +418,7 @@ def plot_sumfile(handle,v,clims=(10,100000),hour_step=2,date_formatter="%Y-%m-%d
     
     handle.xaxis.set_major_locator(dts.HourLocator(interval=hour_step))
     handle.xaxis.set_major_formatter(dts.DateFormatter(date_formatter))
-    plt.setp(handle.get_xticklabels(), rotation=90)
+    plt.setp(handle.get_xticklabels(), rotation=80)
     
     box = handle.get_position()
     c_handle = plt.axes([box.x0*1.025 + box.width * 1.025, box.y0, 0.01, box.height])
@@ -383,9 +428,25 @@ def plot_sumfile(handle,v,clims=(10,100000),hour_step=2,date_formatter="%Y-%m-%d
     handle.set_xlabel('UTC'+'%+d'%v[0,0]+', [h]')
     cbar.set_label('dN/dlogDp, [cm-3]')
 
-# PARSE THROUGH THE RAW DATA FILES
+# Read raw data file into a dataframe
+################################################################################
 def read_file(fn):
-    """ Read the data files to a pandas dataframe """
+    """
+    Read NAIS raw data file into a pandas DataFrame
+
+    Parameters
+    ----------
+
+    fn : str
+        Raw data filename
+
+    Returns
+    -------
+        
+    pandas DataFrame
+             
+    """
+    
     with open(fn) as f:
 
         header_found = False
@@ -434,7 +495,8 @@ def read_file(fn):
               
     return df
 
-# FUNCTIONS TO AVERAGE DATA INTO FIXED BINS
+# Average data into the standard size bins
+################################################################################
 def average_mob(y,h):
     data = np.nan*np.ones((y.shape[0],len(mob_ion)))
 
@@ -467,13 +529,8 @@ def average_dp(y,h):
 
     return data
 
-
 def find_diagnostic_names(diag_params):
-    """
-    Find the names of important diagnostic
-    parameters in the diagnostic file 
-
-    """
+    
     sampleflow_name=None
     sampleflow_names=None
     temperature_name=None
@@ -501,7 +558,8 @@ def find_diagnostic_names(diag_params):
 
     return temperature_name, pressure_name, sampleflow_names, sampleflow_name
 
-
+# Process the data (convert to dndlogdp & corrections)
+################################################################################
 def process_data(
     df,
     rec,
@@ -509,7 +567,6 @@ def process_data(
     apply_corr,
     sealevel_corr,
     pipel):
-    """ Create the number-size distribution files and apply corrections """
 
     try:
         df = df.set_index(df.columns[0])
@@ -584,9 +641,7 @@ def process_data(
                 flow_df = flow_df.interpolate().values.flatten()            
     
             # If any of the relevant data are all NaNs return nothing
-            if (np.all(np.isnan(neg_df)) | 
-                np.all(np.isnan(pos_df)) |
-                np.all(np.isnan(flow_df)) |
+            if (np.all(np.isnan(flow_df)) |
                 np.all(np.isnan(p_df)) |
                 np.all(np.isnan(t_df))):
                 return None
@@ -616,8 +671,7 @@ def process_data(
                 roberts_corr = 0.713*dp_ion**0.120
                 neg_df = neg_df / roberts_corr
                 pos_df = pos_df / roberts_corr
-    
-        
+            
         # CREATE FINAL DATA MATRICES
     
         # Integrate total number concentrations
@@ -650,42 +704,15 @@ def process_data(
     
     except:
         return None
-            
-    
+
 def nais_processor(config_file):
-    """ Function that processes data from the NAIS
-    
-    The function creates specially formatted number-size distribution 
-    files from neutral cluster and air ion spectrometer (NAIS) data files
-    and optionally corrects for losses, applies ion mode calibration 
-    and corrects concentrations to standard conditions. 
+    """ Function that is called to processes data from the NAIS
 
-    A measurement setup specific configuration file is needed in the 
-    processing. A configuration file can be created using make_config().
+    Parameters
+    ----------
 
-    Four types of files are created:
-
-    NAISn[yyyymmdd]nds.sum
-        ion number size distribution, negative polarity
-    NAISp[yyyymmdd]nds.sum
-        ion number size distribution, positive polarity
-    NAISn[yyyymmdd]np.sum
-        particle number size distribution, negative polarity
-    NAISp[yyyymmdd]np.sum
-        particle number-size distribution, positive polarity
-
-    The created processed files have the following format
-        [0,0]  = UTC offset in hours
-        [1:,0] = time (MATLAB datenum) 
-        [0,2:] = geometric mean diameter of size-channel (m)
-        [1:,1] = integrated total number concentration (cm-3)
-        [1:,2:] = normalized number concentrations, dN/dlogDp (cm-3)
-
-    Function arguments:
-        Name of the configuration file (str)
-
-    Example:
-        nais_processor('/home/user/data/config.yml')
+    config_file : str
+        full path to the configuration file    
 
     """
 
@@ -719,7 +746,7 @@ def nais_processor(config_file):
                 print("Something went wrong with parsing %s",config_file)
                 return
 
-    # Then check if you can initialize th database
+    # Then check if you can initialize the database
     try:
       db = TinyDB(database)
       check = Query()
@@ -920,13 +947,13 @@ def nais_processor(config_file):
 
 
 def do_daily_figs(config_file):
-    """ Plot the processed NAIS data 
+    """ Make daily plots of NAIS data into the fig folder
 
-    Function arguments:
-        Name of the configuration file (str)
+    Parameters
+    ----------
 
-    Example:
-        do_figs('/home/user/data/config.yml')
+    config_file : str
+        full path to the configuration file
 
     """
 
@@ -943,7 +970,6 @@ def do_daily_figs(config_file):
         with open(config_file,'r') as stream:
             try:
                 config = yaml.safe_load(stream)
-
                 save_path = config['processed_folder']
                 database = config['database_file']
                 location = config['location']
@@ -1032,7 +1058,6 @@ def do_daily_figs(config_file):
           ~check.particle_figure.exists()))))
  
 
-    # Iterate through data that can be plotted, but is not
     for x in iterator: 
 
         print('plotting %s' % x['timestamp'])
@@ -1083,7 +1108,36 @@ def do_daily_figs(config_file):
 def combine_spectra(config_file,begin_time,end_time,spectrum_type="negion"):
     """
     Combine processed particle or ion data from some time range 
-    and return it in a sum-formatted numpy array
+    
+    Parameters
+    ----------
+
+    config_file : str
+        full path to configuration file
+
+    begin_time : str
+        date string for begin time
+
+    end_time : str
+        date string for end time
+
+    spectrum_type : str
+        negative ions `negion` (default)
+
+        positive ions `posion`
+
+        negative particles `negpar`
+
+        positive particles `pospar`
+
+
+    Returns
+    -------
+
+    2-d array
+        combined sum file between begin_time
+        and end_time for the specified spectrum_type
+
     """
 
     if os.path.isfile(config_file) == False:
@@ -1136,7 +1190,7 @@ def combine_spectra(config_file,begin_time,end_time,spectrum_type="negion"):
             (check.timestamp>=begin_date) &
             (check.timestamp<=end_date))) 
     else:
-        print("ERROR: %s is not valid 'spectra_type'" % spectrum_type)
+        print("ERROR: %s is not valid 'spectrum_type'" % spectrum_type)
         return
 
     iter_num=1

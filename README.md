@@ -9,6 +9,8 @@ The code corrects for diffusion losses in the inlet line (Gromley and Kennedy, 1
 pip install nais-processor
 ```
 
+### [Documentation](https://jlpl.github.io/nais-processor/)
+
 ## Example usage
 
 Open the python prompt and load methods from the `nais_processor` module.
@@ -68,10 +70,10 @@ Correct concentrations to sealevel conditions? (True/False)
 Configuration saved to: ./nais-5-33.yml
 ```
 
-The reulting configuration file `nais-5-33.yml` looks like this:
+The resulting configuration file `nais-5-33.yml` looks like this:
 
 ```yaml
-allow_reprocess: 'True'
+allow_reprocess: true
 apply_corrections: true
 data_folder:
 - ./nais-5-33
@@ -132,6 +134,7 @@ sumfiles into a single multi-day sumfile using the `combine_spectra()`
 function. You can also extract data from within one day like this.
 
 Example:
+
 ```
 import nais_processor as nais
 
@@ -141,10 +144,10 @@ end_time="2020-07-08 12:00:00"
 combined_data = nais.combine_spectra(
     config_file,start_time,end_time,spectra_type="negion")
 ```
+
 The spectra types are: `negion` (default), `posion`, `negpar` and `pospar`.
 
-You can also plot the data with `plot_sumfile()` method.
-
+You can also plot data using `plot_sumfile()`.
 
 ## License
 
