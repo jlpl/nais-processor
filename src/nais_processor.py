@@ -81,8 +81,6 @@ dlogdp_par=np.array([0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0
        0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
        0.0625, 0.0625, 0.0625, 0.0625, 0.0625])
 
-
-
 # Names and naming formats encountered
 filename_formats = [
 ['%Y-%m-%d.ions.nds','%Y-%m-%d.particles.nds','%Y-%m-%d.log'],
@@ -110,7 +108,6 @@ possible_pressure_names = [
 # Define standard conditions
 temp_ref = 273.15 # K, 0C
 pres_ref = 101325.0 # Pa, 1atm
-
 
 def make_config():
     """ Make a configuration file for processing NAIS data """
@@ -190,6 +187,16 @@ def make_config():
             continue
 
     print()
+    print("Allow reprocessing (True/False)")
+    print("Overwrites already processed datafiles in the database when running the processor again.")
+    while True:
+        allow_reprocessing = input("> ")
+        if ((allow_reprocessing=='True') or (allow_reprocessing=='False')):
+            break
+        else:
+            continue
+
+    print()
     print("Measurement location")
     print("E.g. Helsinki, Kumpula")
     location = input("> ")
@@ -249,7 +256,8 @@ def make_config():
         "location": location,
         "inlet_length": inlet_length,
         "apply_corrections":apply_corrections,
-        "sealevel_correction": sealevel_correction 
+        "sealevel_correction": sealevel_correction,
+        "allow_reprocess": allow_reprocessing 
     }
 
     # Save the config file
@@ -257,7 +265,8 @@ def make_config():
         yaml.dump(config_info,cf)
 
 
-# FUNCTIONS TO CALCULATE LOSSES IN THE INLET
+# Inlet losses
+##############################
 def visc(temp):
     """ Calculate viscosity of air """
 
@@ -299,9 +308,8 @@ def tubeloss(dpp,pflow,plength,temp,press):
 
     cond1=rmuu<0.02
     cond2=rmuu>=0.02
-    pene[cond1]=1. - 2.56*rmuu[cond1]**(2./3.) + 1.2*rmuu[cond1]+0.177*rmuu[cond1]**(4./3.)
-    pene[cond2]=1. - 2.56*rmuu[cond2]**(2./3.) + 1.2*rmuu[cond2]+0.177*rmuu[cond2]**(4./3.)
-
+    pene[cond1] = 1. - 2.56*rmuu[cond1]**(2./3.) + 1.2*rmuu[cond1]+0.177*rmuu[cond1]**(4./3.)
+    pene[cond2] = 0.819*np.exp(-3.657*rmuu[cond2]) + 0.097*np.exp(-22.3*rmuu[cond2]) + 0.032*np.exp(-57.0*rmuu[cond2])
     return pene
 
 
@@ -1078,12 +1086,10 @@ def combine_spectra(config_file,begin_time,end_time,spectrum_type="negion"):
     and return it in a sum-formatted numpy array
     """
 
-    # Check that the config file exists
     if os.path.isfile(config_file) == False:
         print('"%s" does not exist' % config_file)
         return
     else:
-        # Try to parse the config file
         with open(config_file,'r') as stream:
             try:
                 config = yaml.safe_load(stream)
@@ -1113,36 +1119,28 @@ def combine_spectra(config_file,begin_time,end_time,spectrum_type="negion"):
         iterator = iter(db.search(
             (check.processed_neg_particle_file.exists()) &
             (check.timestamp>=begin_date) &
-            (check.timestamp<=end_date))
-            )
-    
+            (check.timestamp<=end_date)))
     elif spectrum_type=="pospar":
         iterator = iter(db.search(
             (check.processed_pos_particle_file.exists()) &
             (check.timestamp>=begin_date) &
-            (check.timestamp<=end_date))
-            )
- 
+            (check.timestamp<=end_date)))
     elif spectrum_type=="negion":
         iterator = iter(db.search(
             (check.processed_neg_ion_file.exists()) &
             (check.timestamp>=begin_date) &
             (check.timestamp<=end_date)))
- 
     elif spectrum_type=="posion":
         iterator = iter(db.search(
             (check.processed_pos_ion_file.exists()) &
             (check.timestamp>=begin_date) &
-            (check.timestamp<=end_date)))
- 
+            (check.timestamp<=end_date))) 
     else:
         print("ERROR: %s is not valid 'spectra_type'" % spectrum_type)
         return
 
-    # Iterate through data that is within the interesting date range
     iter_num=1
     for x in iterator:
-
         if spectrum_type=="negpar":
             spectrum = np.loadtxt(x["processed_neg_particle_file"])
         if spectrum_type=="pospar":
@@ -1166,7 +1164,6 @@ def combine_spectra(config_file,begin_time,end_time,spectrum_type="negion"):
         print("No data found")
         return
     else:
-        # Combine the data with the header and return
         findex = np.argwhere(
             (combined_spectrum[:,0]>=begin_dnum) & 
             (combined_spectrum[:,0]<=end_dnum)).flatten()

@@ -22,68 +22,89 @@ $ python
 
 Enter name of configuration file.
 E.g. ./configs/campaign.yml
-> ./configs/nyc.yml
+> ./nais-5-33.yml  
 
 Give path(s) to raw data. If multiple paths give them as comma separated list.
 E.g. /data/nais/2021,/data/nais/2022
-> /campaigns/nyc/nais/2015,/campaigns/nyc/nais/2016
+> ./nais-5-33
 
 Path to where processed data is saved.
 E.g. ./data/campaign/processed
-> ./data/nyc/processed
+> ./nais-5-33
 
 Path to where figures are saved. Leave empty if no figures.
 E.g. ./data/campaign/figures
-> ./data/nyc/figs
+> ./nais-5-33   
 
 Start of measurement (YYYY-MM-DD)
-> 2015-01-05
+> 2022-09-28
 
 End of measurement (YYYY-MM-DD)
 If empty processor assumes current day, use for continuous measurements.
-> 2016-06-08
+> 2022-09-30
 
 Enter name of database file
 E.g. ./logs/campaign.json
-> ./logs/nyc.json
+> ./nais-5-33.json  
+
+Allow reprocessing (True/False)
+Overwrites already processed datafiles in the database when running the processor again.
+> True
 
 Measurement location
 E.g. Helsinki, Kumpula
-> New York City
+> Helsinki, Lab 
 
 Apply corrections to data? (True/False)
 Requires a NAIS with temperature and pressure sensors.
-> True
+> True 
 
 Length of the inlet in meters
-> 1.0
+> 0.0 
 
 Correct concentrations to sealevel conditions? (True/False)
 > False
 
-Configuration saved to: ./configs/nyc.yml
+Configuration saved to: ./nais-5-33.yml
 ```
+
+The reulting configuration file `nais-5-33.yml` looks like this:
+
+```yaml
+allow_reprocess: 'True'
+apply_corrections: true
+data_folder:
+- ./nais-5-33
+database_file: ./nais-5-33.json
+end_date: '2022-09-30'
+figure_folder: ./nais-5-33
+inlet_length: 0.0
+location: Helsinki, Lab
+processed_folder: ./nais-5-33
+sealevel_correction: false
+start_date: '2022-09-28'
+```
+
 Then process the data files by running `nais_processor()` method with the config file as the input argument.
 
 ```
->>> nais_processor("./configs/nyc.yml")
-Configuration file: ./configs/nyc.yml
-processing 20150105
-processing 20150106
-processing 20150107
-...
+>>> nais_processor("./nais-5-33.yml")
+Configuration file: ./nais-5-33.yml
+processing 20220928
+processing 20220929
+processing 20220930
 Done!
 ```
-Run `do_figs()` with the config file in order to create plots of the processed data if needed.
+Run `do_daily_figs()` with the config file in order to create plots of the processed data if needed.
 
 ```
->>> do_figs("./configs/nyc.yml")
-plotting 20150105
-plotting 20150106
-plotting 20150107
-...
+>>> do_daily_figs("./nais-5-33.yml")
+plotting 20220928
+plotting 20220929
+plotting 20220930
 Done!
 ```
+
 The code produces daily processed data files and optionally figures for ion and particle data. These files are saved in the destinations given in the configuration file.
 
 The data files are named
@@ -106,9 +127,9 @@ The locations of raw files, processed files and possible figures are written in 
 
 ### Combining sumfiles
 
-Once you have processed your NAIS data you can combine multiple
+Once you have processed your NAIS data you can combine multiple daily
 sumfiles into a single multi-day sumfile using the `combine_spectra()`
-function.
+function. You can also extract data from within one day like this.
 
 Example:
 ```
@@ -121,6 +142,9 @@ combined_data = nais.combine_spectra(
     config_file,start_time,end_time,spectra_type="negion")
 ```
 The spectra types are: `negion` (default), `posion`, `negpar` and `pospar`.
+
+You can also plot the data with `plot_sumfile()` method.
+
 
 ## License
 
