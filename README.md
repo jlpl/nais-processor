@@ -82,7 +82,6 @@ data_folder:
 - ./nais-5-33
 database_file: ./nais-5-33.json
 end_date: '2022-09-30'
-figure_folder: ./nais-5-33
 inlet_length: 0.0
 location: Helsinki, Lab
 processed_folder: ./nais-5-33
