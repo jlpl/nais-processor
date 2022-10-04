@@ -835,6 +835,123 @@ def corona_ion_cleaner(datam):
     return datam#, ratio_removed
 
 
+
+def check_config(f):
+    """
+    Check that config file is ok
+
+    Parameters
+    ----------
+
+    f : `str`
+        full path to the configuration file
+
+    Returns
+    -------
+
+    boolean
+        `True` if file is OK
+        `False` if file is not OK
+
+    """
+
+
+    if not os.path.isfile(f):
+        print("Config not found")
+        return False
+
+    print(f)
+
+    abs_path_to_f = os.path.abspath(f)
+    a,b = os.path.split(abs_path_to_f)
+    cwd = os.getcwd()
+    os.chdir(a)
+
+    with open(f,'r') as stream:
+        try:
+            config = yaml.safe_load(stream)
+            load_path = config['data_folder']
+            save_path = config['processed_folder']
+            start_date = config['start_date']
+            database = config['database_file']
+            location = config['location']
+            end_date = config['end_date']
+            ignore_db = config["allow_reprocess"]
+            pipelength = config['inlet_length']
+            sealevel_correction = config['sealevel_correction']
+            apply_corrections = config['apply_corrections']
+            apply_cleaning=config["apply_cleaning"]
+        except:
+            print("Config badly formatted")
+            return False
+
+    try:
+      db = TinyDB(database)
+      check = Query()
+    except:
+        print("Could not init DB")
+        return 0
+
+    if start_date=='':
+        pass
+    else:
+        try:
+            pd.to_datetime(start_date)
+        except:
+            print("Bad start_date")
+            return False
+
+    if end_date=='':
+        pass
+    else:
+        try:
+            pd.to_datetime(end_date)
+        except:
+            print("Bad end_date")
+            return False
+
+    if os.path.exists(save_path)==False:
+        print("Bad save path")
+        return False
+
+    for x in load_path:
+        if os.path.exists(x)==False:
+            print("Bad load path")
+            return False
+
+    if (ignore_db==True) or (ignore_db==False):
+        pass
+    else:
+        print("Bad allow_reprocess")
+        return False
+
+    if (sealevel_correction==True) or (sealevel_correction==False):
+        pass
+    else:
+        print("Bad sealevel_correction")
+        return False
+
+    if (apply_cleaning==True) or (apply_cleaning==False):
+        pass
+    else:
+        print("Bad apply_cleaning")
+        return False
+
+    if (apply_corrections==True) or (apply_corrections==False):
+        pass
+    else:
+        print("Bad apply_corrections")
+        return False
+
+    try:
+        float(pipelength)
+    except:
+        print("Bad inlet_length")
+        return False
+
+    os.chdir(cwd)
+    return True
+
 def nais_processor(config_file):
     """ Function that is called to processes data from the NAIS
 
@@ -846,85 +963,49 @@ def nais_processor(config_file):
 
     """
 
-    # Find out today
+    if not check_config(config_file):
+        return 
+
+    config_abs_path = os.path.abspath(config_file)
+    config_dir,config_fn = os.path.split(config_abs_path)
+    cwd = os.getcwd()
+    os.chdir(config_dir)
+
+    # Today
     today_dt = datetime.today()
     today = today_dt.strftime('%Y%m%d')
 
-    # Check that the config file exists
-    if os.path.isfile(config_file)==False:
-        print('"%s" does not exist' % config_file)
-        return
-    else:
-        # Try to parse the config file
-        with open(config_file,'r') as stream:
-            try:
-                config = yaml.safe_load(stream)
+    with open(config_file,'r') as stream:
+        config = yaml.safe_load(stream)
+        load_path = config['data_folder']
+        save_path = config['processed_folder']
+        start_date = config['start_date']
+        database = config['database_file']
+        location = config['location']
+        end_date = config['end_date']
+        ignore_db = config["allow_reprocess"]
+        pipelength = config['inlet_length']
+        sealevel_correction = config['sealevel_correction']
+        apply_corrections = config['apply_corrections']
+        apply_cleaning=config["apply_cleaning"]
 
-                load_path = config['data_folder']
-                save_path = config['processed_folder']
-                start_date = config['start_date']
-                database = config['database_file']
-                location = config['location']
-                end_date = config['end_date']
-                ignore_db = config["allow_reprocess"]
-                if len(end_date)==0:
-                    end_date = today
-                if len(start_date)==0:
-                    start_date = "2000-01-01"
-                pipelength = config['inlet_length']
-                sealevel_correction = config['sealevel_correction']
-                apply_corrections = config['apply_corrections']
-                apply_cleaning=config["apply_cleaning"]
-            except:
-                print("Something went wrong with parsing %s",config_file)
-                return
+    if len(end_date)==0:
+        end_date = today
+    if len(start_date)==0:
+        start_date = "2000-01-01"
 
-    # Then check if you can initialize the database
-    try:
-      db = TinyDB(database)
-      check = Query()
-    except:
-        print("Could not initialize database")
-        return
+    db = TinyDB(database)
+    check = Query()
 
-    # Test if the configuration information is valid
-    try:
-        float(pipelength)
-    except:
-        print('"%s" must be a number' % pipelength)
-        return
-
-    # Test if start and end dates are valid
-    try:
-       start_dt = pd.to_datetime(start_date)
-       end_dt = pd.to_datetime(end_date)
-    except:
-       print('bad start_date or end_date')
-       return
-
-    # Check if given data folders exist
-    for x in load_path:
-        if os.path.exists(x):
-            continue
-        else:
-            print("At least one data folder does not exist")
-            return
-
-    # Check for save path and create folders if they do not exist.
-    if os.path.exists(save_path):
-        pass
-    else:
-        print("Save path does not exist")
-        return
-
-    print("Configuration file: %s" % config_file)
+    start_dt=pd.to_datetime(start_date)
+    end_dt=pd.to_datetime(end_date)
 
     start_date_str = start_dt.strftime("%Y%m%d")
     end_date_str = end_dt.strftime("%Y%m%d")
 
     # Convert load and save paths to absolute paths
-    load_path = [os.path.abspath(x) + '/' for x in load_path]
-    save_path = os.path.abspath(save_path) + '/'
+    load_path = [os.path.abspath(x) for x in load_path]
+    save_path = os.path.abspath(save_path)
 
     # Make a list of datetimes that the config file is interested in
     list_of_datetimes = pd.date_range(start=start_date_str, end=end_date_str)
@@ -1114,6 +1195,7 @@ def nais_processor(config_file):
                         check.timestamp==x['timestamp'])
 
     print("Done!")
+    os.chdir(cwd)
 
 
 def plot_nais(
