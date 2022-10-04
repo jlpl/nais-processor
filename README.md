@@ -39,6 +39,7 @@ E.g. ./data/campaign/figures
 > ./nais-5-33   
 
 Start of measurement (YYYY-MM-DD)
+Leave empty if you want to start from the earliest date found
 > 2022-09-28
 
 End of measurement (YYYY-MM-DD)

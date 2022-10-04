@@ -172,8 +172,11 @@ def make_config():
 
     print()
     print("Start of measurement (YYYY-MM-DD)")
+    print("Leave empty if you want to start from the earliest date found")
     while True:
         start_date = input("> ")
+        if len(start_date)==0:
+            break
         try:
             start_dt = pd.to_datetime(start_date)
             break
@@ -866,6 +869,8 @@ def nais_processor(config_file):
                 ignore_db = config["allow_reprocess"]
                 if len(end_date)==0:
                     end_date = today
+                if len(start_date)==0:
+                    start_date = "2000-01-01"
                 pipelength = config['inlet_length']
                 sealevel_correction = config['sealevel_correction']
                 apply_corrections = config['apply_corrections']
