@@ -5,7 +5,7 @@ with open("README.md","r") as fh:
 
 setup(
     name="nais-processor",
-    version="0.0.3",
+    version="0.0.4",
     description='Code to process ion spectrometer data files',
     py_modules=["nais_processor"],
     package_dir={'':'src'},
