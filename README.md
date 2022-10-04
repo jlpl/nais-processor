@@ -1,4 +1,4 @@
-![data](./img.png)
+![data](./small_img.png)
 
 # NAIS processor
 Use this code package to process [NAIS](https://www.airel.ee/products/nais/) (Neutral cluster and Air Ion Spectrometer, Airel Ltd.) data files.
