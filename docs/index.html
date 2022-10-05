@@ -166,8 +166,8 @@ def make_config():
 
     # Collect data from the user
     print()
-    print(&#34;Enter name of configuration file.&#34;)
-    print(&#34;E.g. ./configs/campaign.yml&#34;)
+    print(&#34;Enter name of configuration file (full path)&#34;)
+    print(&#34;E.g. /home/user/campaign.yml&#34;)
     while True:
         config_file = input(&#34;&gt; &#34;)
         if len(config_file)&gt;0:
@@ -178,8 +178,8 @@ def make_config():
             continue
 
     print()
-    print(&#34;Give path(s) to raw data. If multiple paths give them as comma separated list.&#34;)
-    print(&#34;E.g. /data/nais/2021,/data/nais/2022&#34;)
+    print(&#34;Give full path(s) to raw data. If multiple paths give them as comma separated list.&#34;)
+    print(&#34;E.g. /home/user/data/2021,/home/user/data/2022&#34;)
     while True:
         user_input = input(&#34;&gt; &#34;)
         if len(user_input)&gt;0:
@@ -189,8 +189,8 @@ def make_config():
             continue
 
     print()
-    print(&#34;Path to where processed data is saved.&#34;)
-    print(&#34;E.g. ./data/campaign/processed&#34;)
+    print(&#34;Full path to where processed data is saved.&#34;)
+    print(&#34;E.g. /home/user/campaign&#34;)
     while True:
         save_path = input(&#34;&gt; &#34;)
         if len(save_path)&gt;0:
@@ -225,8 +225,8 @@ def make_config():
             continue
 
     print()
-    print(&#34;Enter name of database file&#34;)
-    print(&#34;E.g. ./logs/campaign.json&#34;)
+    print(&#34;Enter name of database file (full path)&#34;)
+    print(&#34;E.g. /home/user/campaign.json&#34;)
     while True:
         database_file = input(&#34;&gt; &#34;)
         if len(database_file)&gt;0:
@@ -890,11 +890,6 @@ def check_config(f):
 
     print(f)
 
-    abs_path_to_f = os.path.abspath(f)
-    a,b = os.path.split(abs_path_to_f)
-    cwd = os.getcwd()
-    os.chdir(a)
-
     with open(f,&#39;r&#39;) as stream:
         try:
             config = yaml.safe_load(stream)
@@ -977,7 +972,6 @@ def check_config(f):
         print(&#34;Bad inlet_length&#34;)
         return False
 
-    os.chdir(cwd)
     return True
 
 def nais_processor(config_file):
@@ -993,11 +987,6 @@ def nais_processor(config_file):
 
     if not check_config(config_file):
         return 
-
-    config_abs_path = os.path.abspath(config_file)
-    config_dir,config_fn = os.path.split(config_abs_path)
-    cwd = os.getcwd()
-    os.chdir(config_dir)
 
     # Today
     today_dt = datetime.today()
@@ -1031,46 +1020,46 @@ def nais_processor(config_file):
     start_date_str = start_dt.strftime(&#34;%Y%m%d&#34;)
     end_date_str = end_dt.strftime(&#34;%Y%m%d&#34;)
 
-    # Convert load and save paths to absolute paths
-    load_path = [os.path.abspath(x) for x in load_path]
-    save_path = os.path.abspath(save_path)
-
     # Make a list of datetimes that the config file is interested in
     list_of_datetimes = pd.date_range(start=start_date_str, end=end_date_str)
 
     # list existing dates
     list_of_existing_dates = [x[&#39;timestamp&#39;] for x in db.search(check.diagnostics.exists())]
-    earliest_existing_date = np.min(pd.to_datetime(list_of_existing_dates))
 
     # Add unprocessed datafiles to the database
     for x in list_of_datetimes:
-        if ((x.strftime(&#39;%Y%m%d&#39;) in list_of_existing_dates) |
-            (x &lt; earliest_existing_date)):
+        if (x.strftime(&#39;%Y%m%d&#39;) in list_of_existing_dates):
             continue
         else:
             files_found=False
             for z in load_path:
                 for y in filename_formats:
 
-                    if ( (os.path.exists(z+x.strftime(y[0])) | # ions
-                         os.path.exists(z+x.strftime(y[1]))) &amp; # particles
-                         os.path.exists(z+x.strftime(y[2])) # diagnostics
+                    ion_fn = os.path.join(z,x.strftime(y[0]))
+                    particle_fn = os.path.join(z,x.strftime(y[1]))
+                    diagnostic_fn = os.path.join(z,x.strftime(y[2]))
+
+                    if ( (os.path.exists(ion_fn) | # ions
+                         os.path.exists(particle_fn)) &amp; # particles
+                         os.path.exists(diagnostic_fn) # diagnostics
                        ):
 
+                        dtstr = x.strftime(&#39;%Y%m%d&#39;)
+
                         db.insert(
-                            {&#39;timestamp&#39;:x.strftime(&#39;%Y%m%d&#39;),
-                            &#39;diagnostics&#39;:z+x.strftime(y[2])}
+                            {&#39;timestamp&#39;:dtstr,
+                            &#39;diagnostics&#39;:diagnostic_fn}
                             )
 
-                        if os.path.exists(z+x.strftime(y[0])):
+                        if os.path.exists(ion_fn):
                             db.update(
-                                {&#39;ions&#39;:z+x.strftime(y[0])},
-                                check.timestamp==x.strftime(&#39;%Y%m%d&#39;))
+                                {&#39;ions&#39;:ion_fn},
+                                check.timestamp==dtstr)
 
-                        if os.path.exists(z+x.strftime(y[1])):
+                        if os.path.exists(particle_fn):
                             db.update(
-                                {&#39;particles&#39;:z+x.strftime(y[1])},
-                                check.timestamp==x.strftime(&#39;%Y%m%d&#39;))
+                                {&#39;particles&#39;:particle_fn},
+                                check.timestamp==dtstr)
 
                         files_found=True
                         break
@@ -1094,7 +1083,7 @@ def nais_processor(config_file):
 
     # reprocess data in db
     if ignore_db:
-        iterator =  iter(db.search(
+        iterator = iter(db.search(
         ((check.timestamp==last_day) &amp;
          (check.timestamp&gt;=start_date_str) &amp;
          (check.timestamp&lt;=end_date_str)) |
@@ -1106,7 +1095,7 @@ def nais_processor(config_file):
 
     # do not reprocess data in db
     else:
-        iterator =  iter(db.search(
+        iterator = iter(db.search(
             ((check.timestamp==last_day) &amp;
              (check.timestamp&gt;=start_date_str) &amp;
              (check.timestamp&lt;=end_date_str)) |
@@ -1223,7 +1212,6 @@ def nais_processor(config_file):
                         check.timestamp==x[&#39;timestamp&#39;])
 
     print(&#34;Done!&#34;)
-    os.chdir(cwd)
 
 
 def plot_nais(
@@ -1246,8 +1234,11 @@ def plot_nais(
         it saves to current directory.
 
     day : `str`
-        Date string `&#34;%Y%m%d&#34;` showing which
-        day to plot OR `&#34;all&#34;` (default) for all
+        Date string showing the day to plot
+
+        or
+        
+        `&#34;all&#34;` (default) for all
         days in the database.
 
     opmode : `str`
@@ -1258,41 +1249,37 @@ def plot_nais(
 
     &#34;&#34;&#34;
 
-    # Check that the config file exists
-    if os.path.isfile(config_file) == False:
-        print(&#39;&#34;%s&#34; does not exist&#39; % config_file)
-        return
-    else:
-        # Try to parse the config file
-        with open(config_file,&#39;r&#39;) as stream:
-            try:
-                config = yaml.safe_load(stream)
-                save_path = config[&#39;processed_folder&#39;]
-                database = config[&#39;database_file&#39;]
-                location = config[&#39;location&#39;]
-            except:
-                print(&#34;Something went wrong with parsing %s&#34;,config_file)
-                return
+    if not check_config(config_file):
+        return 
 
-    # Check if you can initialize the database
-    try:
-      db = TinyDB(database)
-      check = Query()
-    except:
-        print(&#34;Could not initialize database&#34;)
-        return
+    with open(config_file,&#39;r&#39;) as stream:
+        config = yaml.safe_load(stream)
+        save_path = config[&#39;processed_folder&#39;]
+        database = config[&#39;database_file&#39;]
+        location = config[&#39;location&#39;]
 
-    # Check if processed data path exists
-    if not os.path.exists(save_path):
-        print(&#34;Path to processed data is invalid&#34;)
-        return
+    db = TinyDB(database)
+    check = Query()
 
-    # Check if processed data path exists
     if fig_path is None:
         fig_path = os.getcwd()
-    if not os.path.exists(fig_path):
-        print(&#34;Figure save path is invalid&#34;)
+    elif os.path.exists(fig_path):
+        pass
+    else:
+        print(&#39;&#34;fig_path&#34; is invalid&#39;)
         return
+
+    if opmode not in [&#34;ions&#34;,&#34;particles&#34;,&#34;both&#34;]:
+        print(&#39;Bad &#34;opmode&#34;&#39;)
+
+    if quality not in [&#34;uncleaned&#34;,&#34;cleaned&#34;,&#34;both&#34;]:
+        print(&#39;Bad &#34;quality&#34;&#39;)
+
+    if day==&#34;all&#34;:
+        pass
+    else:
+       dt=pd.to_datetime(day)
+       day=dt.strftime(&#34;%Y%m%d&#34;)
 
     # Define some plotting styles
     plt.style.use(&#39;dark_background&#39;)
@@ -1336,24 +1323,24 @@ def plot_nais(
 
         print(&#39;plotting %s&#39; % x[&#39;timestamp&#39;])
 
-        ions_exist=db.search(
+        ions_exist=bool(db.search(
             check.processed_neg_ion_file.exists() &amp;
             check.processed_pos_ion_file.exists() &amp;
-            (check.timestamp==x[&#39;timestamp&#39;]))
-        cleaned_ions_exist=db.search(
+            (check.timestamp==x[&#39;timestamp&#39;])))
+        cleaned_ions_exist=bool(db.search(
             check.cleaned_processed_neg_ion_file.exists() &amp;
             check.cleaned_processed_pos_ion_file.exists() &amp;
-            (check.timestamp==x[&#39;timestamp&#39;]))
-        particles_exist=db.search(
+            (check.timestamp==x[&#39;timestamp&#39;])))
+        particles_exist=bool(db.search(
             check.processed_neg_particle_file.exists() &amp;
             check.processed_pos_particle_file.exists() &amp;
-            (check.timestamp==x[&#39;timestamp&#39;]))
-        cleaned_particles_exist=db.search(
+            (check.timestamp==x[&#39;timestamp&#39;])))
+        cleaned_particles_exist=bool(db.search(
             check.cleaned_processed_neg_particle_file.exists() &amp;
             check.cleaned_processed_pos_particle_file.exists() &amp;
-            (check.timestamp==x[&#39;timestamp&#39;]))
+            (check.timestamp==x[&#39;timestamp&#39;])))
 
-        if (bool(ions_exist) &amp;
+        if (ions_exist &amp;
             ((opmode==&#34;ions&#34;) | (opmode==&#34;both&#34;)) &amp;
             ((quality==&#34;uncleaned&#34;) | (quality==&#34;both&#34;))):
 
@@ -1372,7 +1359,7 @@ def plot_nais(
             plt.savefig(fig_save_path,dpi=100,bbox_inches=&#39;tight&#39;)
             plt.close()
 
-        if (bool(cleaned_ions_exist) &amp;
+        if (cleaned_ions_exist &amp;
             ((opmode==&#34;ions&#34;) | (opmode==&#34;both&#34;)) &amp;
             ((quality==&#34;cleaned&#34;) | (quality==&#34;both&#34;))):
 
@@ -1391,7 +1378,7 @@ def plot_nais(
             plt.savefig(fig_save_path,dpi=100,bbox_inches=&#39;tight&#39;)
             plt.close()
 
-        if (bool(particles_exist) &amp;
+        if (particles_exist &amp;
             ((opmode==&#34;particles&#34;) | (opmode==&#34;both&#34;)) &amp;
             ((quality==&#34;uncleaned&#34;) | (quality==&#34;both&#34;))):
 
@@ -1410,7 +1397,7 @@ def plot_nais(
             plt.savefig(fig_save_path,dpi=100,bbox_inches=&#39;tight&#39;)
             plt.close()
 
-        if (bool(cleaned_particles_exist) &amp;
+        if (cleaned_particles_exist &amp;
             ((opmode==&#34;particles&#34;) | (opmode==&#34;both&#34;)) &amp;
             ((quality==&#34;cleaned&#34;) | (quality==&#34;both&#34;))):
 
@@ -1479,25 +1466,16 @@ def combine_spectra(
 
     &#34;&#34;&#34;
 
-    if os.path.isfile(config_file) == False:
-        print(&#39;&#34;%s&#34; does not exist&#39; % config_file)
-        return
-    else:
-        with open(config_file,&#39;r&#39;) as stream:
-            try:
-                config = yaml.safe_load(stream)
-                save_path = config[&#39;processed_folder&#39;]
-                database = config[&#39;database_file&#39;]
-            except:
-                print(&#34;Something went wrong with parsing %s&#34;,config_file)
-                return
+    if not check_config(config_file):
+        return 
 
-    try:
-      db = TinyDB(database)
-      check = Query()
-    except:
-        print(&#34;Could not initialize database&#34;)
-        return
+    with open(config_file,&#39;r&#39;) as stream:
+        config = yaml.safe_load(stream)
+        save_path = config[&#39;processed_folder&#39;]
+        database = config[&#39;database_file&#39;]
+
+    db = TinyDB(database)
+    check = Query()
 
     begin_dt=pd.to_datetime(begin_time)
     end_dt=pd.to_datetime(end_time)
@@ -1636,11 +1614,6 @@ def combine_spectra(
 
     print(f)
 
-    abs_path_to_f = os.path.abspath(f)
-    a,b = os.path.split(abs_path_to_f)
-    cwd = os.getcwd()
-    os.chdir(a)
-
     with open(f,&#39;r&#39;) as stream:
         try:
             config = yaml.safe_load(stream)
@@ -1723,7 +1696,6 @@ def combine_spectra(
         print(&#34;Bad inlet_length&#34;)
         return False
 
-    os.chdir(cwd)
     return True</code></pre>
 </details>
 </dd>
@@ -1809,25 +1781,16 @@ and end_time for the specified spectrum_type</dd>
 
     &#34;&#34;&#34;
 
-    if os.path.isfile(config_file) == False:
-        print(&#39;&#34;%s&#34; does not exist&#39; % config_file)
-        return
-    else:
-        with open(config_file,&#39;r&#39;) as stream:
-            try:
-                config = yaml.safe_load(stream)
-                save_path = config[&#39;processed_folder&#39;]
-                database = config[&#39;database_file&#39;]
-            except:
-                print(&#34;Something went wrong with parsing %s&#34;,config_file)
-                return
+    if not check_config(config_file):
+        return 
 
-    try:
-      db = TinyDB(database)
-      check = Query()
-    except:
-        print(&#34;Could not initialize database&#34;)
-        return
+    with open(config_file,&#39;r&#39;) as stream:
+        config = yaml.safe_load(stream)
+        save_path = config[&#39;processed_folder&#39;]
+        database = config[&#39;database_file&#39;]
+
+    db = TinyDB(database)
+    check = Query()
 
     begin_dt=pd.to_datetime(begin_time)
     end_dt=pd.to_datetime(end_time)
@@ -1937,8 +1900,8 @@ file to the specified location.</p></div>
 
     # Collect data from the user
     print()
-    print(&#34;Enter name of configuration file.&#34;)
-    print(&#34;E.g. ./configs/campaign.yml&#34;)
+    print(&#34;Enter name of configuration file (full path)&#34;)
+    print(&#34;E.g. /home/user/campaign.yml&#34;)
     while True:
         config_file = input(&#34;&gt; &#34;)
         if len(config_file)&gt;0:
@@ -1949,8 +1912,8 @@ file to the specified location.</p></div>
             continue
 
     print()
-    print(&#34;Give path(s) to raw data. If multiple paths give them as comma separated list.&#34;)
-    print(&#34;E.g. /data/nais/2021,/data/nais/2022&#34;)
+    print(&#34;Give full path(s) to raw data. If multiple paths give them as comma separated list.&#34;)
+    print(&#34;E.g. /home/user/data/2021,/home/user/data/2022&#34;)
     while True:
         user_input = input(&#34;&gt; &#34;)
         if len(user_input)&gt;0:
@@ -1960,8 +1923,8 @@ file to the specified location.</p></div>
             continue
 
     print()
-    print(&#34;Path to where processed data is saved.&#34;)
-    print(&#34;E.g. ./data/campaign/processed&#34;)
+    print(&#34;Full path to where processed data is saved.&#34;)
+    print(&#34;E.g. /home/user/campaign&#34;)
     while True:
         save_path = input(&#34;&gt; &#34;)
         if len(save_path)&gt;0:
@@ -1996,8 +1959,8 @@ file to the specified location.</p></div>
             continue
 
     print()
-    print(&#34;Enter name of database file&#34;)
-    print(&#34;E.g. ./logs/campaign.json&#34;)
+    print(&#34;Enter name of database file (full path)&#34;)
+    print(&#34;E.g. /home/user/campaign.json&#34;)
     while True:
         database_file = input(&#34;&gt; &#34;)
         if len(database_file)&gt;0:
@@ -2132,11 +2095,6 @@ file to the specified location.</p></div>
     if not check_config(config_file):
         return 
 
-    config_abs_path = os.path.abspath(config_file)
-    config_dir,config_fn = os.path.split(config_abs_path)
-    cwd = os.getcwd()
-    os.chdir(config_dir)
-
     # Today
     today_dt = datetime.today()
     today = today_dt.strftime(&#39;%Y%m%d&#39;)
@@ -2169,46 +2127,46 @@ file to the specified location.</p></div>
     start_date_str = start_dt.strftime(&#34;%Y%m%d&#34;)
     end_date_str = end_dt.strftime(&#34;%Y%m%d&#34;)
 
-    # Convert load and save paths to absolute paths
-    load_path = [os.path.abspath(x) for x in load_path]
-    save_path = os.path.abspath(save_path)
-
     # Make a list of datetimes that the config file is interested in
     list_of_datetimes = pd.date_range(start=start_date_str, end=end_date_str)
 
     # list existing dates
     list_of_existing_dates = [x[&#39;timestamp&#39;] for x in db.search(check.diagnostics.exists())]
-    earliest_existing_date = np.min(pd.to_datetime(list_of_existing_dates))
 
     # Add unprocessed datafiles to the database
     for x in list_of_datetimes:
-        if ((x.strftime(&#39;%Y%m%d&#39;) in list_of_existing_dates) |
-            (x &lt; earliest_existing_date)):
+        if (x.strftime(&#39;%Y%m%d&#39;) in list_of_existing_dates):
             continue
         else:
             files_found=False
             for z in load_path:
                 for y in filename_formats:
 
-                    if ( (os.path.exists(z+x.strftime(y[0])) | # ions
-                         os.path.exists(z+x.strftime(y[1]))) &amp; # particles
-                         os.path.exists(z+x.strftime(y[2])) # diagnostics
+                    ion_fn = os.path.join(z,x.strftime(y[0]))
+                    particle_fn = os.path.join(z,x.strftime(y[1]))
+                    diagnostic_fn = os.path.join(z,x.strftime(y[2]))
+
+                    if ( (os.path.exists(ion_fn) | # ions
+                         os.path.exists(particle_fn)) &amp; # particles
+                         os.path.exists(diagnostic_fn) # diagnostics
                        ):
 
+                        dtstr = x.strftime(&#39;%Y%m%d&#39;)
+
                         db.insert(
-                            {&#39;timestamp&#39;:x.strftime(&#39;%Y%m%d&#39;),
-                            &#39;diagnostics&#39;:z+x.strftime(y[2])}
+                            {&#39;timestamp&#39;:dtstr,
+                            &#39;diagnostics&#39;:diagnostic_fn}
                             )
 
-                        if os.path.exists(z+x.strftime(y[0])):
+                        if os.path.exists(ion_fn):
                             db.update(
-                                {&#39;ions&#39;:z+x.strftime(y[0])},
-                                check.timestamp==x.strftime(&#39;%Y%m%d&#39;))
+                                {&#39;ions&#39;:ion_fn},
+                                check.timestamp==dtstr)
 
-                        if os.path.exists(z+x.strftime(y[1])):
+                        if os.path.exists(particle_fn):
                             db.update(
-                                {&#39;particles&#39;:z+x.strftime(y[1])},
-                                check.timestamp==x.strftime(&#39;%Y%m%d&#39;))
+                                {&#39;particles&#39;:particle_fn},
+                                check.timestamp==dtstr)
 
                         files_found=True
                         break
@@ -2232,7 +2190,7 @@ file to the specified location.</p></div>
 
     # reprocess data in db
     if ignore_db:
-        iterator =  iter(db.search(
+        iterator = iter(db.search(
         ((check.timestamp==last_day) &amp;
          (check.timestamp&gt;=start_date_str) &amp;
          (check.timestamp&lt;=end_date_str)) |
@@ -2244,7 +2202,7 @@ file to the specified location.</p></div>
 
     # do not reprocess data in db
     else:
-        iterator =  iter(db.search(
+        iterator = iter(db.search(
             ((check.timestamp==last_day) &amp;
              (check.timestamp&gt;=start_date_str) &amp;
              (check.timestamp&lt;=end_date_str)) |
@@ -2360,8 +2318,7 @@ file to the specified location.</p></div>
                         &#39;cleaned_processed_pos_particle_file&#39;: my_save_path_pos},
                         check.timestamp==x[&#39;timestamp&#39;])
 
-    print(&#34;Done!&#34;)
-    os.chdir(cwd)</code></pre>
+    print(&#34;Done!&#34;)</code></pre>
 </details>
 </dd>
 <dt id="nais_processor.plot_nais"><code class="name flex">
@@ -2377,9 +2334,12 @@ file to the specified location.</p></div>
 <dd>Path to where figures should be saved. If <code>None</code>
 it saves to current directory.</dd>
 <dt><strong><code>day</code></strong> :&ensp;<code>str</code></dt>
-<dd>Date string <code>"%Y%m%d"</code> showing which
-day to plot OR <code>"all"</code> (default) for all
-days in the database.</dd>
+<dd>
+<p>Date string showing the day to plot</p>
+<p>or</p>
+<p><code>"all"</code> (default) for all
+days in the database.</p>
+</dd>
 <dt><strong><code>opmode</code></strong> :&ensp;<code>str</code></dt>
 <dd><code>"ions"</code>, <code>"particles"</code> or <code>"both"</code> (default)</dd>
 <dt><strong><code>quality</code></strong> :&ensp;<code>str</code></dt>
@@ -2409,8 +2369,11 @@ days in the database.</dd>
         it saves to current directory.
 
     day : `str`
-        Date string `&#34;%Y%m%d&#34;` showing which
-        day to plot OR `&#34;all&#34;` (default) for all
+        Date string showing the day to plot
+
+        or
+        
+        `&#34;all&#34;` (default) for all
         days in the database.
 
     opmode : `str`
@@ -2421,41 +2384,37 @@ days in the database.</dd>
 
     &#34;&#34;&#34;
 
-    # Check that the config file exists
-    if os.path.isfile(config_file) == False:
-        print(&#39;&#34;%s&#34; does not exist&#39; % config_file)
-        return
-    else:
-        # Try to parse the config file
-        with open(config_file,&#39;r&#39;) as stream:
-            try:
-                config = yaml.safe_load(stream)
-                save_path = config[&#39;processed_folder&#39;]
-                database = config[&#39;database_file&#39;]
-                location = config[&#39;location&#39;]
-            except:
-                print(&#34;Something went wrong with parsing %s&#34;,config_file)
-                return
+    if not check_config(config_file):
+        return 
 
-    # Check if you can initialize the database
-    try:
-      db = TinyDB(database)
-      check = Query()
-    except:
-        print(&#34;Could not initialize database&#34;)
-        return
+    with open(config_file,&#39;r&#39;) as stream:
+        config = yaml.safe_load(stream)
+        save_path = config[&#39;processed_folder&#39;]
+        database = config[&#39;database_file&#39;]
+        location = config[&#39;location&#39;]
 
-    # Check if processed data path exists
-    if not os.path.exists(save_path):
-        print(&#34;Path to processed data is invalid&#34;)
-        return
+    db = TinyDB(database)
+    check = Query()
 
-    # Check if processed data path exists
     if fig_path is None:
         fig_path = os.getcwd()
-    if not os.path.exists(fig_path):
-        print(&#34;Figure save path is invalid&#34;)
+    elif os.path.exists(fig_path):
+        pass
+    else:
+        print(&#39;&#34;fig_path&#34; is invalid&#39;)
         return
+
+    if opmode not in [&#34;ions&#34;,&#34;particles&#34;,&#34;both&#34;]:
+        print(&#39;Bad &#34;opmode&#34;&#39;)
+
+    if quality not in [&#34;uncleaned&#34;,&#34;cleaned&#34;,&#34;both&#34;]:
+        print(&#39;Bad &#34;quality&#34;&#39;)
+
+    if day==&#34;all&#34;:
+        pass
+    else:
+       dt=pd.to_datetime(day)
+       day=dt.strftime(&#34;%Y%m%d&#34;)
 
     # Define some plotting styles
     plt.style.use(&#39;dark_background&#39;)
@@ -2499,24 +2458,24 @@ days in the database.</dd>
 
         print(&#39;plotting %s&#39; % x[&#39;timestamp&#39;])
 
-        ions_exist=db.search(
+        ions_exist=bool(db.search(
             check.processed_neg_ion_file.exists() &amp;
             check.processed_pos_ion_file.exists() &amp;
-            (check.timestamp==x[&#39;timestamp&#39;]))
-        cleaned_ions_exist=db.search(
+            (check.timestamp==x[&#39;timestamp&#39;])))
+        cleaned_ions_exist=bool(db.search(
             check.cleaned_processed_neg_ion_file.exists() &amp;
             check.cleaned_processed_pos_ion_file.exists() &amp;
-            (check.timestamp==x[&#39;timestamp&#39;]))
-        particles_exist=db.search(
+            (check.timestamp==x[&#39;timestamp&#39;])))
+        particles_exist=bool(db.search(
             check.processed_neg_particle_file.exists() &amp;
             check.processed_pos_particle_file.exists() &amp;
-            (check.timestamp==x[&#39;timestamp&#39;]))
-        cleaned_particles_exist=db.search(
+            (check.timestamp==x[&#39;timestamp&#39;])))
+        cleaned_particles_exist=bool(db.search(
             check.cleaned_processed_neg_particle_file.exists() &amp;
             check.cleaned_processed_pos_particle_file.exists() &amp;
-            (check.timestamp==x[&#39;timestamp&#39;]))
+            (check.timestamp==x[&#39;timestamp&#39;])))
 
-        if (bool(ions_exist) &amp;
+        if (ions_exist &amp;
             ((opmode==&#34;ions&#34;) | (opmode==&#34;both&#34;)) &amp;
             ((quality==&#34;uncleaned&#34;) | (quality==&#34;both&#34;))):
 
@@ -2535,7 +2494,7 @@ days in the database.</dd>
             plt.savefig(fig_save_path,dpi=100,bbox_inches=&#39;tight&#39;)
             plt.close()
 
-        if (bool(cleaned_ions_exist) &amp;
+        if (cleaned_ions_exist &amp;
             ((opmode==&#34;ions&#34;) | (opmode==&#34;both&#34;)) &amp;
             ((quality==&#34;cleaned&#34;) | (quality==&#34;both&#34;))):
 
@@ -2554,7 +2513,7 @@ days in the database.</dd>
             plt.savefig(fig_save_path,dpi=100,bbox_inches=&#39;tight&#39;)
             plt.close()
 
-        if (bool(particles_exist) &amp;
+        if (particles_exist &amp;
             ((opmode==&#34;particles&#34;) | (opmode==&#34;both&#34;)) &amp;
             ((quality==&#34;uncleaned&#34;) | (quality==&#34;both&#34;))):
 
@@ -2573,7 +2532,7 @@ days in the database.</dd>
             plt.savefig(fig_save_path,dpi=100,bbox_inches=&#39;tight&#39;)
             plt.close()
 
-        if (bool(cleaned_particles_exist) &amp;
+        if (cleaned_particles_exist &amp;
             ((opmode==&#34;particles&#34;) | (opmode==&#34;both&#34;)) &amp;
             ((quality==&#34;cleaned&#34;) | (quality==&#34;both&#34;))):
 

@@ -22,33 +22,29 @@ $ python
 >>> from nais_processor import *
 >>> make_config()
 
-Enter name of configuration file.
-E.g. ./configs/campaign.yml
-> ./nais-5-33.yml  
+Enter name of configuration file (full path)
+E.g. /home/user/campaign.yml
+> /home/user/viikki.yml
 
-Give path(s) to raw data. If multiple paths give them as comma separated list.
-E.g. /data/nais/2021,/data/nais/2022
-> ./nais-5-33
+Give full path(s) to raw data. If multiple paths give them as comma separated list.
+E.g. /home/user/data/2021,/home/user/data/2022
+> /home/user/data/2021,/home/user/data/2022
 
-Path to where processed data is saved.
-E.g. ./data/campaign/processed
-> ./nais-5-33
-
-Path to where figures are saved. Leave empty if no figures.
-E.g. ./data/campaign/figures
-> ./nais-5-33   
+Full path to where processed data is saved.
+E.g. /home/user/campaign
+> /home/user/viikki
 
 Start of measurement (YYYY-MM-DD)
 Leave empty if you want to start from the earliest date found
-> 2022-09-28
+> 2022-09-28   
 
 End of measurement (YYYY-MM-DD)
 If empty processor assumes current day, use for continuous measurements.
 > 2022-09-30
 
-Enter name of database file
-E.g. ./logs/campaign.json
-> ./nais-5-33.json  
+Enter name of database file (full path)
+E.g. /home/user/campaign.json
+> /home/user/viikki.json 
 
 Allow reprocessing (True/False)
 Overwrites already processed datafiles in the database when running the processor again.
@@ -56,7 +52,7 @@ Overwrites already processed datafiles in the database when running the processo
 
 Measurement location
 E.g. Helsinki, Kumpula
-> Helsinki, Lab 
+> Viikki, Helsinki, Finland 
 
 Apply data cleaning procedures (True/False)
 Remove corona ions and electrometer noise from data
@@ -67,32 +63,33 @@ Requires a NAIS with temperature and pressure sensors.
 > True 
 
 Length of the inlet in meters
-> 0.0 
+> 1.0 
 
 Correct concentrations to sealevel conditions? (True/False)
-> False
+> True
 
-Configuration saved to: ./nais-5-33.yml
+Configuration saved to: /home/user/viikki.yml
 ```
-The resulting configuration file `nais-5-33.yml` looks like this:
+The resulting configuration file looks like this:
 ```yaml
 allow_reprocess: true
 apply_cleaning: true
 apply_corrections: true
 data_folder:
-- ./nais-5-33
-database_file: ./nais-5-33.json
-end_date: '2022-09-30'
-inlet_length: 0.0
-location: Helsinki, Lab
-processed_folder: ./nais-5-33
-sealevel_correction: false
-start_date: '2022-09-28'
+- /home/user/data/2021 
+- /home/user/data/2022
+database_file: /home/user/viikki.json
+end_date: 2022-09-30
+inlet_length: 1.0
+location: Viikki, Helsinki, Finland
+processed_folder: /home/user/viikki
+sealevel_correction: true
+start_date: 2022-09-28
 ```
 Then process the data files by running `nais_processor()` method with the config file as the input argument.
 ```
->>> nais_processor("./nais-5-33.yml")
-Configuration file: ./nais-5-33.yml
+>>> nais_processor("/home/user/viikki.yml")
+Configuration file: /home/user/viikki.yml
 processing 20220928
 processing 20220929
 processing 20220930
