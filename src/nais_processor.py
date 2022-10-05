@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import colors
 import matplotlib.pyplot as plt
 from matplotlib.ticker import LogLocator
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import matplotlib.dates as dts
 import pandas as pd
 import os
@@ -39,12 +39,12 @@ __pdoc__ = {
 
 # The final geometric mean diameters of diameter and mobility bins
 dp_ion = np.array([7.86360416e-10, 9.08232168e-10, 1.04902018e-09, 1.21167006e-09,
-       1.39958930e-09, 1.61672083e-09, 1.86762862e-09, 2.15759741e-09,
-       2.49274932e-09, 2.88018000e-09, 3.32811839e-09, 3.84611427e-09,
-       4.44525917e-09, 5.13844742e-09, 5.94068566e-09, 6.86946146e-09,
-       7.94518431e-09, 9.19171623e-09, 1.06370142e-08, 1.23139134e-08,
-       1.42610904e-08, 1.65242568e-08, 1.91576555e-08, 2.22259544e-08,
-       2.58066722e-08, 2.99933244e-08, 3.48995548e-08, 4.06646353e-08])*1e9
+1.39958930e-09, 1.61672083e-09, 1.86762862e-09, 2.15759741e-09,
+2.49274932e-09, 2.88018000e-09, 3.32811839e-09, 3.84611427e-09,
+4.44525917e-09, 5.13844742e-09, 5.94068566e-09, 6.86946146e-09,
+7.94518431e-09, 9.19171623e-09, 1.06370142e-08, 1.23139134e-08,
+1.42610904e-08, 1.65242568e-08, 1.91576555e-08, 2.22259544e-08,
+2.58066722e-08, 2.99933244e-08, 3.48995548e-08, 4.06646353e-08])*1e9
 
 dp_par = np.array([7.498942093324539870e-01,8.659643233600640144e-01,
 9.999999999999980016e-01,1.154781984689456031e+00,1.333521432163321974e+00,
@@ -69,36 +69,36 @@ mob_ion = np.array([3.162277660168379937e-04,2.371373705661659990e-04,
 1.778279410038920042e-07,1.333521432163329868e-07])*1e4
 
 mob_ion_geomeans=np.array([2.73841963e-04, 2.05352503e-04, 1.53992653e-04, 1.15478198e-04,
-       8.65964323e-05, 6.49381632e-05, 4.86967525e-05, 3.65174127e-05,
-       2.73841963e-05, 2.05352503e-05, 1.53992653e-05, 1.15478198e-05,
-       8.65964323e-06, 6.49381632e-06, 4.86967525e-06, 3.65174127e-06,
-       2.73841963e-06, 2.05352503e-06, 1.53992653e-06, 1.15478198e-06,
-       8.65964323e-07, 6.49381632e-07, 4.86967525e-07, 3.65174127e-07,
-       2.73841963e-07, 2.05352503e-07, 1.53992653e-07])*1e4
+8.65964323e-05, 6.49381632e-05, 4.86967525e-05, 3.65174127e-05,
+2.73841963e-05, 2.05352503e-05, 1.53992653e-05, 1.15478198e-05,
+8.65964323e-06, 6.49381632e-06, 4.86967525e-06, 3.65174127e-06,
+2.73841963e-06, 2.05352503e-06, 1.53992653e-06, 1.15478198e-06,
+8.65964323e-07, 6.49381632e-07, 4.86967525e-07, 3.65174127e-07,
+2.73841963e-07, 2.05352503e-07, 1.53992653e-07])*1e4
 
 dp_par_geomeans=np.array([0.80584219,  0.93057204,  1.07460783,  1.24093776,  1.43301257,
-        1.6548171 ,  1.91095297,  2.20673407,  2.54829675,  2.94272718,
-        3.39820833,  3.92418976,  4.53158364,  5.23299115,  6.0429639 ,
-        6.97830585,  8.05842188,  9.30572041, 10.74607828, 12.40937761,
-       14.3301257 , 16.548171  , 19.10952975, 22.06734069, 25.48296748,
-       29.42727176, 33.98208329, 39.24189758])
+1.6548171 ,  1.91095297,  2.20673407,  2.54829675,  2.94272718,
+3.39820833,  3.92418976,  4.53158364,  5.23299115,  6.0429639 ,
+6.97830585,  8.05842188,  9.30572041, 10.74607828, 12.40937761,
+14.3301257 , 16.548171  , 19.10952975, 22.06734069, 25.48296748,
+29.42727176, 33.98208329, 39.24189758])
 
 dlogmob_ion=np.array([0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
-    0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
-    0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
-    0.125])
+0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+0.125])
 
 dlogdp_ion = np.array([0.06257524, 0.0625811 , 0.06259375, 0.06260838, 0.06262533,
-    0.06264495, 0.06266769, 0.06269404, 0.06272461, 0.06276008,
-    0.06280128, 0.06284916, 0.06290487, 0.06296974, 0.06304539,
-    0.0631337 , 0.06323696, 0.06335788, 0.06349974, 0.0636665 ,
-    0.06386292, 0.06409481, 0.06436924, 0.06469482, 0.06508209,
-    0.06554394, 0.06609614, 0.06639699])
+0.06264495, 0.06266769, 0.06269404, 0.06272461, 0.06276008,
+0.06280128, 0.06284916, 0.06290487, 0.06296974, 0.06304539,
+0.0631337 , 0.06323696, 0.06335788, 0.06349974, 0.0636665 ,
+0.06386292, 0.06409481, 0.06436924, 0.06469482, 0.06508209,
+0.06554394, 0.06609614, 0.06639699])
 
 dlogdp_par=np.array([0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
-    0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
-    0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
-    0.0625, 0.0625, 0.0625, 0.0625, 0.0625])
+0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
+0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625,
+0.0625, 0.0625, 0.0625, 0.0625, 0.0625])
 
 filename_formats = [
 ['%Y-%m-%d.ions.nds','%Y-%m-%d.particles.nds','%Y-%m-%d.log'],
@@ -647,31 +647,39 @@ def process_data(
 
             # Temperature
             t_df = 273.15 + df_rec[t_name].astype(float)
-            t_df = t_df.interpolate().values.flatten()
 
             # Pressure
             p_df = 100.0 * df_rec[p_name].astype(float)
-            p_df = p_df.interpolate().values.flatten()
 
             # Sampleflow
             if sf_names is not None:
                 flow_df = df_rec[sf_names].astype(float).sum(axis=1)
-                flow_df = flow_df.interpolate().values.flatten()
             if sf_name is not None:
                 flow_df = df_rec[sf_name].astype(float)
-                flow_df = flow_df.interpolate().values.flatten()
 
-            # If any of the relevant data are all NaNs return nothing
+            # Test if the sampleflow is in cm3/s (old models) or 
+            # l/min and possibly convert to l/min
+            if (np.nanmedian(flow_df)>300):
+                flow_df = (flow_df/1000.0) * 60.0
+            else:
+                pass
+
+            # If all parameters are NaN
+            # e.g. sensor is broken
             if (np.all(np.isnan(flow_df)) |
                 np.all(np.isnan(p_df)) |
                 np.all(np.isnan(t_df))):
                 return None
+            
+            # Sanity check the values
+            t_df.where(~((t_df<=223.)|(t_df>=353.)),np.nan)
+            p_df.where(~((p_df<=37000.)|(p_df>=121000.)),np.nan)
+            flow_df.where(~((flow_df<=30.)|(flow_df>=80.)),np.nan)
 
-            # Test if the sampleflow is in cm3/s (old models) or l/min and possibly convert to l/min
-            if flow_df[0]>100:
-                flow_df = (flow_df/1000.0) * 60.0
-            else:
-                pass
+            # Interpolate out the NaN values using the sane data
+            t_df = t_df.interpolate().values.flatten()
+            p_df = p_df.interpolate().values.flatten()
+            flow_df = flow_df.interpolate().values.flatten()
 
             # Correct the number concentrations to standard conditions (optional)
             if (sealevel_corr):
@@ -889,21 +897,19 @@ def check_config(f):
 
     if start_date=='':
         pass
+    elif isinstance(start_date,date):
+        pass
     else:
-        try:
-            pd.to_datetime(start_date)
-        except:
-            print("Bad start_date")
-            return False
+        print("Bad start_date")
+        return False
 
     if end_date=='':
         pass
+    elif isinstance(end_date,date):
+        pass
     else:
-        try:
-            pd.to_datetime(end_date)
-        except:
-            print("Bad end_date")
-            return False
+        print("Bad end_date")
+        return False
 
     if os.path.exists(save_path)==False:
         print("Bad save path")
@@ -961,8 +967,7 @@ def nais_processor(config_file):
         return 
 
     # Today
-    today_dt = datetime.today()
-    today = today_dt.strftime('%Y%m%d')
+    today_dt = date.today()
 
     with open(config_file,'r') as stream:
         config = yaml.safe_load(stream)
@@ -978,10 +983,10 @@ def nais_processor(config_file):
         apply_corrections = config['apply_corrections']
         apply_cleaning=config["apply_cleaning"]
 
-    if len(end_date)==0:
-        end_date = today
-    if len(start_date)==0:
-        start_date = "2000-01-01"
+    if start_date=='':
+        start_date = date(2000,1,1)
+    if end_date=='':
+        end_date = today_dt
 
     db = TinyDB(database)
     check = Query()
