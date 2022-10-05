@@ -698,16 +698,16 @@ def process_data(
                 np.all(np.isnan(p_df)) |
                 np.all(np.isnan(t_df))):
                 return None
-            
-            # Sanity check the values
-            t_df.where(~((t_df&lt;=223.)|(t_df&gt;=353.)),np.nan)
-            p_df.where(~((p_df&lt;=37000.)|(p_df&gt;=121000.)),np.nan)
-            flow_df.where(~((flow_df&lt;=30.)|(flow_df&gt;=80.)),np.nan)
 
-            # Interpolate out the NaN values using the sane data
-            t_df = t_df.interpolate().values.flatten()
-            p_df = p_df.interpolate().values.flatten()
-            flow_df = flow_df.interpolate().values.flatten()
+            # Interpolate out NaNs
+            t_df = t_df.interpolate(method=&#34;nearest&#34;)
+            p_df = p_df.interpolate(method=&#34;nearest&#34;)
+            flow_df = flow_df.interpolate(method=&#34;nearest&#34;)
+
+            # Sanity check the values
+            t_df = t_df.where(~((t_df&lt;=223.)|(t_df&gt;=353.)),np.nan).values.flatten()
+            p_df = p_df.where(~((p_df&lt;=37000.)|(p_df&gt;=121000.)),np.nan).values.flatten()
+            flow_df = flow_df.where(~((flow_df&lt;=48.)|(flow_df&gt;=60.)),np.nan).values.flatten()
 
             # Correct the number concentrations to standard conditions (optional)
             if (sealevel_corr):
