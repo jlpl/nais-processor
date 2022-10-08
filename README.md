@@ -10,62 +10,61 @@ Optionally one can also apply a cleaning procedure to the data where the corona 
 [Documentation](https://jlpl.github.io/nais-processor/)
 
 ## Installation
-```
+```shell
 pip install nais-processor
 ```
 ## Example usage
 Open the python prompt and load methods from the `nais_processor` module.
-Then use the `make_config()` method to create a configuration file that
-is used at processing the data files.
+Then use the [`make_config()`](https://jlpl.github.io/nais-processor/#nais_processor.make_config) method to create a configuration file that is used at processing the data files.
 ```
 $ python
 >>> from nais_processor import *
 >>> make_config()
 
-Enter name of configuration file (full path)
-E.g. /home/user/campaign.yml
+Enter absolute path to configuration file.
+For example: /home/user/campaign.yml
 > /home/user/viikki.yml
 
-Give full path(s) to raw data. If multiple paths give them as comma separated list.
-E.g. /home/user/data/2021,/home/user/data/2022
+Enter absolute path(s) to raw data folder(s). Separate multiple paths with comma.
+For example: /home/user/data/2021,/home/user/data/2022
 > /home/user/data/2021,/home/user/data/2022
 
-Full path to where processed data is saved.
-E.g. /home/user/campaign
+Enter absolute path to processed data folder.
+For example: /home/user/campaign
 > /home/user/viikki
 
-Start of measurement (YYYY-MM-DD)
-Leave empty if you want to start from the earliest date found
+Enter start of measurement (YYYY-MM-DD)
+Leave empty if you want to start from the earliest date
 > 2022-09-28   
 
-End of measurement (YYYY-MM-DD)
-If empty processor assumes current day, use for continuous measurements.
+Enter end of measurement (YYYY-MM-DD)
+If empty processor assumes current day
 > 2022-09-30
 
-Enter name of database file (full path)
-E.g. /home/user/campaign.json
+Enter absolute path to database file
+For example: /home/user/campaign.json
 > /home/user/viikki.json 
 
 Allow reprocessing (True/False)
-Overwrites already processed datafiles in the database when running the processor again.
+Overwrites already processed data when re-running the processor
 > True
 
-Measurement location
-E.g. Helsinki, Kumpula
+Enter measurement location
+For example: Helsinki, Kumpula
 > Viikki, Helsinki, Finland 
 
 Apply data cleaning procedures (True/False)
-Remove corona ions and electrometer noise from data
+Attempt to remove corona ions and electrometer noise from data
 > True
 
-Apply corrections to data? (True/False)
+Apply corrections (True/False)
 Requires a NAIS with temperature and pressure sensors.
 > True 
 
 Length of the inlet in meters
 > 1.0 
 
-Correct concentrations to sealevel conditions? (True/False)
+Correct concentrations to sealevel conditions (True/False)
 > True
 
 Configuration saved to: /home/user/viikki.yml
@@ -86,13 +85,14 @@ processed_folder: /home/user/viikki
 sealevel_correction: true
 start_date: 2022-09-28
 ```
-Then process the data files by running `nais_processor()` method with the config file as the input argument.
+Then process the data files by running [`nais_processor()`](https://jlpl.github.io/nais-processor/#nais_processor.nais_processor) method with the config file as the input argument.
 ```
 >>> nais_processor("/home/user/viikki.yml")
-Configuration file: /home/user/viikki.yml
-processing 20220928
-processing 20220929
-processing 20220930
+/home/user/viikki.yml
+building database...
+processing 20220928 (Viikki, Helsinki, Finland)
+processing 20220929 (Viikki, Helsinki, Finland)
+processing 20220930 (Viikki, Helsinki, Finland)
 Done!
 ```
 The code produces daily processed data files for ion and particle data. These files are saved in the destinations given in the configuration file.
@@ -114,11 +114,10 @@ The data files have the following structure (sum matrix)
 The locations of raw files, processed files and cleaned processed files are written in the `database_file`, which is in JSON format.
 
 ### Combining sumfiles
-Once you have processed your NAIS data you can extract any time range
-in a sum matrix format using the `combine_spectra()` function.
+Once you have processed your NAIS data you can extract any time range in a sum matrix format using the [`combine_spectra()`](https://jlpl.github.io/nais-processor/#nais_processor.combine_spectra) function.
 
 Example:
-```
+```python
 import nais_processor as nais
 
 start_time="2022-09-29 02:00:00"
