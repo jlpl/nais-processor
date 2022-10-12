@@ -491,9 +491,7 @@ def read_file(fn):
                      delimiter = re.search('(.)opmode',line).group(1)
                      header = line.split(delimiter)
                      number_of_columns = len(header)
-                     # Sanity check the number of columns
-                     if (number_of_columns>80):
-                         header_found = True
+                     header_found = True
                      continue
                  else:
                      continue 
@@ -1189,7 +1187,7 @@ def nais_processor(config_file):
 
 
 def plot_nais(
-    config_file,
+    database_file,
     fig_path=None,
     day="all",
     opmode="both",
@@ -1201,7 +1199,7 @@ def plot_nais(
     ----------
 
     config_file : `str`
-        full path to the configuration file
+        full path to the json database file
 
     fig_path : `str`
         Path to where figures should be saved. If `None`
@@ -1223,16 +1221,7 @@ def plot_nais(
 
     """
 
-    if not check_config(config_file):
-        return 
-
-    with open(config_file,'r') as stream:
-        config = yaml.safe_load(stream)
-        save_path = config['processed_folder']
-        database = config['database_file']
-        location = config['location']
-
-    db = TinyDB(database)
+    db = TinyDB(database_file)
     check = Query()
 
     if fig_path is None:
@@ -1328,7 +1317,7 @@ def plot_nais(
             ax[0].set_xlabel('')
             ax[0].set_title('Negative ions',loc="left")
             ax[1].set_title('Positive ions',loc="left")
-            fig.suptitle(x['timestamp'] + ' ' + location)
+            fig.suptitle(x['timestamp'])
             fig_save_path = os.path.join(fig_path,'NAIS_ions_'+ x['timestamp'] +'.png')
             plt.savefig(fig_save_path,dpi=100,bbox_inches='tight')
             plt.close()
@@ -1347,7 +1336,7 @@ def plot_nais(
             ax[0].set_xlabel('')
             ax[0].set_title('Cleaned negative ions',loc="left")
             ax[1].set_title('Cleaned positive ions',loc="left")
-            fig.suptitle(x['timestamp'] + ' ' + location)
+            fig.suptitle(x['timestamp'])
             fig_save_path = os.path.join(fig_path,'NAIS_cleaned_ions_'+ x['timestamp'] +'.png')
             plt.savefig(fig_save_path,dpi=100,bbox_inches='tight')
             plt.close()
@@ -1366,7 +1355,7 @@ def plot_nais(
             ax[0].set_xlabel('')
             ax[0].set_title('Particles (negative polarity)',loc="left")
             ax[1].set_title('Particles (positive polarity)',loc="left")
-            fig.suptitle(x['timestamp'] + ' ' + location)
+            fig.suptitle(x['timestamp'])
             fig_save_path = os.path.join(fig_path,'NAIS_particles_'+ x['timestamp'] +'.png')
             plt.savefig(fig_save_path,dpi=100,bbox_inches='tight')
             plt.close()
@@ -1385,7 +1374,7 @@ def plot_nais(
             ax[0].set_xlabel('')
             ax[0].set_title('Cleaned particles (negative polarity)',loc="left")
             ax[1].set_title('Cleaned particles (positive polarity)',loc="left")
-            fig.suptitle(x['timestamp'] + ' ' + location)
+            fig.suptitle(x['timestamp'])
             fig_save_path = os.path.join(fig_path,'NAIS_cleaned_particles_'+ x['timestamp'] +'.png')
             plt.savefig(fig_save_path,dpi=100,bbox_inches='tight')
             plt.close()
@@ -1394,7 +1383,7 @@ def plot_nais(
 
 
 def combine_spectra(
-    config_file,
+    database_file,
     begin_time,
     end_time,
     spectrum_type="negion",
@@ -1405,8 +1394,8 @@ def combine_spectra(
     Parameters
     ----------
 
-    config_file : `str`
-        full path to configuration file
+    database_file : `str`
+        full path to database_file
 
     begin_time : `str`
         date string for begin time
@@ -1446,15 +1435,7 @@ def combine_spectra(
 
     """
 
-    if not check_config(config_file):
-        return 
-
-    with open(config_file,'r') as stream:
-        config = yaml.safe_load(stream)
-        save_path = config['processed_folder']
-        database = config['database_file']
-
-    db = TinyDB(database)
+    db = TinyDB(database_file)
     check = Query()
 
     begin_dt=pd.to_datetime(begin_time)
@@ -1546,3 +1527,70 @@ def combine_spectra(
             (combined_spectrum[:,0]<=end_dnum)).flatten()
 
         return np.vstack((header,combined_spectrum[findex,:]))
+
+def combine_conc(
+    database_file,
+    begin_time,
+    end_time,
+    dp1,
+    dp2,
+    spectrum_type="negion",
+    binwidth=None):
+    """
+    Parameters
+    ----------
+
+    database_file : `str`
+        full path to database_file
+
+    begin_time : `str`
+        date string for begin time
+
+    end_time : `str`
+        date string for end time
+
+    dp1 : float
+        lower limit for the number concentration size range
+
+    dp2 : float
+        upper limit for the number concentration size range
+
+    spectrum_type : `str`
+        negative ions `negion` (default)
+
+        cleaned neg ions `cleaned_negion`
+
+        positive ions `posion`
+
+        cleaned pos ions `cleaned_posion`
+
+        negative particles `negpar`
+
+        cleaned neg particles `cleaned_negpar`
+
+        positive particles `pospar`
+
+        cleaned pos particles `cleaned_pospar`
+
+    binwidth : float
+        data are binned to bins that have width `binwidth`
+        given in unit of days
+
+        if `None` no binning is applied
+
+    Returns
+    -------
+
+    2-d array
+        first columns is time 
+
+        second column is number concentration in the size range (cm-3)
+
+    """
+
+
+
+    v = combine_spectra(database_file,begin_time,end_time,spectrum_type=spectrum_type,binwidth=binwidth)
+    time = v[1:,0]
+    conc = af.calc_conc(v[0,2:],v[1:,2:],dp1,dp2)
+    return np.concatenate((time[np.newaxis].T,conc[np.newaxis].T),axis=1)
