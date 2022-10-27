@@ -19,20 +19,12 @@ import json
 import aerosol_functions as af
 
 __pdoc__ = {
-    'visc': False,
-    'rlambda': False,
-    'cunn': False,
-    'diffuus': False,
     'tubeloss': False,
-    'datetime2datenum': False,
-    'datenum2datetime': False,
-    'log_ticks': False,
     'average_mob': False,
     'average_dp': False,
     'find_diagnostic_names': False,
     'process_data': False,
-    'average_dp': False,
-    'average_dp': False,
+    'correct_data': False,
     'data_cleaner': False,
     'corona_limit': False,
     'corona_ion_cleaner': False
@@ -106,13 +98,16 @@ filename_formats = [
 ["%Y%m%d-block-ions.spectra","%Y%m%d-block-particles.spectra","%Y%m%d-block.records"],
 ["%Y%m%d-block-ions.spectra","%Y%m%d-block-particles.spectra","%Y%m%d-block.diagnostics"]]
 
-possible_sampleflow_names = [
+possible_sampleflow_names1 = [
+"sampleflow",
+"Flowaer"]
+
+possible_sampleflow_names2 = [
 "pos_sampleflow.mean",
 "neg_sampleflow.mean",
 "pos_sampleflow",
-"neg_sampleflow",
-"sampleflow",
-"Flowaer"]
+"neg_sampleflow"
+]
 
 possible_temperature_names = [
 "temperature.mean",
@@ -210,8 +205,7 @@ def make_config():
             continue
 
     print()
-    print("Allow reprocessing (True/False)")
-    print("Overwrites already processed data when re-running the processor")
+    print("Reprocess on re-run (True/False)")
     while True:
         allow_reprocessing = input("> ")
         if ((allow_reprocessing=='True') or (allow_reprocessing=='False')):
@@ -228,6 +222,7 @@ def make_config():
     print("For example: Helsinki, Kumpula")
     location = input("> ")
 
+    ############## CLEANINIG
     print()
     print("Apply data cleaning procedures (True/False)")
     print("Attempt to remove corona ions and electrometer noise from data")
@@ -238,10 +233,41 @@ def make_config():
                 apply_cleaning=True
             else:
                 apply_cleaning=False
+                remove_corona_ions=False
+                remove_noisy_electrometers=False
+                reclean=False
             break
         else:
             continue
 
+    if apply_cleaning:
+        print()
+        print("Remove corona charger ions from particle data (True/False)")
+        while True:
+            remove_corona_ions = input("> ")
+            if ((remove_corona_ions=='True') or (remove_corona_ions=='False')):
+                if remove_corona_ions=='True':
+                    remove_corona_ions=True
+                else:
+                    remove_corona_ions=False
+                break
+            else:
+                continue
+
+        print()
+        print("Remove noisy electrometer data (True/False)")
+        while True:
+            remove_noisy_electrometers = input("> ")
+            if ((remove_noisy_electrometers=='True') or (remove_noisy_electrometers=='False')):
+                if remove_noisy_electrometers=='True':
+                    remove_noisy_electrometers=True
+                else:
+                    remove_noisy_electrometers=False
+                break
+            else:
+                continue
+
+    ################### CORRECTIONS
     print()
     print("Apply corrections (True/False)")
     print("Requires a NAIS with temperature and pressure sensors.")
@@ -253,6 +279,7 @@ def make_config():
             else:
                 apply_corrections=False
                 sealevel_correction=False
+                recorrect=False
                 inlet_length = 0.0
             break
         else:
@@ -273,11 +300,11 @@ def make_config():
         print("Correct concentrations to sealevel conditions (True/False)")
         while True:
             sealevel_correction = input("> ")
-            if ((sealevel_correction=='True') or (sealevel_correction=='False')):
-                if sealevel_correction=='True':
-                    sealevel_correction=True
-                else:
-                    sealevel_correction=False
+            if sealevel_correction=='True':
+                sealevel_correction=True
+                break
+            elif sealevel_correction=='False':
+                sealevel_correction=False
                 break
             else:
                 continue
@@ -297,6 +324,8 @@ def make_config():
         "inlet_length": inlet_length,
         "apply_corrections":apply_corrections,
         "sealevel_correction": sealevel_correction,
+        "remove_corona_ions": remove_corona_ions,
+        "remove_noisy_electrometers": remove_noisy_electrometers,
         "allow_reprocess": allow_reprocessing,
         "apply_cleaning": apply_cleaning
     }
@@ -308,148 +337,18 @@ def make_config():
 
 # Inlet losses
 ################################################################################
-def visc(temp):
-    """ Calculate viscosity of air """
-
-    nyy_ref=18.203e-6
-    S=110.4
-    temp_ref=293.15
-    nyy=nyy_ref*((temp_ref+S)/(temp+S))*((temp/temp_ref)**(3./2.))
-    return nyy
-
-def rlambda(temp,press):
-    """ Calculate mean-free path """
-
-    kaasuv=8.3143
-    dm=3.7e-10
-    avoc=6.022e23
-    return kaasuv*temp/(np.sqrt(2.)*avoc*press*np.pi*dm*dm)
-
-def cunn(Dp,temp,press):
-    """ Calculate Cunningham correction """
-
-    lambd = rlambda(temp,press)
-    return 1. + 2.*lambd/Dp * (1.165 + 0.483 * np.exp(-0.997*Dp/lambd))
-
-def diffuus(dpp,temp,press):
-    """ Calculate diffusion coefficient """
-
-    K=1.38e-23
-    return (K*temp*cunn(dpp,temp,press))/(3.*np.pi*visc(temp)*dpp)
-
-
 def tubeloss(dpp,pflow,plength,temp,press):
     """ Laminar diffusion losses in circular straight conduit """
-
     DPP,TEMP = np.meshgrid(dpp,temp)
     DPP,PRESS = np.meshgrid(dpp,press)
     DPP,PFLOW = np.meshgrid(dpp,pflow)
-
-    rmuu = np.pi*diffuus(DPP,TEMP,PRESS)*plength/PFLOW
-
+    rmuu = np.pi*af.particle_diffusivity(DPP,TEMP,PRESS)*plength/PFLOW
     pene = np.nan*np.ones(rmuu.shape)
-
     cond1=rmuu<0.02
     cond2=rmuu>=0.02
     pene[cond1] = 1. - 2.56*rmuu[cond1]**(2./3.) + 1.2*rmuu[cond1]+0.177*rmuu[cond1]**(4./3.)
     pene[cond2] = 0.819*np.exp(-3.657*rmuu[cond2]) + 0.097*np.exp(-22.3*rmuu[cond2]) + 0.032*np.exp(-57.0*rmuu[cond2])
     return pene
-
-
-# Time format conversion
-################################################################################
-def datetime2datenum(dt):
-    mdn = dt + timedelta(days = 366)
-    frac = (dt-datetime(dt.year,dt.month,dt.day,0,0,0,tzinfo=dt.tzinfo)).seconds \
-           / (24.0 * 60.0 * 60.0)
-    return mdn.toordinal() + frac
-
-def datenum2datetime(datenum):
-    return datetime.fromordinal(int(datenum)) + timedelta(days=datenum%1) - timedelta(days = 366)
-
-# Plotting
-################################################################################
-def log_ticks():
-    x=np.arange(1,10)
-    y=np.arange(-10,-4).astype(float)
-    tt=[]
-    tts=[]
-    for j in y:
-        for i in x:
-            tt.append(np.log10(np.round(i*10**j,int(np.abs(j)))))
-            if i==1:
-                tts.append("10$^{%d}$"%j)
-            else:
-                tts.append('')
-
-    tt=np.array(tt)
-    return tt,tts
-
-def plot_sumfile(
-    handle,
-    v,
-    clims=(10,100000),
-    hour_step=2,
-    date_formatter="%Y-%m-%d %H:%M"):
-    """
-    Plot sum-formatted aerosol number size distribution
-
-    Parameters
-    ----------
-
-    handle : matplotlib.Axes.axes
-        Axes object on which to plot
-
-    v : 2-d np.array
-        Aerosol size distribution matrix
-
-    clims : list/tuple, size 2
-        Data limits for the color
-
-    hour_step : int
-        Resolution on the time axis given in hours
-
-    date_formatter : str
-        Date format string
-
-    """
-
-    time = v[1:,0]
-    dp = v[0,2:]
-    data = v[1:,2:]
-
-    tt,tts = log_ticks()
-
-    norm = colors.LogNorm(vmin=clims[0],vmax=clims[1])
-    color_ticks = LogLocator(subs=range(10))
-
-    handle.set_yticks(tt)
-    handle.set_yticklabels(tts)
-
-    t1=dts.date2num(datenum2datetime(time.min()))
-    t2=dts.date2num(datenum2datetime(time.max()))
-
-    img = handle.imshow(
-        np.flipud(data.T),
-        origin="upper",
-        aspect="auto",
-        interpolation="hanning",
-        cmap="turbo",
-        norm=norm,
-        extent=(t1,t2,np.log10(dp.min()),np.log10(dp.max()))
-    )
-
-    handle.xaxis.set_major_locator(dts.HourLocator(interval=hour_step))
-    handle.xaxis.set_major_formatter(dts.DateFormatter(date_formatter))
-    plt.setp(handle.get_xticklabels(), rotation=80)
-
-    box = handle.get_position()
-    c_handle = plt.axes([box.x0*1.025 + box.width * 1.025, box.y0, 0.01, box.height])
-    cbar = plt.colorbar(img,cax=c_handle,ticks=color_ticks)
-
-    handle.set_ylabel('Dp, [m]')
-    handle.set_xlabel('UTC'+'%+d'%v[0,0]+', [h]')
-    cbar.set_label('dN/dlogDp, [cm-3]')
 
 # Read raw data file into a dataframe
 ################################################################################
@@ -466,7 +365,8 @@ def read_file(fn):
     Returns
     -------
 
-    pandas DataFrame
+    pandas.DataFrame
+        Contents of the file in dataframe
 
     """
 
@@ -498,8 +398,6 @@ def read_file(fn):
              else:
                  data_line = line.split(delimiter)
                  
-                 # Add data line to data matrix only if correct number of columns
-                 # and not another header line
                  if ((len(data_line)==number_of_columns) & ("opmode" not in data_line)):
                      data_matrix.append(data_line)
                  continue
@@ -511,51 +409,52 @@ def read_file(fn):
         # Convert anything that can be converted to float and the rest is coerced to NaNs
         df = pd.DataFrame(columns = header, data = data_matrix)
         df.iloc[:,3:] = df.iloc[:,3:].apply(pd.to_numeric, errors='coerce').astype(float)
-        df.iloc[:,3:] = df.iloc[:,3:].replace([np.inf,-np.inf],np.nan)
 
-        if df.iloc[:,3:].isna().all().all():
-            return None
-    
+        # Establish begin_time (first column) as index
+        df = df.set_index(df.columns[0])
+        df.index = pd.to_datetime(df.index)
+        
         return df
 
 # Average data into the standard size bins
 ################################################################################
 def average_mob(y,h):
-    data = np.nan*np.ones((y.shape[0],len(mob_ion)))
-
+    data = pd.DataFrame([])
+    
     for i in range(0,len(mob_ion_geomeans)):
         if i==0:
-            y_block = y[:,h>mob_ion_geomeans[i]]
+            y_block = y.iloc[:,h>mob_ion_geomeans[i]]
         else:
-            y_block = y[:,((h>mob_ion_geomeans[i]) & (h<=mob_ion_geomeans[i-1]))]
+            y_block = y.iloc[:,((h>mob_ion_geomeans[i]) & (h<=mob_ion_geomeans[i-1]))]
 
-        data[:,i] = np.nanmean(y_block,axis=1)
+        data[i] = y_block.median(axis=1)
 
-    y_block = y[:,h<=mob_ion_geomeans[i]]
-    data[:,i+1] = np.nanmean(y_block,axis=1)
+    y_block = y.iloc[:,h<=mob_ion_geomeans[i]]
+    data[i+1] = y_block.mean(axis=1)
 
     return data
 
 def average_dp(y,h):
-    data = np.nan*np.ones((y.shape[0],len(dp_par)))
+    data = pd.DataFrame([])
 
     for i in range(0,len(dp_par_geomeans)):
         if i==0:
-            y_block = y[:,h<dp_par_geomeans[i]]
+            y_block = y.iloc[:,h<dp_par_geomeans[i]]
         else:
-            y_block = y[:,((h<dp_par_geomeans[i]) & (h>=dp_par_geomeans[i-1]))]
+            y_block = y.iloc[:,((h<dp_par_geomeans[i]) & (h>=dp_par_geomeans[i-1]))]
 
-        data[:,i] = np.nanmean(y_block,axis=1)
+        data[i] = y_block.median(axis=1)
 
-    y_block = y[:,h>=dp_par_geomeans[i]]
-    data[:,i+1] = np.nanmean(y_block,axis=1)
+    y_block = y.iloc[:,h>=dp_par_geomeans[i]]
+    data[i+1] = y_block.mean(axis=1)
 
     return data
 
+# Find diagnostic names
+################################################################################
 def find_diagnostic_names(diag_params):
 
     sampleflow_name=None
-    sampleflow_names=None
     temperature_name=None
     pressure_name=None
 
@@ -569,56 +468,39 @@ def find_diagnostic_names(diag_params):
             pressure_name = pres_name
             break
 
-    sf_name = []
-    for flow_name in possible_sampleflow_names:
+    # try single flow sensor
+    for flow_name in possible_sampleflow_names1:
         if flow_name in diag_params:
-            sf_name.append(flow_name)
+            sampleflow_name = flow_name
+            break
 
-    if len(sf_name)==2:
-        sampleflow_names = sf_name
-    if len(sf_name)==1:
-        sampleflow_name = sf_name
+    if sampleflow_name is None:
+        # try two flow sensors
+        sf_name = []
+        for flow_name in possible_sampleflow_names2:
+            if flow_name in diag_params:
+                sf_name.append(flow_name)
+        if len(sf_name)==2:
+            sampleflow_name=sf_name
 
-    return temperature_name, pressure_name, sampleflow_names, sampleflow_name
-
+    return temperature_name, pressure_name, sampleflow_name
 
 # Process the data (convert to dndlogdp & corrections)
 ################################################################################
-def process_data(
-    df,
-    rec,
-    mode,
-    apply_corr,
-    sealevel_corr,
-    pipel):
+def process_data(df,mode):
 
-    if ((df is None) or (rec is None)):
-        return None
+    if (df is None):
+        return None, None
+
+    elif not df.index.to_series().is_monotonic_increasing:
+        return None, None
 
     else:
-        # Match records to spectra index
-        df = df.set_index(df.columns[0])
-        df.index = [parse(y) for y in df.index]
-
-        rec = rec.set_index('opmode')
-        
-        # Extract the records that match the mode
-        if mode=="ions":
-            df_rec = rec.loc['ions'].set_index(rec.columns[0])
-        if mode=="particles":
-            df_rec = rec.loc['particles'].set_index(rec.columns[0])
-       
-        df_rec.index = [parse(y) for y in df_rec.index]
-
-        df = df.loc[df.index.intersection(df_rec.index)]
-        df_rec = df_rec.loc[df.index.intersection(df_rec.index)]
-
         df_columns = df.columns
         df_inverter_reso = int((len(df_columns)-2)/4)
 
-        # get the number densities and interpolate out the nans
-        neg_df = df.iloc[:,2:2+df_inverter_reso].values.astype(float)
-        pos_df = df.iloc[:,2+2*df_inverter_reso:2+3*df_inverter_reso].values.astype(float)
+        neg_df = df.iloc[:,2:2+df_inverter_reso]
+        pos_df = df.iloc[:,2+2*df_inverter_reso:2+3*df_inverter_reso]
 
         if mode=="ions":
             mob_ion_inv = np.array([float(re.findall(r"[-+]?\d*\.\d+|\d+",y)[0])
@@ -627,217 +509,170 @@ def process_data(
             neg_df = average_mob(neg_df,mob_ion_inv)
             pos_df = average_mob(pos_df,mob_ion_inv)
 
-            # get the number size distributions
+            # Convert to number size distributions
             neg_df = neg_df * dlogmob_ion / dlogdp_ion
             pos_df = pos_df * dlogmob_ion / dlogdp_ion
 
         if mode=="particles":
             dp_par_inv = 2.0*np.array([float(re.findall(r"[-+]?\d*\.\d+|\d+",y)[0])
                                        for y in df_columns[2:2+df_inverter_reso]])
+        
             neg_df = average_dp(neg_df,dp_par_inv)
             pos_df = average_dp(pos_df,dp_par_inv)
 
-        if apply_corr:
-
-            # If relevant diagnostic data to make corrections does not exist:
-            # return nothing
-            t_name,p_name,sf_names,sf_name = find_diagnostic_names(list(rec))
-            if ((t_name is not None) & (p_name is not None) &
-                ((sf_names is not None) | (sf_name is not None))):
-                pass
-            else:
-                return None
-
-            # Temperature
-            t_df = 273.15 + df_rec[t_name].values.flatten().astype(float)
-
-            # Pressure
-            p_df = 100.0 * df_rec[p_name].values.flatten().astype(float)
-
-            # Sampleflow
-            if sf_names is not None:
-                flow_df = df_rec[sf_names].sum(axis=1).values.flatten().astype(float)
-            if sf_name is not None:
-                flow_df = df_rec[sf_name].values.flatten().astype(float)
-
-            # Test if the sampleflow is in cm3/s (old models) or 
-            # l/min and possibly convert to l/min
-            if (np.nanmedian(flow_df)>300):
-                flow_df = (flow_df/1000.0) * 60.0
-            else:
-                pass
-
-            # If all parameters are NaN
-            # e.g. sensor is broken
-            if (np.all(np.isnan(flow_df)) |
-                np.all(np.isnan(p_df)) |
-                np.all(np.isnan(t_df))):
-                return None
-
-            # Sanity check the values
-            t_df = np.where(((t_df<=223.)|(t_df>=353.)),np.nan,t_df)
-            p_df = np.where(((p_df<=37000.)|(p_df>=121000.)),np.nan,p_df)
-            flow_df = np.where(((flow_df<=48.)|(flow_df>=60.)),np.nan,flow_df)
-
-            # Correct the number concentrations to standard conditions (optional)
-            if (sealevel_corr):
-                stp_corr_df = (pres_ref*t_df)/(temp_ref*p_df)
-                neg_df = (stp_corr_df*neg_df.T).T
-                pos_df = (stp_corr_df*pos_df.T).T
-
-            # Diffusion loss correction
-            if mode=="ions":
-                throughput_df = tubeloss(dp_ion*1e-9,flow_df*1.667e-5,pipel,t_df,p_df)
-            if mode=="particles":
-                throughput_df = tubeloss(dp_par*1e-9,flow_df*1.667e-5,pipel,t_df,p_df)
-            neg_df = neg_df / throughput_df
-            pos_df = pos_df / throughput_df
-
-            # Robert Wagner's calibration (only ions)
-            if mode=="ions":
-                roberts_corr = 0.713*dp_ion**0.120
-                neg_df = neg_df / roberts_corr
-                pos_df = pos_df / roberts_corr
-
-        # CREATE FINAL DATA MATRICES
-
-        # Integrate total number concentrations
-        if mode=="ions":
-            total_neg_df = np.nansum(neg_df*dlogdp_ion,axis=1)[np.newaxis].T
-            total_pos_df = np.nansum(pos_df*dlogdp_ion,axis=1)[np.newaxis].T
-        if mode=="particles":
-            total_neg_df = np.nansum(neg_df*dlogdp_par,axis=1)[np.newaxis].T
-            total_pos_df = np.nansum(pos_df*dlogdp_par,axis=1)[np.newaxis].T
-
-        # Get the utc offset
-        if df.index[0].utcoffset()==None:
-            utc_offset = 0
-        else:
-            utc_offset = df.index[0].utcoffset().total_seconds()/(60.0*60.0)
-
-        time_df = np.array([datetime2datenum(x) for x in df.index])[np.newaxis].T
-
         # Construct the headers
         if mode=="ions":
-            df_header = np.insert(dp_ion*1e-9,0,(utc_offset,0))[np.newaxis]
+            df_header = dp_ion*1e-9
         if mode=="particles":
-            df_header = np.insert(dp_par*1e-9,0,(utc_offset,0))[np.newaxis]
+            df_header = dp_par*1e-9
 
-        # Construct the sum-files
-        negdf = np.concatenate((df_header,np.concatenate((time_df,total_neg_df,neg_df),axis=1)))
-        posdf = np.concatenate((df_header,np.concatenate((time_df,total_pos_df,pos_df),axis=1)))
+        negdf = pd.DataFrame(columns=df_header, index=df.index, data=neg_df.values)
+        posdf = pd.DataFrame(columns=df_header, index=df.index, data=pos_df.values)
 
-        return [negdf,posdf]
+        negdf.index.name = "Time"
+        posdf.index.name= "Time"
 
+        if negdf.isna().all().all():
+            negdf = None
+        if posdf.isna().all().all():
+            posdf = None
+
+        return negdf, posdf
+
+def correct_data(
+    df,
+    rec,
+    mode,
+    do_sealevel_corr,
+    pipe_length):
+
+    if ((rec is None) or (df is None)):
+        return None
+
+    else:        
+        # Extract the records that match the mode
+        if mode=="ions":
+            df_rec = rec[rec.opmode=='ions']
+        if mode=="particles":
+            df_rec = rec[rec.opmode=='particles']
+
+        if not df_rec.index.to_series().is_monotonic_increasing:
+            return None
+        
+        df_rec = df_rec.reindex(df.index,method="nearest")
+
+        # Check that the relevant diagnostic data is found
+        t_name,p_name,sf_name = find_diagnostic_names(list(df_rec))
+        if ((t_name is not None) & 
+            (p_name is not None) &
+            (sf_name is not None)):
+            pass
+        else:
+            return None
+    
+        # Temperature
+        t_df = 273.15 + pd.DataFrame(df_rec[t_name].astype(float))
+
+        # Pressure
+        p_df = 100.0 * pd.DataFrame(df_rec[p_name].astype(float))
+    
+        # Sampleflow
+        if len(sf_name)==2:
+            flow_df = pd.DataFrame(df_rec[sf_name].sum(axis=1,min_count=2).astype(float))
+        else:
+            flow_df = pd.DataFrame(df_rec[sf_name].astype(float))
+    
+        # Test if the sampleflow is in cm3/s (old models) or 
+        # l/min and possibly convert to l/min
+        if (np.nanmedian(flow_df)>300):
+            flow_df = (flow_df/1000.0) * 60.0
+        else:
+            pass
+    
+        # If all parameters are NaN
+        # e.g. sensor is broken
+        if (flow_df.isna().all().all() |
+            p_df.isna().all().all() |
+            t_df.isna().all().all()):
+            return None
+    
+        # Sanity check the values
+        t_df = t_df.where(((t_df>=223.)|(t_df<=353.)),np.nan)
+        p_df = p_df.where(((p_df>=37000.)|(p_df<=121000.)),np.nan)
+        flow_df = flow_df.where(((flow_df>=48.)|(flow_df<=60.)),np.nan)
+    
+        # Correct the number concentrations to standard conditions (optional)
+        if (do_sealevel_corr):
+            stp_corr_df = (pres_ref*t_df.values)/(temp_ref*p_df.values)
+            df = stp_corr_df * df
+       
+        # Diffusion loss correction
+        if mode=="ions":
+            throughput = tubeloss(dp_ion*1e-9,flow_df.values*1.667e-5,pipe_length,t_df.values,p_df.values)
+        if mode=="particles":
+            throughput = tubeloss(dp_par*1e-9,flow_df.values*1.667e-5,pipe_length,t_df.values,p_df.values)
+        
+        df = df / throughput
+    
+        # Robert Wagner's calibration (only ions)
+        if mode=="ions":
+            roberts_corr = 0.713*dp_ion**0.120
+            df = df / roberts_corr
+    
+        return df
 
 # Data clean-up
 ################################################################################
-def data_cleaner(datam, mode):
+def data_cleaner(df):
     """ Returns a cleaned data array and portion of data removed """
 
-    # Read in data
-    df = pd.DataFrame(datam)
-    sum_df = df.set_index(df.columns[0]) # Datenum as index
-    sum_df = sum_df.iloc[1:,1:]
-    init_datam_nans = np.count_nonzero(np.isnan(datam[1:,2:]))
-    before_nans = sum_df.isna().sum().sum()
-
-    # Particles: only consider bigger size ranges
-    if mode == 'particles':
-        cor_lim = 10
-        mod_df = sum_df.iloc[:,cor_lim:]
-    else:
-        mod_df = sum_df
+    if df is None:
+        return None
 
     # Rolling time window
-    window_hours = 4
-    window = window_hours*40
+    reso_in_seconds = (df.index[1]-df.index[0]).seconds
+    small_window = int((10.*60.)/(reso_in_seconds))
+    large_window = int((24.*60.*60.)/(reso_in_seconds))
 
-    # Determine data variance
-    diff_df = mod_df.diff().abs()
-    diff_nans = diff_df.isna().sum().sum()
+    # Calculate standard deviation in 10 min segments
+    df2=df.rolling(small_window, min_periods=int((small_window+1.)/2.), center=True).std()
 
-    median_diff_df = diff_df.rolling(window, min_periods=int((window+1)/2), center=True).median()
-    median_df = mod_df.abs().rolling(window, min_periods=int((window+1)/2), center=True).median()
+    # In a bigger window (24 hours) calculate the 75th quantile of the standard deviations
+    # (semi)continous noise causes higher values compared to normal and rare sudden changes in conc
+    df3=df2.rolling(large_window, min_periods=int((large_window+1.)/2.), center=True).quantile(0.75)
 
-    # Consider the effect of higher concentrations
-    scaler = 1.5*(median_df.stack().mean())/(median_diff_df.stack().mean())
+    # a Good threshold for significant noise seems to be 5 times the median background
+    threshold = 5*np.nanmedian(df3)
 
-    sub_df = median_diff_df.sub(median_df.div(scaler))
-    sub_df = sub_df.rolling(window, min_periods=int((window+1)/2), center=True).median()
+    df4 = df.where(df3 < threshold, np.nan)
 
-    # Set a threshold value for data variance
-    c = 10
-    threshold = c*np.abs(sub_df.stack().median())
+    return df4
 
-    # Determine data points to be removed
-    if mode == 'particles':
-        clean_sumfile_df = sum_df
-        clean_sumfile_df.iloc[:,cor_lim:] = sum_df.iloc[:,cor_lim:].where(sub_df < threshold, np.nan)
-    else:
-        clean_sumfile_df = sum_df.where(sub_df < threshold, np.nan)
-
-    after_nans = clean_sumfile_df.isna().sum().sum()
-    total_removed = after_nans - before_nans - diff_nans
-    portion_removed = (total_removed)/clean_sumfile_df.size
-
-    # Ensure a sensible data removal and apply changes
-    if mode == 'particles':
-        if portion_removed > 0:
-            lower_half_removed = clean_sumfile_df.iloc[:,cor_lim:18].isna().sum().sum()/total_removed
-            if portion_removed > 0.025 and portion_removed < 0.50 and lower_half_removed < 0.60:
-                datam[1:,2:] = clean_sumfile_df.to_numpy()
-    else:
-        if portion_removed > 0.025 and portion_removed < 0.50:
-            datam[1:,2:] = clean_sumfile_df.to_numpy()
-
-    # Calculate final portion of data removed
-    final_removed = (np.count_nonzero(np.isnan(datam[1:,2:]))-init_datam_nans)/datam[1:,2:].size
-
-    return datam#, final_removed
-
-
-def corona_limit(datam):
+def corona_limit(df):
     """ Find corona ion upper limit using maximum concentration difference """
-
-    # Read in data
-    df = pd.DataFrame(data=datam[:,2:])
-    df.columns = df.iloc[0] # bin limits as column labels
-    df.drop(index=df.index[0], axis=0, inplace=True)
 
     # Only consider likely limit range
     lower = 1.5e-9
-    upper = 5e-9
+    upper = 5.0e-9
     c = (lower <= df.columns.values) & (upper >= df.columns.values)
-    df = df.loc[:, c]
+    df2 = df.loc[:, c]
 
-    #  Find maximum difference between size bin medians
-    df.loc['median'] = df.median()
-    df.loc['median_diff'] = df.loc['median'].diff()
-    max_diff = df.loc['median_diff'].min()
+    # Find maximum difference between size bin medians
+    return df2.columns.values[df2.median().diff().abs().argmax()]
 
-    b = (df.loc['median_diff'] == max_diff)
-    corona_lim = b.index[b == True][0]
-
-    return corona_lim
-
-def corona_ion_cleaner(datam):
+def corona_ion_cleaner(df):
     """ Return a cleaned data array and ratio of data removed """
 
-    init_nans = np.count_nonzero(np.isnan(datam))
-    corona_lim = corona_limit(datam)
+    if df is None:
+        return None
+
+    corona_lim = corona_limit(df)
+    df2 = df.copy()
 
     # Set values below corona ion limit to NaNs
-    datam[1:,2:][:,(datam[0,2:] <= corona_lim)] = np.nan
+    df2.iloc[:,df2.columns.values<=corona_lim]=np.nan
 
-#    # Percentage removed
-#    final_nans = np.count_nonzero(np.isnan(datam))
-#    size = len(datam[1:])*len(datam[0][2:])
-#    ratio_removed = (final_nans-init_nans)/size
-
-    return datam#, ratio_removed
-
-
+    return df2
 
 def check_config(f):
     """
@@ -858,7 +693,6 @@ def check_config(f):
 
     """
 
-
     if not os.path.isfile(f):
         print("Config not found")
         return False
@@ -874,11 +708,13 @@ def check_config(f):
             database = config['database_file']
             location = config['location']
             end_date = config['end_date']
-            ignore_db = config["allow_reprocess"]
+            allow_reprocess = config["allow_reprocess"]
             pipelength = config['inlet_length']
             sealevel_correction = config['sealevel_correction']
             apply_corrections = config['apply_corrections']
             apply_cleaning=config["apply_cleaning"]
+            remove_noisy_electrometers = config["remove_noisy_electrometers"]
+            remove_corona_ions = config["remove_corona_ions"]
         except:
             print("Config badly formatted")
             return False
@@ -915,10 +751,22 @@ def check_config(f):
             print("Bad load path")
             return False
 
-    if (ignore_db==True) or (ignore_db==False):
+    if (allow_reprocess==True) or (allow_reprocess==False):
         pass
     else:
         print("Bad allow_reprocess")
+        return False
+
+    if (remove_corona_ions==True) or (remove_corona_ions==False):
+        pass
+    else:
+        print("Bad remove_corona_ions")
+        return False
+
+    if (remove_noisy_electrometers==True) or (remove_noisy_electrometers==False):
+        pass
+    else:
+        print("Bad remove_noisy_electrometers")
         return False
 
     if (sealevel_correction==True) or (sealevel_correction==False):
@@ -958,6 +806,7 @@ def nais_processor(config_file):
 
     """
 
+    ################# READING CONFIG
     if not check_config(config_file):
         return 
 
@@ -972,12 +821,16 @@ def nais_processor(config_file):
         database = config['database_file']
         location = config['location']
         end_date = config['end_date']
-        ignore_db = config["allow_reprocess"]
+        allow_reprocess = config["allow_reprocess"]
         pipelength = config['inlet_length']
         sealevel_correction = config['sealevel_correction']
         apply_corrections = config['apply_corrections']
         apply_cleaning=config["apply_cleaning"]
+        remove_noisy_electrometers = config["remove_noisy_electrometers"]
+        remove_corona_ions = config["remove_corona_ions"]
 
+
+    ##################### UPDATING DATABASE
     if start_date=='':
         start_date = date(2000,1,1)
     if end_date=='':
@@ -992,15 +845,16 @@ def nais_processor(config_file):
     start_date_str = start_dt.strftime("%Y%m%d")
     end_date_str = end_dt.strftime("%Y%m%d")
 
-    # Make a list of datetimes that the config file is interested in
-    list_of_datetimes = pd.date_range(start=start_date_str, end=end_date_str)
-
     # list existing dates
     list_of_existing_dates = [x["timestamp"] for x in db.search(check.diagnostics.exists())]
 
     if len(list_of_existing_dates)==0:
         print("building database...")
-
+        list_of_datetimes = pd.date_range(start=start_date_str, end=end_date_str)
+    else:
+        last_existing_date = sorted(list_of_existing_dates)[-1]
+        list_of_datetimes = pd.date_range(start=last_existing_date, end=end_date_str)
+    
     # Add unprocessed datafiles to the database
     for x in list_of_datetimes:
         if (x.strftime("%Y%m%d") in list_of_existing_dates):
@@ -1054,340 +908,173 @@ def nais_processor(config_file):
     else:
         last_day=None
 
-    # decide your data iterator
-
+    ############## PROCESSING
     # reprocess data in db
-    if ignore_db:
-        iterator = iter(db.search(
+    if allow_reprocess:
+        iterator1 = iter(db.search(
          (check.diagnostics.exists() &
           (check.ions.exists() |
           check.particles.exists()) &
           (check.timestamp>=start_date_str) &
           (check.timestamp<=end_date_str))))
-
-    # do not reprocess data in db
     else:
-        iterator = iter(db.search(
+        iterator1 = iter(db.search(
             ((check.timestamp==last_day) &
              (check.timestamp>=start_date_str) &
              (check.timestamp<=end_date_str)) |
-             (check.diagnostics.exists() &
-              (check.ions.exists() |
-              check.particles.exists()) &
-              ~check.processed_neg_ion_file.exists() &
-              ~check.processed_pos_ion_file.exists() &
-              ~check.processed_neg_particle_file.exists() &
-              ~check.processed_pos_particle_file.exists() &
-              (check.timestamp>=start_date_str) &
-              (check.timestamp<=end_date_str))))
+            (check.diagnostics.exists() &
+             (check.ions.exists() |
+             check.particles.exists()) &
+             ~check.processed_neg_ion_file.exists() &
+             ~check.processed_pos_ion_file.exists() &
+             ~check.processed_neg_particle_file.exists() &
+             ~check.processed_pos_particle_file.exists() &
+             (check.timestamp>=start_date_str) &
+             (check.timestamp<=end_date_str))))
 
-    for x in iterator:
+    for x in iterator1:
 
         print("processing %s (%s)" % (x["timestamp"],location))
 
-        # Read the diagnostics
-        records = read_file(x["diagnostics"])
-
-        ions_exist=db.search(
+        ions_exist=bool(db.search(
             check.ions.exists() &
-            (check.timestamp==x["timestamp"]))
-        particles_exist=db.search(
+            (check.timestamp==x["timestamp"])))
+
+        particles_exist=bool(db.search(
             check.particles.exists() &
-            (check.timestamp==x["timestamp"]))
+            (check.timestamp==x["timestamp"])))
+
+        records = read_file(x["diagnostics"])
 
         # ions
         if ions_exist:
 
             ions = read_file(x["ions"])
-            ion_datamatrices = process_data(
-                 ions,
-                 records,
-                 "ions",
-                 apply_corrections,
-                 sealevel_correction,
-                 pipelength)
 
+            negion_datamatrix,posion_datamatrix = process_data(ions,"ions")
 
-            if ion_datamatrices is not None:
+            if apply_corrections:
+                negion_datamatrix = correct_data(
+                       negion_datamatrix,
+                       records,
+                       "ions",
+                       sealevel_correction,
+                       pipelength)
+    
+                posion_datamatrix = correct_data(
+                       posion_datamatrix,
+                       records,
+                       "ions",
+                       sealevel_correction,
+                       pipelength)
 
-                # Save the sum matrices using the standard names
+            if apply_cleaning:
+                if remove_noisy_electrometers:
+                    negion_datamatrix = data_cleaner(negion_datamatrix)
+                    posion_datamatrix = data_cleaner(posion_datamatrix)
+
+            if (negion_datamatrix is not None):
                 my_save_path_neg=os.path.join(save_path,"NAISn"+x["timestamp"]+"nds.sum")
-                my_save_path_pos=os.path.join(save_path,"NAISp"+x["timestamp"]+"nds.sum")
-                np.savetxt(my_save_path_neg,ion_datamatrices[0])
-                np.savetxt(my_save_path_pos,ion_datamatrices[1])
-
-                # Update the database
-                db.update(
-                    {"processed_neg_ion_file": my_save_path_neg,
-                    "processed_pos_ion_file": my_save_path_pos},
+                negion_datamatrix.to_csv(my_save_path_neg)
+                db.update({"processed_neg_ion_file": my_save_path_neg},
                     check.timestamp==x["timestamp"])
 
-                if apply_cleaning:
-                    negion_datamatrix_cleaned = data_cleaner(ion_datamatrices[0],"ions")
-                    posion_datamatrix_cleaned = data_cleaner(ion_datamatrices[1],"ions")
-
-                    my_save_path_neg=os.path.join(save_path,"NAISn"+x["timestamp"]+"nds_cleaned.sum")
-                    my_save_path_pos=os.path.join(save_path,"NAISp"+x["timestamp"]+"nds_cleaned.sum")
-                    np.savetxt(my_save_path_neg,ion_datamatrices[0])
-                    np.savetxt(my_save_path_pos,ion_datamatrices[1])
-
-                    db.update(
-                        {"cleaned_processed_neg_ion_file": my_save_path_neg,
-                        "cleaned_processed_pos_ion_file": my_save_path_pos },
-                        check.timestamp==x["timestamp"])
+            if (posion_datamatrix is not None):
+                my_save_path_pos=os.path.join(save_path,"NAISp"+x["timestamp"]+"nds.sum")
+                posion_datamatrix.to_csv(my_save_path_pos)
+                db.update({"processed_pos_ion_file": my_save_path_pos},
+                    check.timestamp==x["timestamp"])
 
         # particles
         if particles_exist:
 
             # Process particles
             particles = read_file(x["particles"])
-            particle_datamatrices = process_data(
-                particles,
-                records,
-                "particles",
-                apply_corrections,
-                sealevel_correction,
-                pipelength)
 
-            if particle_datamatrices is not None:
+            negpar_datamatrix,pospar_datamatrix = process_data(particles,"particles")
 
-                # Save the sum matrices using the standard names
+            if apply_corrections:
+                negpar_datamatrix = correct_data(
+                       negpar_datamatrix,
+                       records,
+                       "particles",
+                       sealevel_correction,
+                       pipelength)
+    
+                pospar_datamatrix = correct_data(
+                       pospar_datamatrix,
+                       records,
+                       "particles",
+                       sealevel_correction,
+                       pipelength)
+
+            if apply_cleaning:
+                if remove_corona_ions:
+                    negpar_datamatrix = corona_ion_cleaner(negpar_datamatrix)
+                    pospar_datamatrix = corona_ion_cleaner(pospar_datamatrix)
+    
+                if remove_noisy_electrometers:
+                    negpar_datamatrix = data_cleaner(negpar_datamatrix)
+                    negpar_datamatrix = data_cleaner(pospar_datamatrix)
+ 
+            if (pospar_datamatrix is not None):
                 my_save_path_neg=os.path.join(save_path,"NAISn"+x["timestamp"]+"np.sum")
-                my_save_path_pos=os.path.join(save_path,"NAISp"+x["timestamp"]+"np.sum")
-                np.savetxt(my_save_path_neg,particle_datamatrices[0])
-                np.savetxt(my_save_path_pos,particle_datamatrices[1])
-
-                # Update the database
-                db.update(
-                    {"processed_neg_particle_file": my_save_path_neg,
-                    "processed_pos_particle_file": my_save_path_pos},
+                negpar_datamatrix.to_csv(my_save_path_neg)
+                db.update({"processed_neg_particle_file": my_save_path_neg},
                     check.timestamp==x["timestamp"])
 
-                if apply_cleaning:
-                    negpar_datamatrix_cleaned = particle_datamatrices[0].copy()
-                    pospar_datamatrix_cleaned = particle_datamatrices[1].copy()
-
-                    negpar_datamatrix_cleaned = corona_ion_cleaner(negpar_datamatrix_cleaned)
-                    pospar_datamatrix_cleaned = corona_ion_cleaner(pospar_datamatrix_cleaned)
-
-                    negpar_datamatrix_cleaned = data_cleaner(negpar_datamatrix_cleaned,"particles")
-                    negpar_datamatrix_cleaned = data_cleaner(pospar_datamatrix_cleaned,"particles")
-
-                    my_save_path_neg=os.path.join(save_path,"NAISn"+x["timestamp"]+"np_cleaned.sum")
-                    my_save_path_pos=os.path.join(save_path,"NAISp"+x["timestamp"]+"np_cleaned.sum")
-                    np.savetxt(my_save_path_neg,negpar_datamatrix_cleaned)
-                    np.savetxt(my_save_path_pos,pospar_datamatrix_cleaned)
-
-                    db.update(
-                        {"cleaned_processed_neg_particle_file": my_save_path_neg,
-                        "cleaned_processed_pos_particle_file": my_save_path_pos},
-                        check.timestamp==x["timestamp"])
+            if (negpar_datamatrix is not None):
+                my_save_path_pos=os.path.join(save_path,"NAISp"+x["timestamp"]+"np.sum")
+                pospar_datamatrix.to_csv(my_save_path_pos)
+                db.update({"processed_pos_particle_file": my_save_path_pos},
+                    check.timestamp==x["timestamp"])
 
     print("Done!")
 
 
-def plot_nais(
-    database_file,
-    fig_path=None,
-    day="all",
-    opmode="both",
-    quality="both"):
-    """
-    Save plots of daily NAIS data
+def combine_databases(database_list, combined_database):
+    """Combine JSON databases
+
+    If the measurement setup changes one may have to use multiple configuration files
+    which results in multiple databases. With this function you can combine the databases
+    into a single database after processing.
 
     Parameters
     ----------
 
-    config_file : `str`
-        full path to the json database file
+    database_list : `str`
+        List of full paths to databases that should be combined
 
-    fig_path : `str`
-        Path to where figures should be saved. If `None`
-        it saves to current directory.
+        First database should have the earliest data, second database
+        the second earliest and so on
 
-    day : `str`
-        Date string showing the day to plot
-
-        or
-        
-        `"all"` (default) for all
-        days in the database.
-
-    opmode : `str`
-        `"ions"`, `"particles"` or `"both"` (default)
-
-    quality : `str`
-        `"uncleaned"`, `"cleaned"`, `"both"` (default)
-
+    combined_database : `str`
+        full path to combined database
+    
     """
 
-    db = TinyDB(database_file)
-    check = Query()
+    DB = {}
+    i = 0
 
-    if fig_path is None:
-        fig_path = os.getcwd()
-    elif os.path.exists(fig_path):
-        pass
-    else:
-        print('"fig_path" is invalid')
-        return
+    for database in database_list:
 
-    if opmode not in ["ions","particles","both"]:
-        print('Bad "opmode"')
+        fid=open(database)
 
-    if quality not in ["uncleaned","cleaned","both"]:
-        print('Bad "quality"')
+        database_json=json.load(fid)
 
-    if day=="all":
-        pass
-    else:
-       dt=pd.to_datetime(day)
-       day=dt.strftime("%Y%m%d")
+        for key in database_json["_default"]:
+            DB[i] = database_json["_default"][key]
+            i=i+1
 
-    # Define some plotting styles
-    plt.style.use('dark_background')
-
-    fontsize = 14
-    plt.rcParams.update({'font.size': fontsize,
-                         'axes.titlesize': fontsize,
-                         'axes.labelsize': fontsize,
-                         'xtick.labelsize': fontsize,
-                         'ytick.labelsize': fontsize,
-                         'figure.titlesize': fontsize,
-                         'legend.fontsize': fontsize})
-
-    if day=="all":
-         iterator = iter(db.search(
-             (check.processed_neg_ion_file.exists() &
-             check.processed_pos_ion_file.exists()) |
-             (check.processed_neg_particle_file.exists() &
-             check.processed_pos_particle_file.exists()) |
-             (check.cleaned_processed_neg_ion_file.exists() &
-             check.cleaned_processed_pos_ion_file.exists()) |
-             (check.cleaned_processed_neg_particle_file.exists() &
-             check.cleaned_processed_pos_particle_file.exists())))
-    else:
-        iterator = iter(db.search(
-              (check.processed_neg_ion_file.exists() &
-              check.processed_pos_ion_file.exists() &
-              (check.timestamp==day)) |
-              (check.processed_neg_particle_file.exists() &
-              check.processed_pos_particle_file.exists() &
-              (check.timestamp==day)) |
-              (check.cleaned_processed_neg_ion_file.exists() &
-              check.cleaned_processed_pos_ion_file.exists() &
-              (check.timestamp==day)) |
-              (check.cleaned_processed_neg_particle_file.exists() &
-              check.cleaned_processed_pos_particle_file.exists() &
-              (check.timestamp==day))
-              ))
-
-    for x in iterator:
-
-        print('plotting %s' % x['timestamp'])
-
-        ions_exist=bool(db.search(
-            check.processed_neg_ion_file.exists() &
-            check.processed_pos_ion_file.exists() &
-            (check.timestamp==x['timestamp'])))
-        cleaned_ions_exist=bool(db.search(
-            check.cleaned_processed_neg_ion_file.exists() &
-            check.cleaned_processed_pos_ion_file.exists() &
-            (check.timestamp==x['timestamp'])))
-        particles_exist=bool(db.search(
-            check.processed_neg_particle_file.exists() &
-            check.processed_pos_particle_file.exists() &
-            (check.timestamp==x['timestamp'])))
-        cleaned_particles_exist=bool(db.search(
-            check.cleaned_processed_neg_particle_file.exists() &
-            check.cleaned_processed_pos_particle_file.exists() &
-            (check.timestamp==x['timestamp'])))
-
-        if (ions_exist &
-            ((opmode=="ions") | (opmode=="both")) &
-            ((quality=="uncleaned") | (quality=="both"))):
-
-            negion=np.loadtxt(x["processed_neg_ion_file"])
-            posion=np.loadtxt(x["processed_pos_ion_file"])
-            fig,ax = plt.subplots(2,1,figsize=(8,7))
-            ax = ax.flatten()
-            plot_sumfile(ax[0],negion,clims=(10,10000),hour_step=1,date_formatter="%H:%M")
-            plot_sumfile(ax[1],posion,clims=(10,10000),hour_step=1,date_formatter="%H:%M")
-            ax[0].set_xticklabels([])
-            ax[0].set_xlabel('')
-            ax[0].set_title('Negative ions',loc="left")
-            ax[1].set_title('Positive ions',loc="left")
-            fig.suptitle(x['timestamp'])
-            fig_save_path = os.path.join(fig_path,'NAIS_ions_'+ x['timestamp'] +'.png')
-            plt.savefig(fig_save_path,dpi=100,bbox_inches='tight')
-            plt.close()
-
-        if (cleaned_ions_exist &
-            ((opmode=="ions") | (opmode=="both")) &
-            ((quality=="cleaned") | (quality=="both"))):
-
-            negion=np.loadtxt(x["cleaned_processed_neg_ion_file"])
-            posion=np.loadtxt(x["cleaned_processed_pos_ion_file"])
-            fig,ax = plt.subplots(2,1,figsize=(8,7))
-            ax = ax.flatten()
-            plot_sumfile(ax[0],negion,clims=(10,10000),hour_step=1,date_formatter="%H:%M")
-            plot_sumfile(ax[1],posion,clims=(10,10000),hour_step=1,date_formatter="%H:%M")
-            ax[0].set_xticklabels([])
-            ax[0].set_xlabel('')
-            ax[0].set_title('Cleaned negative ions',loc="left")
-            ax[1].set_title('Cleaned positive ions',loc="left")
-            fig.suptitle(x['timestamp'])
-            fig_save_path = os.path.join(fig_path,'NAIS_cleaned_ions_'+ x['timestamp'] +'.png')
-            plt.savefig(fig_save_path,dpi=100,bbox_inches='tight')
-            plt.close()
-
-        if (particles_exist &
-            ((opmode=="particles") | (opmode=="both")) &
-            ((quality=="uncleaned") | (quality=="both"))):
-
-            negpar=np.loadtxt(x["processed_neg_particle_file"])
-            pospar=np.loadtxt(x["processed_pos_particle_file"])
-            fig,ax = plt.subplots(2,1,figsize=(8,7))
-            ax = ax.flatten()
-            plot_sumfile(ax[0],negpar,clims=(10,100000),hour_step=1,date_formatter="%H:%M")
-            plot_sumfile(ax[1],pospar,clims=(10,100000),hour_step=1,date_formatter="%H:%M")
-            ax[0].set_xticklabels([])
-            ax[0].set_xlabel('')
-            ax[0].set_title('Particles (negative polarity)',loc="left")
-            ax[1].set_title('Particles (positive polarity)',loc="left")
-            fig.suptitle(x['timestamp'])
-            fig_save_path = os.path.join(fig_path,'NAIS_particles_'+ x['timestamp'] +'.png')
-            plt.savefig(fig_save_path,dpi=100,bbox_inches='tight')
-            plt.close()
-
-        if (cleaned_particles_exist &
-            ((opmode=="particles") | (opmode=="both")) &
-            ((quality=="cleaned") | (quality=="both"))):
-
-            negpar=np.loadtxt(x["cleaned_processed_neg_particle_file"])
-            pospar=np.loadtxt(x["cleaned_processed_pos_particle_file"])
-            fig,ax = plt.subplots(2,1,figsize=(8,7))
-            ax = ax.flatten()
-            plot_sumfile(ax[0],negpar,clims=(10,100000),hour_step=1,date_formatter="%H:%M")
-            plot_sumfile(ax[1],pospar,clims=(10,100000),hour_step=1,date_formatter="%H:%M")
-            ax[0].set_xticklabels([])
-            ax[0].set_xlabel('')
-            ax[0].set_title('Cleaned particles (negative polarity)',loc="left")
-            ax[1].set_title('Cleaned particles (positive polarity)',loc="left")
-            fig.suptitle(x['timestamp'])
-            fig_save_path = os.path.join(fig_path,'NAIS_cleaned_particles_'+ x['timestamp'] +'.png')
-            plt.savefig(fig_save_path,dpi=100,bbox_inches='tight')
-            plt.close()
-
-    print("Done!")
-
+    with open(combined_database, "w") as f:
+        json.dump({"_default":DB},f)
 
 def combine_spectra(
     database_file,
     begin_time,
     end_time,
     spectrum_type="negion",
-    binwidth=None):
+    reso=60):
     """
     Combine (cleaned) processed particle or ion data from some time range
 
@@ -1398,40 +1085,33 @@ def combine_spectra(
         full path to database_file
 
     begin_time : `str`
-        date string for begin time
+        time zone aware iso formatted time string
+
+        For example `"2013-01-02 15:00:00+02:00"`
 
     end_time : `str`
-        date string for end time
+        time zone aware iso formatted time string
+
+        For example `"2013-01-03 17:00:00+02:00"`
 
     spectrum_type : `str`
         negative ions `negion` (default)
 
-        cleaned neg ions `cleaned_negion`
-
         positive ions `posion`
-
-        cleaned pos ions `cleaned_posion`
 
         negative particles `negpar`
 
-        cleaned neg particles `cleaned_negpar`
-
         positive particles `pospar`
 
-        cleaned pos particles `cleaned_pospar`
-
-    binwidth : float
-        data are binned to bins that have width `binwidth`
-        given in unit of days
-
-        if `None` no binning is applied
+    reso : `int`
+        desired resolution given in minutes
 
     Returns
     -------
 
-    2-d array
-        combined sum file between begin_time
-        and end_time for the specified spectrum_type
+    pandas.DataFrame
+        Combined aerosol number size distribution in the given 
+        time interval
 
     """
 
@@ -1440,9 +1120,6 @@ def combine_spectra(
 
     begin_dt=pd.to_datetime(begin_time)
     end_dt=pd.to_datetime(end_time)
-
-    begin_dnum=datetime2datenum(begin_dt)
-    end_dnum=datetime2datenum(end_dt)
 
     begin_date=begin_dt.strftime("%Y%m%d")
     end_date=end_dt.strftime("%Y%m%d")
@@ -1471,126 +1148,12 @@ def combine_spectra(
             (check.timestamp>=begin_date) &
             (check.timestamp<=end_date)))
         db_entry = "processed_pos_ion_file"
-    elif spectrum_type=="cleaned_negpar":
-        iterator = iter(db.search(
-            (check.cleaned_processed_neg_particle_file.exists()) &
-            (check.timestamp>=begin_date) &
-            (check.timestamp<=end_date)))
-        db_entry = "cleaned_processed_neg_particle_file"
-    elif spectrum_type=="cleaned_pospar":
-        iterator = iter(db.search(
-            (check.cleaned_processed_pos_particle_file.exists()) &
-            (check.timestamp>=begin_date) &
-            (check.timestamp<=end_date)))
-        db_entry = "cleaned_processed_pos_particle_file"
-    elif spectrum_type=="cleaned_negion":
-        iterator = iter(db.search(
-            (check.cleaned_processed_neg_ion_file.exists()) &
-            (check.timestamp>=begin_date) &
-            (check.timestamp<=end_date)))
-        db_entry = "cleaned_processed_neg_ion_file"
-    elif spectrum_type=="cleaned_posion":
-        iterator = iter(db.search(
-            (check.cleaned_processed_pos_ion_file.exists()) &
-            (check.timestamp>=begin_date) &
-            (check.timestamp<=end_date)))
-        db_entry = "cleaned_processed_pos_ion_file"
     else:
         print("ERROR: %s is not valid 'spectrum_type'" % spectrum_type)
         return
 
-    iter_num=1
-    for x in iterator:
-        spectrum = np.loadtxt(x[db_entry])
+    filenames = [x[db_entry] for x in iterator]
 
-        if binwidth is None:
-            data = spectrum[1:,:]
-        else:
-            time=spectrum[1:,0]
-            ndata=spectrum[1:,1:]
-            new_time,new_ndata,_,_=af.bin1d(time,ndata,binwidth)
-            data=np.concatenate((new_time[np.newaxis].T,new_ndata),axis=1)
+    df = af.stack_data(filenames,begin_time,end_time,reso)
 
-        if (iter_num==1):
-            header = np.expand_dims(spectrum[0,:],axis=0)
-            combined_spectrum = data
-            iter_num = iter_num+1
-        else:
-            combined_spectrum = np.vstack((combined_spectrum,data))
-
-    if iter_num==1:
-        print("No data found")
-        return
-    else:
-        findex = np.argwhere(
-            (combined_spectrum[:,0]>=begin_dnum) &
-            (combined_spectrum[:,0]<=end_dnum)).flatten()
-
-        return np.vstack((header,combined_spectrum[findex,:]))
-
-def combine_conc(
-    database_file,
-    begin_time,
-    end_time,
-    dp1,
-    dp2,
-    spectrum_type="negion",
-    binwidth=None):
-    """
-    Parameters
-    ----------
-
-    database_file : `str`
-        full path to database_file
-
-    begin_time : `str`
-        date string for begin time
-
-    end_time : `str`
-        date string for end time
-
-    dp1 : float
-        lower limit for the number concentration size range
-
-    dp2 : float
-        upper limit for the number concentration size range
-
-    spectrum_type : `str`
-        negative ions `negion` (default)
-
-        cleaned neg ions `cleaned_negion`
-
-        positive ions `posion`
-
-        cleaned pos ions `cleaned_posion`
-
-        negative particles `negpar`
-
-        cleaned neg particles `cleaned_negpar`
-
-        positive particles `pospar`
-
-        cleaned pos particles `cleaned_pospar`
-
-    binwidth : float
-        data are binned to bins that have width `binwidth`
-        given in unit of days
-
-        if `None` no binning is applied
-
-    Returns
-    -------
-
-    2-d array
-        first columns is time 
-
-        second column is number concentration in the size range (cm-3)
-
-    """
-
-
-
-    v = combine_spectra(database_file,begin_time,end_time,spectrum_type=spectrum_type,binwidth=binwidth)
-    time = v[1:,0]
-    conc = af.calc_conc(v[0,2:],v[1:,2:],dp1,dp2)
-    return np.concatenate((time[np.newaxis].T,conc[np.newaxis].T),axis=1)
+    return df
