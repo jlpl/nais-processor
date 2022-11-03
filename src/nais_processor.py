@@ -25,9 +25,7 @@ __pdoc__ = {
     'find_diagnostic_names': False,
     'process_data': False,
     'correct_data': False,
-    'data_cleaner': False,
-    'corona_limit': False,
-    'corona_ion_cleaner': False
+    'clean_data': False,
 }
 
 # The final geometric mean diameters of diameter and mobility bins
@@ -118,227 +116,205 @@ possible_pressure_names = [
 "baro.mean",
 "baro"]
 
+# electrometer size ranges for different inverters:
+ions_pos_v14_lrnd={"0": [7.16444775804687e-10, 1.0700473216535486e-09], "1": [8.766005865635541e-10, 1.2912139078236106e-09], "2":
+ [1.0233784015731513e-09, 1.494607599390042e-09], "3": [1.167004143869059e-09, 1.6953050539978397e-09], "4":
+ [1.3171140158277396e-09, 1.9129953633709412e-09], "5": [1.5010400712091295e-09, 2.196448726880819e-09], "6":
+ [1.7374102549917467e-09, 2.5397495919423145e-09], "7": [1.9987455846433743e-09, 2.909827835540643e-09], "8":
+ [2.308391221999045e-09, 3.399628318414748e-09], "9": [2.743654460662328e-09, 4.064377206025429e-09], "10":
+ [3.235105579106799e-09, 4.708980203333236e-09], "11": [3.657786198230896e-09, 5.320149444473465e-09], "12":
+ [4.40743242351629e-09, 7.235758783698336e-09], "13": [6.341141170615947e-09, 1.0173608443214825e-08], "14":
+ [8.61139257420043e-09, 1.2899482426374689e-08], "15": [1.0474248763637253e-08, 1.556121847426194e-08], "16":
+ [1.2937549036927316e-08, 2.07105715562843e-08], "17": [1.778277482687919e-08, 2.8143993934982054e-08], "18":
+ [2.3703396062208645e-08, 3.638374245002531e-08], "19": [2.9466514534877575e-08, 4.3834357529742775e-08], "20":
+ [3.3648711881521194e-08, 4.601489588650497e-08]}
+
+particles_pos_v14_lrnd_elm25_chv={"0": [7.084021223198885e-10, 1.1041550022447838e-09], "1": [8.824680153980799e-10, 1.3381985992962885e-09], "2":
+ [1.027268571461551e-09, 1.5535807431315568e-09], "3": [1.1710814400196452e-09, 1.7778453394121642e-09], "4":
+ [1.3364125967253046e-09, 2.0521125317491067e-09], "5": [1.5165756393379476e-09, 2.364104261278049e-09], "6":
+ [1.7469782917199996e-09, 2.7691235104649e-09], "7": [2.0030670784526445e-09, 3.1804078983335615e-09], "8":
+ [2.3555174234652947e-09, 3.889745378517969e-09], "9": [2.8998890919509277e-09, 4.85643554134041e-09], "10":
+ [3.4535426802312536e-09, 5.802269084443331e-09], "11": [3.952828282143858e-09, 6.706155173416103e-09], "12":
+ [4.680496931685137e-09, 8.345157694215357e-09], "13": [5.908440036792274e-09, 1.0914143399425853e-08], "14":
+ [7.25270144756779e-09, 1.3424351306635164e-08], "15": [8.481012704476841e-09, 1.5854436158750896e-08], "16":
+ [9.92828580185976e-09, 1.8875874031548135e-08], "17": [1.2480795668183397e-08, 2.5489807672756865e-08], "18":
+ [1.618264753193867e-08, 3.382694961210274e-08], "19": [1.9259686684447952e-08, 4.1933601744775866e-08], "20":
+ [2.22037089383357e-08, 4.865271942977691e-08], "21": [2.4978007194778478e-08, 5.377912883862792e-08], "22":
+ [2.7446273522212072e-08, 5.731891713329477e-08], "23": [2.966486504673139e-08, 6.006253448103395e-08], "24": 
+ [3.1538173585926114e-08, 6.213974119411533e-08]}
+
+particles_neg_v14_lrnd={"0": [7.071203017729596e-10, 1.1005013232430319e-09], "1": [8.797742415579472e-10, 1.3341534055269684e-09], "2":
+ [1.0249360413125393e-09, 1.5500231709924995e-09], "3": [1.1663524905165027e-09, 1.76746761608056e-09], "4":
+ [1.3247911530621861e-09, 2.0313528986656205e-09], "5": [1.4993872332769961e-09, 2.3322201548214762e-09], "6":
+ [1.7211922995795243e-09, 2.7237415257553574e-09], "7": [1.9709779821521803e-09, 3.127660894213944e-09], "8":
+ [2.2719521313715783e-09, 3.683906828365737e-09], "9": [2.6910604870370505e-09, 4.432425549741674e-09], "10":
+ [3.1273717566860052e-09, 5.176267101656894e-09], "11": [3.5214138488359515e-09, 5.88784346872649e-09], "12":
+ [4.344519392306214e-09, 8.075601998567308e-09], "13": [6.055647568060633e-09, 1.15707771780943e-08], "14":
+ [7.891354399664643e-09, 1.4822317894774355e-08], "15": [9.488534907698969e-09, 1.7987926934224552e-08], "16": 
+ [1.1972289469619363e-08, 2.4352144139698158e-08], "17": [1.6205665582181165e-08, 3.529177218334523e-08], "18": 
+ [2.1726991804436577e-08, 4.890078120743212e-08], "19": [2.747153199034406e-08, 5.80468336800726e-08], "20": 
+ [3.181625187151363e-08, 6.282803902888346e-08]}
+
+ions_pos_v141_lrnd_elm25_chv={"0": [7.174408260504354e-10, 1.073624396936229e-09], "1": [8.795427161035404e-10, 1.2949773919916534e-09], "2":
+ [1.0258582665799353e-09, 1.4979919549108165e-09], "3": [1.1719327677994699e-09, 1.70372171508208e-09], "4":
+ [1.32799146465657e-09, 1.932594430907855e-09], "5": [1.520240256748169e-09, 2.2261429400706174e-09], "6":
+ [1.7628304747501982e-09, 2.581861661002808e-09], "7": [2.0323715276272585e-09, 2.9598100485518586e-09], "8":
+ [2.3816068293602794e-09, 3.5773872919384414e-09], "9": [2.962208652767496e-09, 4.432897017241381e-09], "10":
+ [3.5762132418655334e-09, 5.239831433099603e-09], "11": [4.133555700629352e-09, 6.039237962304223e-09], "12": 
+ [4.882640365333869e-09, 7.457408037033863e-09], "13": [6.2783199783114545e-09, 9.575956296394927e-09], "14": 
+ [7.904204442058769e-09, 1.1694806122760362e-08], "15": [9.352755529575812e-09, 1.3732975020325302e-08], "16": 
+ [1.0981897607602298e-08, 1.6276182350230556e-08], "17": [1.3500089105006028e-08, 2.1603165023592403e-08], "18": 
+ [1.8022095523973226e-08, 2.708852306358357e-08], "19": [2.156970936611481e-08, 3.1921441726778743e-08], "20": 
+ [2.4519917336200788e-08, 3.609220688998671e-08], "21": [2.7168015322179712e-08, 3.993591879861599e-08], "22": 
+ [2.9639336081649807e-08, 4.339405159440388e-08], "23": [3.19559928473482e-08, 4.538489884003738e-08], "24":
+ [3.362603005585794e-08, 4.572616914940904e-08]}
+
+ions_pos_v141_hrnd_elm25_chv={"0": [7.177816842294488e-10, 1.072221766346416e-09], "1": [8.784324649240066e-10, 1.2952331371673022e-09], "2":
+ [1.0282272593935292e-09, 1.496448130128779e-09], "3": [1.1709728034437686e-09, 1.70109575761716e-09], "4":
+ [1.3300366642732846e-09, 1.9341044305153346e-09], "5": [1.521422514332051e-09, 2.220832669677381e-09], "6":
+ [1.7632530836302399e-09, 2.584244551737274e-09], "7": [2.0351677980258766e-09, 2.955213035032816e-09], "8": 
+ [2.379947213073259e-09, 3.5807287457548474e-09], "9": [2.9614387929489157e-09, 4.428794241338281e-09], "10": 
+ [3.5808241708120252e-09, 5.247041226910477e-09], "11": [4.136034551200579e-09, 6.026277543624166e-09], "12": 
+ [4.890752691340854e-09, 7.457985468634934e-09], "13": [6.2730994769101586e-09, 9.589732077862633e-09], "14":
+ [7.893847904275436e-09, 1.1687225512360978e-08], "15": [9.345340174460752e-09, 1.3762043152233714e-08], "16":
+ [1.0978493586549243e-08, 1.6262760201045273e-08], "17": [1.3526934344462764e-08, 2.157926406305932e-08], "18":
+ [1.8045823361694697e-08, 2.711029182088656e-08], "19": [2.1550025677740064e-08, 3.1861088201059746e-08], "20": 
+ [2.453350988841541e-08, 3.611626721404304e-08], "21": [2.7196984694271958e-08, 3.995278834492865e-08], "22": 
+ [2.9641573529840143e-08, 4.3318065851782826e-08], "23": [3.187419245775203e-08, 4.5478238497900765e-08], "24":
+ [3.3521538858575206e-08, 4.6046488264314935e-08]}
+
+particles_pos_v14_lrnd={"0": [7.071203017729596e-10, 1.1005013232430319e-09], "1": [8.797742415579472e-10, 1.3341534055269684e-09], "2":
+ [1.0249360413125393e-09, 1.5500231709924995e-09], "3": [1.1663524905165027e-09, 1.76746761608056e-09], "4":
+ [1.3247911530621861e-09, 2.0313528986656205e-09], "5": [1.4993872332769961e-09, 2.3322201548214762e-09], "6":
+ [1.7211922995795243e-09, 2.7237415257553574e-09], "7": [1.9709779821521803e-09, 3.127660894213944e-09], "8": 
+ [2.2719521313715783e-09, 3.683906828365737e-09], "9": [2.6910604870370505e-09, 4.432425549741674e-09], "10": 
+ [3.1273717566860052e-09, 5.176267101656894e-09], "11": [3.5214138488359515e-09, 5.88784346872649e-09], "12": 
+ [4.344519392306214e-09, 8.075601998567308e-09], "13": [6.055647568060633e-09, 1.15707771780943e-08], "14": 
+ [7.891354399664643e-09, 1.4822317894774355e-08], "15": [9.488534907698969e-09, 1.7987926934224552e-08], "16": 
+ [1.1972289469619363e-08, 2.4352144139698158e-08], "17": [1.6205665582181165e-08, 3.529177218334523e-08], "18": 
+ [2.1726991804436577e-08, 4.890078120743212e-08], "19": [2.747153199034406e-08, 5.80468336800726e-08], "20": 
+ [3.181625187151363e-08, 6.282803902888346e-08]}
+
+ions_neg_v141_lrnd_elm25_chv={"0": [7.162722829189713e-10, 1.069396256829605e-09], "1": [8.777038868584165e-10, 1.2946446240931807e-09], "2":
+ [1.02759999667648e-09, 1.5009614340173589e-09], "3": [1.1745671577354954e-09, 1.7069296262514892e-09], "4":
+ [1.330366866209285e-09, 1.936923662090671e-09], "5": [1.523569941517978e-09, 2.230584153641438e-09], "6":
+ [1.763456724402997e-09, 2.5797080071606806e-09], "7": [2.0282822638164162e-09, 2.9544966841050904e-09], "8":
+ [2.3814411392836232e-09, 3.585069910708154e-09], "9": [2.975412233075357e-09, 4.4586459608966074e-09], "10":
+ [3.5950536764791088e-09, 5.264604651129057e-09], "11": [4.1451727671809455e-09, 6.0533707850852946e-09], "12":
+ [4.908070335058664e-09, 7.554663305133556e-09], "13": [6.370251631603248e-09, 9.708647141925531e-09], "14":
+ [7.99768693004782e-09, 1.1807392092933995e-08], "15": [9.421664599359865e-09, 1.3820815597006762e-08], "16":
+ [1.1077372179456622e-08, 1.6484128380953205e-08], "17": [1.3672218205379754e-08, 2.166074698335169e-08], "18":
+ [1.8004147704745442e-08, 2.705025422013022e-08], "19": [2.1526595943708422e-08, 3.186462197910958e-08], "20":
+ [2.4479448411058165e-08, 3.602967602639687e-08], "21": [2.7167075804775312e-08, 3.995596608326538e-08], "22":
+ [2.9709429581149162e-08, 4.347660778516122e-08], "23": [3.2017621669510734e-08, 4.541693553734151e-08], "24":
+ [3.3681779306509456e-08, 4.5708942542429593e-08]}
+
+ions_neg_v141_hrnd_elm25_chv={"0": [7.166088691273807e-10, 1.0680529042034586e-09], "1": [8.766077238618173e-10, 1.2948822433267513e-09], "2":
+ [1.0299408040688298e-09, 1.499348034087609e-09], "3": [1.1734785792847775e-09, 1.7044494278972901e-09], "4":
+ [1.3325133850369467e-09, 1.9382490836139435e-09], "5": [1.5246381007528337e-09, 2.225245739179207e-09], "6":
+ [1.7639085256336676e-09, 2.5820656631195802e-09], "7": [2.031125366865139e-09, 2.9500866762907164e-09], "8":
+ [2.3797421811002037e-09, 3.588570659248709e-09], "9": [2.974497863791539e-09, 4.454598568481367e-09], "10":
+ [3.600685696291343e-09, 5.270248740213011e-09], "11": [4.147441219601736e-09, 6.040242224249017e-09], "12":
+ [4.91677135667135e-09, 7.553001655458096e-09], "13": [6.368408114819548e-09, 9.720375884730652e-09], "14":
+ [7.983853657878074e-09, 1.1805425434050108e-08], "15": [9.415625209974426e-09, 1.385125858049306e-08], "16":
+ [1.1073898998765917e-08, 1.646956079843046e-08], "17": [1.3699649532490082e-08, 2.163235038140565e-08], "18":
+ [1.802716724985027e-08, 2.7073230406563897e-08], "19": [2.150965694231408e-08, 3.18014983817787e-08], "20":
+ [2.4492014342932346e-08, 3.605523207826252e-08], "21": [2.7196391232036758e-08, 3.9971877339499414e-08], "22":
+ [2.9708672750890287e-08, 4.340340668907393e-08], "23": [3.1934336215501455e-08, 4.5516606356023787e-08], "24":
+ [3.357606684507602e-08, 4.604620001912706e-08]}
+
+particles_neg_v14_hrnd_elm25_chv={"0": [7.064042348613744e-10, 1.098448642629657e-09], "1": [8.804166704055082e-10, 1.3382314628239056e-09], "2":
+ [1.029929687471369e-09, 1.5587130355258417e-09], "3": [1.1715316139497021e-09, 1.7855361801274118e-09], "4":
+ [1.3375770105761571e-09, 2.0569498417960264e-09], "5": [1.5213418055613532e-09, 2.3650454557473994e-09], "6":
+ [1.7508747954828767e-09, 2.7596483400473384e-09], "7": [2.0016660559184965e-09, 3.1683106443504784e-09], "8":
+ [2.3537662142103147e-09, 3.892364103276864e-09], "9": [2.908132768324034e-09, 4.87724949455506e-09], "10":
+ [3.4647588825814346e-09, 5.819021297995083e-09], "11": [3.9538012917605546e-09, 6.718817658651353e-09], "12":
+ [4.699417872175317e-09, 8.46741114160911e-09], "13": [5.980472218281243e-09, 1.1075320194303405e-08], "14":
+ [7.32788314110871e-09, 1.356178222960962e-08], "15": [8.546658915188655e-09, 1.5975204027458133e-08], "16":
+ [1.003513710889909e-08, 1.9121314649296197e-08], "17": [1.2584497621235887e-08, 2.5586370462254533e-08], "18":
+ [1.6193366252358348e-08, 3.375225311508183e-08], "19": [1.9296366093983868e-08, 4.135787670654157e-08], "20":
+ [2.2205359456932222e-08, 4.775609758877974e-08], "21": [2.4949980719630763e-08, 5.296183331803598e-08], "22":
+ [2.74591102013903e-08, 5.6781631708117125e-08], "23": [2.9663083522354196e-08, 5.960548252960392e-08], "24":
+ [3.1563036449021557e-08, 6.184741780170188e-08]}
+
+particles_pos_v14_hrnd_elm25_chv={"0": [7.078936573300082e-10, 1.1028124202267342e-09], "1": [8.820689074711288e-10, 1.338578480376556e-09], "2":
+ [1.0282838004812897e-09, 1.5555733231186909e-09], "3": [1.1690201376888472e-09, 1.78149953583638e-09], "4":
+ [1.3348577366613476e-09, 2.052450596702526e-09], "5": [1.5181851404773485e-09, 2.3598931859583523e-09], "6":
+ [1.7509905816449534e-09, 2.7622818843531693e-09], "7": [2.005225058134512e-09, 3.173616142257642e-09], "8":
+ [2.3525975248633675e-09, 3.883241010415373e-09], "9": [2.894779176315381e-09, 4.847916178622021e-09], "10":
+ [3.4477052157384657e-09, 5.792051680298515e-09], "11": [3.944104923721565e-09, 6.701786044525521e-09], "12":
+ [4.666951603466218e-09, 8.360587273279385e-09], "13": [5.8997089753584225e-09, 1.0919012148501147e-08], "14":
+ [7.252706673752877e-09, 1.342019953209076e-08], "15": [8.486965748259635e-09, 1.586474588608095e-08], "16":
+ [9.936765651010928e-09, 1.8874421710969515e-08], "17": [1.246739709406105e-08, 2.5483091135053706e-08], "18":
+ [1.6208024471095697e-08, 3.3797206216952925e-08], "19": [1.9338854709118882e-08, 4.146124436417098e-08], "20":
+ [2.2243072357824654e-08, 4.783315990811425e-08], "21": [2.4952099445624026e-08, 5.296484079233324e-08], "22":
+ [2.7389130112705036e-08, 5.667341170880334e-08], "23": [2.9602350590226694e-08, 5.953977095698898e-08], "24":
+ [3.149305285177872e-08, 6.176077534814207e-08]}
+
+ions_neg_v14_lrnd={"0": [7.16444775804687e-10, 1.0700473216535486e-09], "1": [8.766005865635541e-10, 1.2912139078236106e-09], "2":
+ [1.0233784015731513e-09, 1.494607599390042e-09], "3": [1.167004143869059e-09, 1.6953050539978397e-09], "4":
+ [1.3171140158277396e-09, 1.9129953633709412e-09], "5": [1.5010400712091295e-09, 2.196448726880819e-09], "6":
+ [1.7374102549917467e-09, 2.5397495919423145e-09], "7": [1.9987455846433743e-09, 2.909827835540643e-09], "8":
+ [2.308391221999045e-09, 3.399628318414748e-09], "9": [2.743654460662328e-09, 4.064377206025429e-09], "10":
+ [3.235105579106799e-09, 4.708980203333236e-09], "11": [3.657786198230896e-09, 5.320149444473465e-09], "12":
+ [4.40743242351629e-09, 7.235758783698336e-09], "13": [6.341141170615947e-09, 1.0173608443214825e-08], "14":
+ [8.61139257420043e-09, 1.2899482426374689e-08], "15": [1.0474248763637253e-08, 1.556121847426194e-08], "16":
+ [1.2937549036927316e-08, 2.07105715562843e-08], "17": [1.778277482687919e-08, 2.8143993934982054e-08], "18":
+ [2.3703396062208645e-08, 3.638374245002531e-08], "19": [2.9466514534877575e-08, 4.3834357529742775e-08], "20":
+ [3.3648711881521194e-08, 4.601489588650497e-08]}
+
+particles_neg_v14_lrnd_elm25_chv={"0": [7.069362615274498e-10, 1.0997213171324974e-09], "1": [8.808566990541904e-10, 1.3378548681525188e-09], "2":
+ [1.0289107593642929e-09, 1.5567373372470626e-09], "3": [1.1735882698862885e-09, 1.7819165288950059e-09], "4":
+ [1.33907446265167e-09, 2.0566964315737684e-09], "5": [1.5196769831618589e-09, 2.3693061857773854e-09], "6":
+ [1.746857574391727e-09, 2.766483303572841e-09], "7": [1.9994652400593872e-09, 3.175124915389092e-09], "8":
+ [2.356723607259348e-09, 3.898924433703989e-09], "9": [2.9132704671892387e-09, 4.885896237782877e-09], "10":
+ [3.4706415007361796e-09, 5.829183030947836e-09], "11": [3.962593522847839e-09, 6.722985797091222e-09], "12":
+ [4.7129989830246345e-09, 8.451324582668515e-09], "13": [5.988747492408655e-09, 1.1071809141751731e-08], "14":
+ [7.327476301230385e-09, 1.3565350436407152e-08], "15": [8.540412648877852e-09, 1.5964663591630477e-08], "16":
+ [1.0026869681645872e-08, 1.9124820128830518e-08], "17": [1.2598231836692178e-08, 2.5591353853168848e-08], "18":
+ [1.6168464020950793e-08, 3.3780310510756356e-08], "19": [1.9217207258451423e-08, 4.1823547718041306e-08], "20":
+ [2.2165154711387387e-08, 4.85721513696297e-08], "21": [2.4975870919608738e-08, 5.3775910543120685e-08], "22":
+ [2.7516844715923574e-08, 5.7423919806126056e-08], "23": [2.9725447211466474e-08, 6.012495231939605e-08], "24":
+ [3.160714147308623e-08, 6.222035590925216e-08]}
+
+
+
 # Define standard conditions
 temp_ref = 273.15 # K, 0C
 pres_ref = 101325.0 # Pa, 1atm
 
-def make_config():
+def make_config_template(fn):
     """
-    Make a configuration file for processing NAIS data
+    Make a configuration file template
 
-    Running `make_config()` asks information about the
-    measurement and the data, then writes the configuration
-    file to the specified location.
+    Parameters
+    ----------
+
+    fn : str
+        full path to configuration file
+
+        For example `/home/user/config.yml`
 
     """
+    with open(fn,"w") as f:
+        f.write("location: # Name of the measurement site\n")
+        f.write("data_folder: # Full paths to raw data folders\n")
+        f.write("- # Data folder 1\n")
+        f.write("- # Data folder 2, and so on...\n")
+        f.write("processed_folder: # Full path to folder where procesed data is saved\n")
+        f.write("database_file: # Full path to database file (will be created on first run) \n")
+        f.write("start_date: # Format: yyyy-mm-dd\n")
+        f.write("end_date: # Format: yyyy-mm-dd or '' for current day\n")
+        f.write("apply_corrections: # true or false\n")
+        f.write("inlet_length: # length of inlet in meters\n")
+        f.write("sealevel_correction: # true or false\n")
+        f.write("apply_cleaning: # true or false\n")
+        f.write("remove_corona_ions: # true or false\n")
+        f.write("remove_noisy_electrometers: # true or false\n")
+        f.write("inverter_name: # hires_25, lores_25, lores_21 or '' (needed for noise removal, '' if noise not removed)\n")
+        f.write("allow_reprocess: # true or false")
 
-    # Collect data from the user
-    print()
-    print("Enter absolute path to configuration file.")
-    print("For example: /home/user/campaign.yml")
-    while True:
-        config_file = input("> ")
-        if len(config_file)>0:
-            if not config_file.lower().endswith(".yml"):
-                config_file = config_file + ".yml"
-            break
-        else:
-            continue
-
-    print()
-    print("Enter absolute path(s) to raw data folder(s). Separate multiple paths with comma.")
-    print("For example: /home/user/data/2021,/home/user/data/2022")
-    while True:
-        user_input = input("> ")
-        if len(user_input)>0:
-            load_path=user_input.split(",")
-            break
-        else:
-            continue
-
-    print()
-    print("Enter absolute path to processed data folder.")
-    print("For example: /home/user/campaign")
-    while True:
-        save_path = input("> ")
-        if len(save_path)>0:
-            break
-        else:
-            continue
-
-    print()
-    print("Enter start of measurement (YYYY-MM-DD)")
-    print("Leave empty if you want to start from the earliest date")
-    while True:
-        start_date = input("> ")
-        if len(start_date)==0:
-            break
-        try:
-            start_dt = pd.to_datetime(start_date)
-            break
-        except:
-            continue
-
-    print()
-    print("Enter end of measurement (YYYY-MM-DD)")
-    print("If empty processor assumes current day")
-    while True:
-        end_date = input("> ")
-        if len(end_date)==0:
-            break
-        try:
-            end_dt = pd.to_datetime(end_date)
-            break
-        except:
-            continue
-
-    print()
-    print("Enter absolute path to database file")
-    print("For example: /home/user/campaign.json")
-    while True:
-        database_file = input("> ")
-        if len(database_file)>0:
-            if not database_file.lower().endswith(".json"):
-                database_file = database_file + ".json"
-            break
-        else:
-            continue
-
-    print()
-    print("Reprocess on re-run (True/False)")
-    while True:
-        allow_reprocessing = input("> ")
-        if ((allow_reprocessing=='True') or (allow_reprocessing=='False')):
-            if (allow_reprocessing=='True'):
-                allow_reprocessing=True
-            else:
-                allow_reprocessing=False
-            break
-        else:
-            continue
-
-    print()
-    print("Enter measurement location")
-    print("For example: Helsinki, Kumpula")
-    location = input("> ")
-
-    ############## CLEANINIG
-    print()
-    print("Apply data cleaning procedures (True/False)")
-    print("Attempt to remove corona ions and electrometer noise from data")
-    while True:
-        apply_cleaning = input("> ")
-        if ((apply_cleaning=='True') or (apply_cleaning=='False')):
-            if (apply_cleaning=='True'):
-                apply_cleaning=True
-            else:
-                apply_cleaning=False
-                remove_corona_ions=False
-                remove_noisy_electrometers=False
-                reclean=False
-            break
-        else:
-            continue
-
-    if apply_cleaning:
-        print()
-        print("Remove corona charger ions from particle data (True/False)")
-        while True:
-            remove_corona_ions = input("> ")
-            if ((remove_corona_ions=='True') or (remove_corona_ions=='False')):
-                if remove_corona_ions=='True':
-                    remove_corona_ions=True
-                else:
-                    remove_corona_ions=False
-                break
-            else:
-                continue
-
-        print()
-        print("Remove noisy electrometer data (True/False)")
-        while True:
-            remove_noisy_electrometers = input("> ")
-            if ((remove_noisy_electrometers=='True') or (remove_noisy_electrometers=='False')):
-                if remove_noisy_electrometers=='True':
-                    remove_noisy_electrometers=True
-                else:
-                    remove_noisy_electrometers=False
-                break
-            else:
-                continue
-
-    ################### CORRECTIONS
-    print()
-    print("Apply corrections (True/False)")
-    print("Requires a NAIS with temperature and pressure sensors.")
-    while True:
-        apply_corrections = input("> ")
-        if ((apply_corrections=='True') or (apply_corrections=='False')):
-            if apply_corrections=='True':
-                apply_corrections=True
-            else:
-                apply_corrections=False
-                sealevel_correction=False
-                recorrect=False
-                inlet_length = 0.0
-            break
-        else:
-            continue
-
-    if apply_corrections:
-        print()
-        print("Length of the inlet in meters")
-        while True:
-            inlet_length = input("> ")
-            try:
-                inlet_length = float(inlet_length)
-                break
-            except:
-                continue
-
-        print()
-        print("Correct concentrations to sealevel conditions (True/False)")
-        while True:
-            sealevel_correction = input("> ")
-            if sealevel_correction=='True':
-                sealevel_correction=True
-                break
-            elif sealevel_correction=='False':
-                sealevel_correction=False
-                break
-            else:
-                continue
-
-    print()
-    print("Configuration saved to: %s"%config_file)
-    print()
-
-    # Make a dictionary out of the user input
-    config_info = {
-        "data_folder": load_path,
-        "processed_folder": save_path,
-        "start_date": start_date,
-        "end_date": end_date,
-        "database_file": database_file,
-        "location": location,
-        "inlet_length": inlet_length,
-        "apply_corrections":apply_corrections,
-        "sealevel_correction": sealevel_correction,
-        "remove_corona_ions": remove_corona_ions,
-        "remove_noisy_electrometers": remove_noisy_electrometers,
-        "allow_reprocess": allow_reprocessing,
-        "apply_cleaning": apply_cleaning
-    }
-
-    # Save the config file
-    with open(config_file,"w") as cf:
-        yaml.dump(config_info,cf)
-
-
-# Inlet losses
-################################################################################
 def tubeloss(dpp,pflow,plength,temp,press):
-    """ Laminar diffusion losses in circular straight conduit """
     DPP,TEMP = np.meshgrid(dpp,temp)
     DPP,PRESS = np.meshgrid(dpp,press)
     DPP,PFLOW = np.meshgrid(dpp,pflow)
@@ -350,23 +326,21 @@ def tubeloss(dpp,pflow,plength,temp,press):
     pene[cond2] = 0.819*np.exp(-3.657*rmuu[cond2]) + 0.097*np.exp(-22.3*rmuu[cond2]) + 0.032*np.exp(-57.0*rmuu[cond2])
     return pene
 
-# Read raw data file into a dataframe
-################################################################################
 def read_file(fn):
     """
-    Read NAIS raw data file into a pandas DataFrame
+    Read NAIS raw data file into a pandas.DataFrame
 
     Parameters
     ----------
 
     fn : str
-        Raw data filename
+        Raw data filename with path
 
     Returns
     -------
 
     pandas.DataFrame
-        Contents of the file in dataframe
+        Contents of the file
 
     """
 
@@ -416,8 +390,6 @@ def read_file(fn):
         
         return df
 
-# Average data into the standard size bins
-################################################################################
 def average_mob(y,h):
     data = pd.DataFrame([])
     
@@ -450,8 +422,6 @@ def average_dp(y,h):
 
     return data
 
-# Find diagnostic names
-################################################################################
 def find_diagnostic_names(diag_params):
 
     sampleflow_name=None
@@ -485,8 +455,6 @@ def find_diagnostic_names(diag_params):
 
     return temperature_name, pressure_name, sampleflow_name
 
-# Process the data (convert to dndlogdp & corrections)
-################################################################################
 def process_data(df,mode):
 
     if (df is None):
@@ -583,14 +551,13 @@ def correct_data(
             flow_df = pd.DataFrame(df_rec[sf_name].astype(float))
     
         # Test if the sampleflow is in cm3/s (old models) or 
-        # l/min and possibly convert to l/min
+        # l/min and if necessary convert to l/min
         if (np.nanmedian(flow_df)>300):
             flow_df = (flow_df/1000.0) * 60.0
         else:
             pass
     
-        # If all parameters are NaN
-        # e.g. sensor is broken
+        # If all parameters are NaN e.g. sensor is broken
         if (flow_df.isna().all().all() |
             p_df.isna().all().all() |
             t_df.isna().all().all()):
@@ -601,7 +568,7 @@ def correct_data(
         p_df = p_df.where(((p_df>=37000.)|(p_df<=121000.)),np.nan)
         flow_df = flow_df.where(((flow_df>=48.)|(flow_df<=60.)),np.nan)
     
-        # Correct the number concentrations to standard conditions (optional)
+        # Correct the number concentrations to standard conditions
         if (do_sealevel_corr):
             stp_corr_df = (pres_ref*t_df.values)/(temp_ref*p_df.values)
             df = stp_corr_df * df
@@ -621,197 +588,148 @@ def correct_data(
     
         return df
 
-# Data clean-up
-################################################################################
-def data_cleaner(df):
-    """ Returns a cleaned data array and portion of data removed """
 
-    if df is None:
+def clean_data(
+        df,
+        rec,
+        mode,
+        pol,
+        remove_corona_ions,
+        remove_electrometer_noise,
+        inverter_name): # Only needed if removing electrometer noise
+
+    if ((df is None) or (rec is None)):
         return None
 
-    # Rolling time window
-    reso_in_seconds = (df.index[1]-df.index[0]).seconds
-    small_window = int((10.*60.)/(reso_in_seconds))
-    large_window = int((24.*60.*60.)/(reso_in_seconds))
+    if remove_corona_ions:
+        # Only consider likely limit range
+        lower = 1.5e-9
+        upper = 5.0e-9
+        c = (lower <= df.columns.values) & (upper >= df.columns.values)
+        df2 = df.loc[:, c]
+    
+        # Find maximum difference between size bin medians
+        corona_lim = df2.columns.values[df2.median().diff().abs().argmax()]
+    
+        # Set values below corona ion limit to NaNs
+        df.iloc[:,df.columns.values<=corona_lim]=np.nan
 
-    # Calculate standard deviation in 10 min segments
-    df2=df.rolling(small_window, min_periods=int((small_window+1.)/2.), center=True).std()
+    if remove_electrometer_noise:
 
-    # In a bigger window (24 hours) calculate the 75th quantile of the standard deviations
-    # (semi)continous noise causes higher values compared to normal and rare sudden changes in conc
-    df3=df2.rolling(large_window, min_periods=int((large_window+1.)/2.), center=True).quantile(0.75)
+        if inverter_name =="hires_25":
+            if mode=="ions":
+                if pol=="neg":
+                    elm2dp = ions_neg_v141_hrnd_elm25_chv
+                if pol=="pos":
+                    elm2dp = ions_pos_v141_hrnd_elm25_chv
+            if mode=="particles":
+                if pol=="neg":
+                    elm2dp = particles_neg_v14_hrnd_elm25_chv
+                if pol=="pos":
+                    elm2dp = particles_pos_v14_hrnd_elm25_chv
+        elif inverter_name == "lores_25":
+            if mode=="ions":
+                if pol=="neg":
+                    elm2dp = ions_neg_v141_lrnd_elm25_chv
+                if pol=="pos":
+                    elm2dp = ions_pos_v141_lrnd_elm25_chv
+            if mode=="particles":
+                if pol=="neg":
+                    elm2dp = particles_neg_v14_lrnd_elm25_chv
+                if pol=="pos": 
+                    elm2dp = particles_pos_v14_lrnd_elm25_chv
+        elif inverter_name == "lores_21":
+            if mode=="ions":
+                if pol=="neg":
+                    elm2dp = ions_neg_v14_lrnd
+                if pol=="pos":
+                    elm2dp = ions_pos_v14_lrnd
+            if mode=="particles":
+                if pol=="neg":
+                    elm2dp = particles_neg_v14_lrnd
+                if pol=="pos": 
+                    elm2dp = particles_pos_v14_lrnd
+        else:
+            return df
 
-    # a Good threshold for significant noise seems to be 5 times the median background
-    threshold = 5*np.nanmedian(df3)
+        # Extract the records that match the mode
+        if mode=="ions":
+            df_rec = rec[rec.opmode=='ions']
+        if mode=="particles":
+            df_rec = rec[rec.opmode=='particles']
 
-    df4 = df.where(df3 < threshold, np.nan)
+        df_rec = df_rec.reindex(df.index,method="nearest")
 
-    return df4
+        elm2dp = {int(k):v for k,v in elm2dp.items()}
+        number_of_elms = len(elm2dp)
 
-def corona_limit(df):
-    """ Find corona ion upper limit using maximum concentration difference """
+        # Rolling time windows
+        reso_in_seconds = (df.index[1]-df.index[0]).seconds
+        small_window = int((10.*60.)/(reso_in_seconds))          # 10 minutes
+        medium_window = int((4.*60.*60.)/(reso_in_seconds))      # 6 hours
+        large_window = int((12.*60.*60.)/(reso_in_seconds))      # 12 hours
 
-    # Only consider likely limit range
-    lower = 1.5e-9
-    upper = 5.0e-9
-    c = (lower <= df.columns.values) & (upper >= df.columns.values)
-    df2 = df.loc[:, c]
+        # NOISE LEVEL FROM THE RECORDS
+        if pol == "neg":
+            df_std = df_rec.iloc[:,2+2*number_of_elms:2+3*number_of_elms]
+        if pol == "pos":
+            df_std = df_rec.iloc[:,2+3*number_of_elms:2+4*number_of_elms]
+        else:
+            return None
 
-    # Find maximum difference between size bin medians
-    return df2.columns.values[df2.median().diff().abs().argmax()]
+        # Set index to electrometer number
+        elm_header = np.arange(0,number_of_elms).astype(int)
+        df_std.columns = elm_header
 
-def corona_ion_cleaner(df):
-    """ Return a cleaned data array and ratio of data removed """
+        # Calculate noise level at each diameter
+        df_std2 = df.copy()
 
-    if df is None:
-        return None
+        for d in df.columns.values:
+            elms = []
+            for elm in df_std.columns.values:
+                if ((d >= elm2dp[elm][0]) & (d <= elm2dp[elm][1])):
+                    elms.append(elm)
+            df_std2[d] = df_std[elms].mean(axis=1).values
+        
+        # Apply medium window to get rid of small fluctuations in electrometer noise
+        df_std2 = df_std2.rolling(medium_window, min_periods=int((medium_window+1.)/2.), center=True).median()      
+        
+        # Get the median noise
+        median_std2 = np.nanmedian(df_std2)
 
-    corona_lim = corona_limit(df)
-    df2 = df.copy()
+        # Then find where the noise is more than N times median 
+        N = 500
+        df_std3 = df_std2.where((df_std2>N*median_std2), np.nan)
+        # NOISE LEVEL FROM THE INVERTED DATA
 
-    # Set values below corona ion limit to NaNs
-    df2.iloc[:,df2.columns.values<=corona_lim]=np.nan
+        # Calculate standard deviation in 10 min segments
+        df2 = df.rolling(small_window, min_periods=int((small_window+1.)/2.), center=True).std()
+    
+        # In a bigger window (12 hours) calculate the 75th quantile of the standard deviations
+        # (semi)continuous noise causes higher values compared to normal and rare sudden changes in conc
+        df2 = df2.rolling(large_window, min_periods=int((large_window+1.)/2.), center=True).quantile(0.75)
+    
+        # find where the noise is more than M times the median
+        M = 7
+        threshold = M*np.nanmedian(df2)
+        
+        df3 = df2.where(df2 > threshold, np.nan)
 
-    return df2
-
-def check_config(f):
-    """
-    Check that config file is ok
-
-    Parameters
-    ----------
-
-    f : `str`
-        full path to the configuration file
-
-    Returns
-    -------
-
-    boolean
-        `True` if file is OK
-        `False` if file is not OK
-
-    """
-
-    if not os.path.isfile(f):
-        print("Config not found")
-        return False
-
-    print(f)
-
-    with open(f,'r') as stream:
-        try:
-            config = yaml.safe_load(stream)
-            load_path = config['data_folder']
-            save_path = config['processed_folder']
-            start_date = config['start_date']
-            database = config['database_file']
-            location = config['location']
-            end_date = config['end_date']
-            allow_reprocess = config["allow_reprocess"]
-            pipelength = config['inlet_length']
-            sealevel_correction = config['sealevel_correction']
-            apply_corrections = config['apply_corrections']
-            apply_cleaning=config["apply_cleaning"]
-            remove_noisy_electrometers = config["remove_noisy_electrometers"]
-            remove_corona_ions = config["remove_corona_ions"]
-        except:
-            print("Config badly formatted")
-            return False
-
-    try:
-      db = TinyDB(database)
-      check = Query()
-    except:
-        print("Could not init DB")
-        return False
-
-    if start_date=='':
-        pass
-    elif isinstance(start_date,date):
-        pass
-    else:
-        print("Bad start_date")
-        return False
-
-    if end_date=='':
-        pass
-    elif isinstance(end_date,date):
-        pass
-    else:
-        print("Bad end_date")
-        return False
-
-    if os.path.exists(save_path)==False:
-        print("Bad save path")
-        return False
-
-    for x in load_path:
-        if os.path.exists(x)==False:
-            print("Bad load path")
-            return False
-
-    if (allow_reprocess==True) or (allow_reprocess==False):
-        pass
-    else:
-        print("Bad allow_reprocess")
-        return False
-
-    if (remove_corona_ions==True) or (remove_corona_ions==False):
-        pass
-    else:
-        print("Bad remove_corona_ions")
-        return False
-
-    if (remove_noisy_electrometers==True) or (remove_noisy_electrometers==False):
-        pass
-    else:
-        print("Bad remove_noisy_electrometers")
-        return False
-
-    if (sealevel_correction==True) or (sealevel_correction==False):
-        pass
-    else:
-        print("Bad sealevel_correction")
-        return False
-
-    if (apply_cleaning==True) or (apply_cleaning==False):
-        pass
-    else:
-        print("Bad apply_cleaning")
-        return False
-
-    if (apply_corrections==True) or (apply_corrections==False):
-        pass
-    else:
-        print("Bad apply_corrections")
-        return False
-
-    try:
-        float(pipelength)
-    except:
-        print("Bad inlet_length")
-        return False
-
-    return True
+        # REMOVE DATA FROM WHERE THE ELECTROMETER NOISE AND THE INVERTED DATA NOISE AGREE
+        df = df[df3.isna() & df_std3.isna()]
+    
+    return df
 
 def nais_processor(config_file):
-    """ Function that is called to processes data from the NAIS
+    """ Processes NAIS data
 
     Parameters
     ----------
 
     config_file : str
-        full path to the configuration file
+        full path to configuration file
 
     """
-
-    ################# READING CONFIG
-    if not check_config(config_file):
-        return 
-
-    # Today
-    today_dt = date.today()
 
     with open(config_file,'r') as stream:
         config = yaml.safe_load(stream)
@@ -828,13 +746,25 @@ def nais_processor(config_file):
         apply_cleaning=config["apply_cleaning"]
         remove_noisy_electrometers = config["remove_noisy_electrometers"]
         remove_corona_ions = config["remove_corona_ions"]
+        inverter_name = config["inverter_name"]
 
+    db = TinyDB(database)
+    check = Query()
 
-    ##################### UPDATING DATABASE
-    if start_date=='':
-        start_date = date(2000,1,1)
-    if end_date=='':
-        end_date = today_dt
+    assert isinstance(start_date,date)
+    assert (end_date=='' or isinstance(end_date,date))
+    assert os.path.exists(save_path)
+    assert all([os.path.exists(x) for x in load_path])
+    assert isinstance(allow_reprocess,bool)
+    assert isinstance(remove_corona_ions,bool)
+    assert isinstance(remove_noisy_electrometers,bool)
+    assert isinstance(sealevel_correction,bool)
+    assert isinstance(apply_cleaning,bool)
+    assert isinstance(apply_corrections,bool)
+    assert ((inverter_name=="hires_25") | (inverter_name=="lores_25") | (inverter_name=="lores_21") | (inverter_name==''))
+    assert (isinstance(pipelength,(float, int)) & (not isinstance(pipelength,bool)))
+
+    end_date = date.today() if end_date=='' else end_date
 
     db = TinyDB(database)
     check = Query()
@@ -845,7 +775,7 @@ def nais_processor(config_file):
     start_date_str = start_dt.strftime("%Y%m%d")
     end_date_str = end_dt.strftime("%Y%m%d")
 
-    # list existing dates
+    # list existing dates based on if diagnostic file was found
     list_of_existing_dates = [x["timestamp"] for x in db.search(check.diagnostics.exists())]
 
     if len(list_of_existing_dates)==0:
@@ -908,8 +838,6 @@ def nais_processor(config_file):
     else:
         last_day=None
 
-    ############## PROCESSING
-    # reprocess data in db
     if allow_reprocess:
         iterator1 = iter(db.search(
          (check.diagnostics.exists() &
@@ -969,10 +897,25 @@ def nais_processor(config_file):
                        pipelength)
 
             if apply_cleaning:
-                if remove_noisy_electrometers:
-                    negion_datamatrix = data_cleaner(negion_datamatrix)
-                    posion_datamatrix = data_cleaner(posion_datamatrix)
 
+                negion_datamatrix = clean_data(
+                       negion_datamatrix,
+                       records,
+                       "ions",
+                       "neg",
+                       False,
+                       remove_noisy_electrometers,
+                       inverter_name)
+
+                posion_datamatrix = clean_data(
+                       posion_datamatrix,
+                       records,
+                       "ions",
+                       "pos",
+                       False,
+                       remove_noisy_electrometers,
+                       inverter_name)
+ 
             if (negion_datamatrix is not None):
                 my_save_path_neg=os.path.join(save_path,"NAISn"+x["timestamp"]+"nds.sum")
                 negion_datamatrix.to_csv(my_save_path_neg)
@@ -988,12 +931,12 @@ def nais_processor(config_file):
         # particles
         if particles_exist:
 
-            # Process particles
             particles = read_file(x["particles"])
 
             negpar_datamatrix,pospar_datamatrix = process_data(particles,"particles")
 
             if apply_corrections:
+
                 negpar_datamatrix = correct_data(
                        negpar_datamatrix,
                        records,
@@ -1009,21 +952,32 @@ def nais_processor(config_file):
                        pipelength)
 
             if apply_cleaning:
-                if remove_corona_ions:
-                    negpar_datamatrix = corona_ion_cleaner(negpar_datamatrix)
-                    pospar_datamatrix = corona_ion_cleaner(pospar_datamatrix)
-    
-                if remove_noisy_electrometers:
-                    negpar_datamatrix = data_cleaner(negpar_datamatrix)
-                    negpar_datamatrix = data_cleaner(pospar_datamatrix)
+
+                negpar_datamatrix = clean_data(
+                       negion_datamatrix,
+                       records,
+                       "particles",
+                       "neg",
+                       remove_corona_ions,
+                       remove_noisy_electrometers,
+                       inverter_name)
+
+                pospar_datamatrix = clean_data(
+                       pospar_datamatrix,
+                       records,
+                       "particles",
+                       "pos",
+                       remove_corona_ions,
+                       remove_noisy_electrometers,
+                       inverter_name)
  
-            if (pospar_datamatrix is not None):
+            if (negpar_datamatrix is not None):
                 my_save_path_neg=os.path.join(save_path,"NAISn"+x["timestamp"]+"np.sum")
                 negpar_datamatrix.to_csv(my_save_path_neg)
                 db.update({"processed_neg_particle_file": my_save_path_neg},
                     check.timestamp==x["timestamp"])
 
-            if (negpar_datamatrix is not None):
+            if (pospar_datamatrix is not None):
                 my_save_path_pos=os.path.join(save_path,"NAISp"+x["timestamp"]+"np.sum")
                 pospar_datamatrix.to_csv(my_save_path_pos)
                 db.update({"processed_pos_particle_file": my_save_path_pos},
@@ -1042,13 +996,13 @@ def combine_databases(database_list, combined_database):
     Parameters
     ----------
 
-    database_list : `str`
+    database_list : str
         List of full paths to databases that should be combined
 
         First database should have the earliest data, second database
         the second earliest and so on
 
-    combined_database : `str`
+    combined_database : str
         full path to combined database
     
     """
@@ -1076,25 +1030,25 @@ def combine_spectra(
     spectrum_type="negion",
     reso=60):
     """
-    Combine (cleaned) processed particle or ion data from some time range
+    Combine processed particle or ion data from some time range
 
     Parameters
     ----------
 
-    database_file : `str`
+    database_file : str
         full path to database_file
 
-    begin_time : `str`
+    begin_time : str
         time zone aware iso formatted time string
 
         For example `"2013-01-02 15:00:00+02:00"`
 
-    end_time : `str`
+    end_time : str
         time zone aware iso formatted time string
 
         For example `"2013-01-03 17:00:00+02:00"`
 
-    spectrum_type : `str`
+    spectrum_type : str
         negative ions `negion` (default)
 
         positive ions `posion`
@@ -1103,7 +1057,7 @@ def combine_spectra(
 
         positive particles `pospar`
 
-    reso : `int`
+    reso : int
         desired resolution given in minutes
 
     Returns
@@ -1124,6 +1078,9 @@ def combine_spectra(
     begin_date=begin_dt.strftime("%Y%m%d")
     end_date=end_dt.strftime("%Y%m%d")
 
+    assert spectrum_type in ["posion","pospar","negpar","negion"],\
+            "%s is not valid 'spectrum_type'" % spectrum_type
+
     if spectrum_type=="negpar":
         iterator = iter(db.search(
             (check.processed_neg_particle_file.exists()) &
@@ -1142,18 +1099,15 @@ def combine_spectra(
             (check.timestamp>=begin_date) &
             (check.timestamp<=end_date)))
         db_entry = "processed_neg_ion_file"
-    elif spectrum_type=="posion":
+    else:
         iterator = iter(db.search(
             (check.processed_pos_ion_file.exists()) &
             (check.timestamp>=begin_date) &
             (check.timestamp<=end_date)))
         db_entry = "processed_pos_ion_file"
-    else:
-        print("ERROR: %s is not valid 'spectrum_type'" % spectrum_type)
-        return
 
     filenames = [x[db_entry] for x in iterator]
 
-    df = af.stack_data(filenames,begin_time,end_time,reso)
+    df = af.stack_data(filenames, begin_time, end_time, reso)
 
     return df

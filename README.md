@@ -15,34 +15,38 @@ pip install nais-processor
 ```
 
 ## Example usage
-Use the [`make_config()`](https://jlpl.github.io/nais-processor/#nais_processor.make_config) method to create a configuration file that is used at processing the data files. You will be asked questions about the measurement and the data. The information is written into a yaml file.
+Use the [`make_config_template()`](https://jlpl.github.io/nais-processor/#nais_processor.make_config) method to create a configuration file template and fill it with necessary information. The configuration file is used at processing the data files.
+
+For example:
 ```
 $ python
 >>> from nais_processor import *
->>> make_config()
+>>> make_config_template("/home/user/viikki.yml")
 ```
-The resulting configuration file may look for example like this:
+This will create a configuration file template called `/home/user/viikki.yml`. After filling in the information for our example measurement
+the file may look like this:
 ```yaml
-allow_reprocess: true
-apply_cleaning: true
-apply_corrections: true
-data_folder:
-- /home/user/data/2021 
-- /home/user/data/2022
-database_file: /home/user/viikki.json
-end_date: 2022-09-30
-inlet_length: 1.0
 location: Viikki, Helsinki, Finland
+data_folder:
+- /home/user/data/2021
+- /home/user/data/2022
 processed_folder: /home/user/viikki
-sealevel_correction: true
+database_file: /home/user/viikki.json 
 start_date: 2022-09-28
+end_date: 2022-09-30
+apply_corrections: true
+inlet_length: 1.0
+sealevel_correction: true
+apply_cleaning: true
 remove_corona_ions: true
 remove_noisy_electrometers: true
+inverter_name: hires_25
 ```
 Then process the data files by running [`nais_processor()`](https://jlpl.github.io/nais-processor/#nais_processor.nais_processor) method with the config file as the input argument.
+
+In our example case:
 ```
 >>> nais_processor("/home/user/viikki.yml")
-/home/user/viikki.yml
 building database...
 processing 20220928 (Viikki, Helsinki, Finland)
 processing 20220929 (Viikki, Helsinki, Finland)
