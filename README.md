@@ -15,7 +15,7 @@ pip install nais-processor
 ```
 
 ## Example usage
-Use the [`make_config_template()`](https://jlpl.github.io/nais-processor/#nais_processor.make_config) method to create a configuration file template and fill it with necessary information. The configuration file is used at processing the data files.
+Use the [`make_config_template()`](https://jlpl.github.io/nais-processor/#nais_processor.make_config_template) method to create a configuration file template and fill it with necessary information. The configuration file is used at processing the data files.
 
 For example:
 ```
@@ -41,6 +41,10 @@ apply_cleaning: true
 remove_corona_ions: true
 remove_noisy_electrometers: true
 inverter_name: hires_25
+fallback_to_constant_values: true
+constant_temp: 273.15
+constant_pres: 101325.0
+constant_flow: 54.0
 ```
 Then process the data files by running [`nais_processor()`](https://jlpl.github.io/nais-processor/#nais_processor.nais_processor) method with the config file as the input argument.
 

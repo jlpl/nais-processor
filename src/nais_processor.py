@@ -277,8 +277,6 @@ particles_neg_v14_lrnd_elm25_chv={"0": [7.069362615274498e-10, 1.099721317132497
  [2.7516844715923574e-08, 5.7423919806126056e-08], "23": [2.9725447211466474e-08, 6.012495231939605e-08], "24":
  [3.160714147308623e-08, 6.222035590925216e-08]}
 
-
-
 # Define standard conditions
 temp_ref = 273.15 # K, 0C
 pres_ref = 101325.0 # Pa, 1atm
@@ -294,6 +292,13 @@ def make_config_template(fn):
         full path to configuration file
 
         For example `/home/user/config.yml`
+
+    Notes
+    -----
+
+    The fallback constant values are used to calculate the corrections
+    (if `apply_corrections` is `True`) in case the data is not available 
+    in the diagnostic data either due to older instrument or broken sensor.
 
     """
     with open(fn,"w") as f:
@@ -313,6 +318,10 @@ def make_config_template(fn):
         f.write("remove_noisy_electrometers: # true or false\n")
         f.write("inverter_name: # hires_25, lores_25, lores_21 or '' (needed for noise removal, '' if noise not removed)\n")
         f.write("allow_reprocess: # true or false")
+        f.write("fallback_to_constant_values: # true or false")
+        f.write("constant_temp: # temperature in K used in corrections as fallback")
+        f.write("constant_pres: # pressure in Pa used in corrections as fallback")
+        f.write("constant_flow: # flow rate in lpm used in corrections as fallback")
 
 def tubeloss(dpp,pflow,plength,temp,press):
     DPP,TEMP = np.meshgrid(dpp,temp)
@@ -512,7 +521,11 @@ def correct_data(
     rec,
     mode,
     do_sealevel_corr,
-    pipe_length):
+    pipe_length,
+    fallback_to_constant_values,
+    constant_t,
+    constant_p,
+    constant_flow):
 
     if ((rec is None) or (df is None)):
         return None
@@ -531,38 +544,49 @@ def correct_data(
 
         # Check that the relevant diagnostic data is found
         t_name,p_name,sf_name = find_diagnostic_names(list(df_rec))
-        if ((t_name is not None) & 
-            (p_name is not None) &
-            (sf_name is not None)):
-            pass
-        else:
-            return None
-    
-        # Temperature
-        t_df = 273.15 + pd.DataFrame(df_rec[t_name].astype(float))
 
-        # Pressure
-        p_df = 100.0 * pd.DataFrame(df_rec[p_name].astype(float))
-    
-        # Sampleflow
-        if len(sf_name)==2:
-            flow_df = pd.DataFrame(df_rec[sf_name].sum(axis=1,min_count=2).astype(float))
+        if t_name is not None:
+            t_df = 273.15 + pd.DataFrame(df_rec[t_name].astype(float))
+            if (t_df.isna().all().all() and fallback_to_constant_values):
+                t_df = pd.DataFrame(index = df.index)
+                t_df[0] = constant_t
+        elif fallback_to_constant_values:
+            t_df = pd.DataFrame(index = df.index)
+            t_df[0] = constant_t 
         else:
-            flow_df = pd.DataFrame(df_rec[sf_name].astype(float))
-    
-        # Test if the sampleflow is in cm3/s (old models) or 
-        # l/min and if necessary convert to l/min
-        if (np.nanmedian(flow_df)>300):
-            flow_df = (flow_df/1000.0) * 60.0
-        else:
-            pass
-    
-        # If all parameters are NaN e.g. sensor is broken
-        if (flow_df.isna().all().all() |
-            p_df.isna().all().all() |
-            t_df.isna().all().all()):
             return None
-    
+
+        if p_name is not None:
+            p_df = 100.0 * pd.DataFrame(df_rec[p_name].astype(float))
+            if (p_df.isna().all().all() and fallback_to_constant_values):
+                p_df = pd.DataFrame(index = df.index)
+                p_df[0] = constant_p
+        elif fallback_to_constant_values:
+            p_df = pd.DataFrame(index = df.index)
+            p_df[0] = constant_p
+        else:
+            return None
+
+        if sf_name is not None:
+            if len(sf_name)==2:
+                flow_df = pd.DataFrame(df_rec[sf_name].sum(axis=1,min_count=2).astype(float))
+            else:
+                flow_df = pd.DataFrame(df_rec[sf_name].astype(float))
+            # Test if the sampleflow is in cm3/s (old models) or
+            # l/min and if necessary convert to l/min
+            if (np.nanmedian(flow_df)>300):
+                flow_df = (flow_df/1000.0) * 60.0
+            else:
+                pass
+            if (flow_df.isna().all().all() and fallback_to_constant_values):
+                flow_df = pd.DataFrame(index = df.index)
+                flow_df[0] = constant_flow
+        elif fallback_to_constant_values:
+            flow_df = pd.DataFrame(index = df.index)
+            flow_df[0] = constant_flow
+        else:
+            return None
+
         # Sanity check the values
         t_df = t_df.where(((t_df>=223.)|(t_df<=353.)),np.nan)
         p_df = p_df.where(((p_df>=37000.)|(p_df<=121000.)),np.nan)
@@ -588,15 +612,14 @@ def correct_data(
     
         return df
 
-
 def clean_data(
-        df,
-        rec,
-        mode,
-        pol,
-        remove_corona_ions,
-        remove_electrometer_noise,
-        inverter_name): # Only needed if removing electrometer noise
+    df,
+    rec,
+    mode,
+    pol,
+    remove_corona_ions,
+    remove_electrometer_noise,
+    inverter_name): # Only needed if removing electrometer noise
 
     if ((df is None) or (rec is None)):
         return None
@@ -747,6 +770,10 @@ def nais_processor(config_file):
         remove_noisy_electrometers = config["remove_noisy_electrometers"]
         remove_corona_ions = config["remove_corona_ions"]
         inverter_name = config["inverter_name"]
+        fallback_to_constant_values = config["fallback_to_constant_values"]
+        constant_t = config["constant_temp"]
+        constant_p = config["constant_pres"]
+        constant_flow = config["constant_flow"]
 
     db = TinyDB(database)
     check = Query()
@@ -763,6 +790,11 @@ def nais_processor(config_file):
     assert isinstance(apply_corrections,bool)
     assert ((inverter_name=="hires_25") | (inverter_name=="lores_25") | (inverter_name=="lores_21") | (inverter_name==''))
     assert (isinstance(pipelength,(float, int)) & (not isinstance(pipelength,bool)))
+    assert isinstance(fallback_to_constant_values,bool)
+    assert ((isinstance(constant_t,(float, int)) & (not isinstance(constant_t,bool))) | (constant_t==''))
+    assert ((isinstance(constant_p,(float, int)) & (not isinstance(constant_p,bool))) |  (constant_p==''))
+    assert ((isinstance(constant_flow,(float, int)) & (not isinstance(constant_flow,bool))) | (constant_flow==''))
+
 
     end_date = date.today() if end_date=='' else end_date
 
@@ -836,7 +868,7 @@ def nais_processor(config_file):
     if len(processed_days)!=0:
         last_day=np.max([datetime.strptime(x["timestamp"],"%Y%m%d") for x in processed_days]).strftime("%Y%m%d")
     else:
-        last_day=None
+        last_day=end_date_str
 
     if allow_reprocess:
         iterator1 = iter(db.search(
@@ -847,18 +879,13 @@ def nais_processor(config_file):
           (check.timestamp<=end_date_str))))
     else:
         iterator1 = iter(db.search(
-            ((check.timestamp==last_day) &
-             (check.timestamp>=start_date_str) &
-             (check.timestamp<=end_date_str)) |
             (check.diagnostics.exists() &
              (check.ions.exists() |
              check.particles.exists()) &
-             ~check.processed_neg_ion_file.exists() &
-             ~check.processed_pos_ion_file.exists() &
-             ~check.processed_neg_particle_file.exists() &
-             ~check.processed_pos_particle_file.exists() &
+             (check.timestamp>=last_day) &
              (check.timestamp>=start_date_str) &
-             (check.timestamp<=end_date_str))))
+             (check.timestamp<=end_date_str))
+            ))
 
     for x in iterator1:
 
@@ -887,15 +914,23 @@ def nais_processor(config_file):
                        records,
                        "ions",
                        sealevel_correction,
-                       pipelength)
+                       pipelength,
+                       fallback_to_constant_values,
+                       constant_t,
+                       constant_p,
+                       constant_flow)
     
                 posion_datamatrix = correct_data(
                        posion_datamatrix,
                        records,
                        "ions",
                        sealevel_correction,
-                       pipelength)
-
+                       pipelength,
+                       fallback_to_constant_values,
+                       constant_t,
+                       constant_p,
+                       constant_flow)
+ 
             if apply_cleaning:
 
                 negion_datamatrix = clean_data(
@@ -942,14 +977,22 @@ def nais_processor(config_file):
                        records,
                        "particles",
                        sealevel_correction,
-                       pipelength)
+                       pipelength,
+                       fallback_to_constant_values,
+                       constant_t,
+                       constant_p,
+                       constant_flow)
     
                 pospar_datamatrix = correct_data(
                        pospar_datamatrix,
                        records,
                        "particles",
                        sealevel_correction,
-                       pipelength)
+                       pipelength,
+                       fallback_to_constant_values,
+                       constant_t,
+                       constant_p,
+                       constant_flow)
 
             if apply_cleaning:
 
