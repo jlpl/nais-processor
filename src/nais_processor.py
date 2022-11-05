@@ -116,7 +116,7 @@ possible_pressure_names = [
 "baro.mean",
 "baro"]
 
-# electrometer size ranges for different inverters:
+# electrometer size ranges for different inverters (for the purpose of cleaning out electrometer noise):
 ions_pos_v14_lrnd={"0": [7.16444775804687e-10, 1.0700473216535486e-09], "1": [8.766005865635541e-10, 1.2912139078236106e-09], "2":
  [1.0233784015731513e-09, 1.494607599390042e-09], "3": [1.167004143869059e-09, 1.6953050539978397e-09], "4":
  [1.3171140158277396e-09, 1.9129953633709412e-09], "5": [1.5010400712091295e-09, 2.196448726880819e-09], "6":
@@ -396,6 +396,9 @@ def read_file(fn):
         # Establish begin_time (first column) as index
         df = df.set_index(df.columns[0])
         df.index = pd.to_datetime(df.index)
+
+        # if there is no tz information set the timezone to UTC
+        df.index = [t.tz_localize('UTC') if (t.tzinfo is None) else t for t in df.index]
         
         return df
 
@@ -547,6 +550,7 @@ def correct_data(
 
         if t_name is not None:
             t_df = 273.15 + pd.DataFrame(df_rec[t_name].astype(float))
+            # Values may be missing: e.g. sensor is broken
             if (t_df.isna().all().all() and fallback_to_constant_values):
                 t_df = pd.DataFrame(index = df.index)
                 t_df[0] = constant_t
@@ -794,7 +798,6 @@ def nais_processor(config_file):
     assert ((isinstance(constant_t,(float, int)) & (not isinstance(constant_t,bool))) | (constant_t==''))
     assert ((isinstance(constant_p,(float, int)) & (not isinstance(constant_p,bool))) |  (constant_p==''))
     assert ((isinstance(constant_flow,(float, int)) & (not isinstance(constant_flow,bool))) | (constant_flow==''))
-
 
     end_date = date.today() if end_date=='' else end_date
 
