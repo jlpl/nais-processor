@@ -356,7 +356,7 @@ def read_file(fn):
     with open(fn,'r') as f:
 
         header_found = False
-        data_matrix=[]
+        data_matrix = []
         lines = f.read().splitlines()
         
         for line in lines:
