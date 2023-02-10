@@ -24,9 +24,16 @@ __pdoc__ = {
     'average_dp': False,
     'find_diagnostic_names': False,
     'process_data': False,
-    'correct_data': False,
-    'clean_data': False,
+    'get_environmental_data': False,
+    'choose_particle_polarity': False,
+    'bring_to_sealevel': False,
+    'correct_inlet_losses': False,
+    'wagner_ion_mode_correction': False,
+    'clean_elem_noise': False,
+    'clean_corona_ions': False,
+    'add_flags': False,
 }
+
 
 # The final geometric mean diameters of diameter and mobility bins
 dp_ion = np.array([7.86360416e-10, 9.08232168e-10, 1.04902018e-09, 1.21167006e-09,
@@ -296,13 +303,13 @@ def make_config_template(fn):
     Notes
     -----
 
-    The fallback constant values are used to calculate the corrections
-    (if `apply_corrections` is `True`) in case the data is not available 
-    in the diagnostic data either due to older instrument or broken sensor.
+    The default values are used to calculate the corrections
+    in case the data is not available in the diagnostic data 
+    either due missing or broken sensor.
 
     """
     with open(fn,"w") as f:
-        f.write("location: # Name of the measurement site\n")
+        f.write("measurement_location: # Name of the measurement site\n")
         f.write("data_folder: # Full paths to raw data folders\n")
         f.write("- # Data folder 1\n")
         f.write("- # Data folder 2, and so on...\n")
@@ -310,18 +317,20 @@ def make_config_template(fn):
         f.write("database_file: # Full path to database file (will be created on first run) \n")
         f.write("start_date: # Format: yyyy-mm-dd\n")
         f.write("end_date: # Format: yyyy-mm-dd or '' for current day\n")
-        f.write("apply_corrections: # true or false\n")
         f.write("inlet_length: # length of inlet in meters\n")
-        f.write("sealevel_correction: # true or false\n")
-        f.write("apply_cleaning: # true or false\n")
+        f.write("do_inlet_loss_correction: # true or false\n")
+        f.write("convert_to_standard_conditions: # true or false\n")
+        f.write("do_wagner_ion_mode_correction: # true or false\n")
         f.write("remove_corona_ions: # true or false\n")
         f.write("remove_noisy_electrometers: # true or false\n")
         f.write("inverter_name: # hires_25, lores_25, lores_21 or '' (needed for noise removal, '' if noise not removed)\n")
         f.write("allow_reprocess: # true or false")
-        f.write("fallback_to_constant_values: # true or false")
-        f.write("constant_temp: # temperature in K used in corrections as fallback")
-        f.write("constant_pres: # pressure in Pa used in corrections as fallback")
-        f.write("constant_flow: # flow rate in lpm used in corrections as fallback")
+        f.write("choose_better_particle_polarity: # true or false")
+        f.write("use_default_values: # true or false")
+        f.write("default_temperature: # temperature in K used in corrections as fallback")
+        f.write("default_pressure: # pressure in Pa used in corrections as fallback")
+        f.write("default_flowrate: # flow rate in lpm used in corrections as fallback")
+        f.write("include_flags: # include flags to the data file and make a separete flag file for each day, true or false")
 
 def tubeloss(dpp,pflow,plength,temp,press):
     DPP,TEMP = np.meshgrid(dpp,temp)
@@ -335,7 +344,7 @@ def tubeloss(dpp,pflow,plength,temp,press):
     pene[cond2] = 0.819*np.exp(-3.657*rmuu[cond2]) + 0.097*np.exp(-22.3*rmuu[cond2]) + 0.032*np.exp(-57.0*rmuu[cond2])
     return pene
 
-def read_file(fn):
+def read_file(fn,ftype):
     """
     Read NAIS raw data file into a pandas.DataFrame
 
@@ -345,11 +354,18 @@ def read_file(fn):
     fn : str
         Raw data filename with path
 
+    ftype : str
+        `"spectra"` (inverted size/mobility distribution) or
+        `"records"` (diagnostic data and electrometer currents)
+
     Returns
     -------
 
     pandas.DataFrame
         Contents of the file
+
+    str
+        Explantions of flags, returned only if `ftype="records"`
 
     """
 
@@ -357,6 +373,7 @@ def read_file(fn):
 
         header_found = False
         data_matrix = []
+        flag_explanations = []
         lines = f.read().splitlines()
         
         for line in lines:
@@ -365,11 +382,20 @@ def read_file(fn):
              if (len(line)==0):
                  continue
 
-             if (line[0]=='#'):
+             # Collect a list of flags and skip comments
+             if line[:6]=="# flag":
+                 # parse the line
+                 diagnostic_comment_yaml = yaml.safe_load(line[7:].rstrip('\r\n'))
+                 flag_name = list(diagnostic_comment_yaml.keys())[0]
+                 flag_message = diagnostic_comment_yaml[flag_name]["message"]
+                 flag_explanations.append([flag_name,flag_message])
+             elif (line[0]=='#'):
                  continue
+             else:
+                 pass
 
              # Test if it is a header
-             elif (header_found==False):
+             if (header_found==False):
                  if "opmode" in line:
                      delimiter = re.search('(.)opmode',line).group(1)
                      header = line.split(delimiter)
@@ -391,7 +417,14 @@ def read_file(fn):
     else:
         # Convert anything that can be converted to float and the rest is coerced to NaNs
         df = pd.DataFrame(columns = header, data = data_matrix)
-        df.iloc[:,3:] = df.iloc[:,3:].apply(pd.to_numeric, errors='coerce').astype(float)
+        df_flags = pd.DataFrame(columns=["Flag","Message"], data = flag_explanations)
+
+        # records: start_time, end_time, opmode, data..., flags
+        # spectra: start_time, end_time, opmode, data...
+        if ftype=="records":
+            df.iloc[:,3:-1] = df.iloc[:,3:-1].apply(pd.to_numeric, errors='coerce').astype(float)
+        if ftype=="spectra":
+            df.iloc[:,3:] = df.iloc[:,3:].apply(pd.to_numeric, errors='coerce').astype(float)
 
         # Establish begin_time (first column) as index
         df = df.set_index(df.columns[0])
@@ -400,7 +433,10 @@ def read_file(fn):
         # if there is no tz information set the timezone to UTC
         df.index = [t.tz_localize('UTC') if (t.tzinfo is None) else t for t in df.index]
         
-        return df
+        if ftype=="records":
+            return df, df_flags
+        if ftype=="spectra":
+            return df
 
 def average_mob(y,h):
     data = pd.DataFrame([])
@@ -468,6 +504,9 @@ def find_diagnostic_names(diag_params):
     return temperature_name, pressure_name, sampleflow_name
 
 def process_data(df,mode):
+    """
+    Convert spectra files to .sum format
+    """
 
     if (df is None):
         return None, None
@@ -519,16 +558,145 @@ def process_data(df,mode):
 
         return negdf, posdf
 
-def correct_data(
+def get_environmental_data(
     df,
     rec,
     mode,
-    do_sealevel_corr,
+    use_default_values,
+    default_pressure,
+    default_temperature,
+    default_flowrate):
+
+    if ((rec is None) or (df is None)):
+        return None,None,None
+
+    else:        
+        # Extract the records that match the mode
+        if mode=="ions":
+            df_rec = rec[rec.opmode=='ions']
+        if mode=="particles":
+            df_rec = rec[rec.opmode=='particles']
+
+        if not df_rec.index.to_series().is_monotonic_increasing:
+            return None,None,None
+        
+        df_rec = df_rec.reindex(df.index,method="nearest")
+
+        # Check that the relevant diagnostic data is found
+        t_name,p_name,sf_name = find_diagnostic_names(list(df_rec))
+
+        if t_name is not None:
+            t_df = 273.15 + pd.DataFrame(df_rec[t_name].astype(float))
+            # Values may be missing: e.g. sensor is broken
+            if (t_df.isna().all().all() and use_default_values):
+                t_df = pd.DataFrame(index = df.index)
+                t_df[0] = default_temperature
+        elif use_default_values:
+            t_df = pd.DataFrame(index = df.index)
+            t_df[0] = default_temperature
+        else:
+            t_df = None
+
+        if p_name is not None:
+            p_df = 100.0 * pd.DataFrame(df_rec[p_name].astype(float))
+            if (p_df.isna().all().all() and use_default_values):
+                p_df = pd.DataFrame(index = df.index)
+                p_df[0] = default_pressure
+        elif use_default_values:
+            p_df = pd.DataFrame(index = df.index)
+            p_df[0] = default_pressure
+        else:
+            p_df = None
+
+        if sf_name is not None:
+            if len(sf_name)==2:
+                flow_df = pd.DataFrame(df_rec[sf_name].sum(axis=1,min_count=2).astype(float))
+            else:
+                flow_df = pd.DataFrame(df_rec[sf_name].astype(float))
+            # Test if the sampleflow is in cm3/s (old models) or
+            # l/min and if necessary convert to l/min
+            if (np.nanmedian(flow_df)>300):
+                flow_df = (flow_df/1000.0) * 60.0
+            else:
+                pass
+            if (flow_df.isna().all().all() and use_default_values):
+                flow_df = pd.DataFrame(index = df.index)
+                flow_df[0] = default_flowrate
+        elif use_default_values:
+            flow_df = pd.DataFrame(index = df.index)
+            flow_df[0] = default_flowrate
+        else:
+            flow_df = None
+
+        # Sanity check the values
+        if t_df is not None:
+            t_df = t_df.where(((t_df>=223.)|(t_df<=353.)),np.nan)
+        
+        if p_df is not None:
+            p_df = p_df.where(((p_df>=37000.)|(p_df<=121000.)),np.nan)
+        
+        if flow_df is not None:
+            flow_df = flow_df.where(((flow_df>=48.)|(flow_df<=65.)),np.nan)
+     
+        return t_df, p_df, flow_df
+
+def bring_to_sealevel(
+    df,
+    t_df,
+    p_df):
+    """
+    Notes
+    -----
+
+    NAIS keeps constant volumetric flowrate, However air expands
+    and compresses depending on the pressure and temperature, chaging
+    the number of particles per unit volume. In order to compare
+    concentrations we need to transform the concentrations to standard
+    conditions.
+    """
+
+    if ((df is None) or (t_df is None) or (p_df is None)):
+        return None
+    else:
+        stp_corr_df = (pres_ref*t_df.values)/(temp_ref*p_df.values)
+        df = stp_corr_df * df
+        
+        return df
+
+def correct_inlet_losses(
+    df,
+    mode,
     pipe_length,
-    fallback_to_constant_values,
-    constant_t,
-    constant_p,
-    constant_flow):
+    t_df,
+    p_df,
+    flow_df):
+
+    if ((df is None) or (t_df is None) or (p_df is None) or (flow_df is None)):
+        return None
+
+    # Diffusion loss correction
+    if mode=="ions":
+        throughput = tubeloss(dp_ion*1e-9,flow_df.values*1.667e-5,pipe_length,t_df.values,p_df.values)
+    if mode=="particles":
+        throughput = tubeloss(dp_par*1e-9,flow_df.values*1.667e-5,pipe_length,t_df.values,p_df.values)
+    
+    df = df / throughput
+
+    return df
+ 
+def wagner_ion_mode_correction(df):
+    if df is None:
+        return None
+    else:
+        roberts_corr = 0.713*dp_ion**0.120
+        df = df / roberts_corr
+     
+        return df
+
+def add_flags(
+    df,
+    rec,
+    mode):
 
     if ((rec is None) or (df is None)):
         return None
@@ -545,207 +713,179 @@ def correct_data(
         
         df_rec = df_rec.reindex(df.index,method="nearest")
 
-        # Check that the relevant diagnostic data is found
-        t_name,p_name,sf_name = find_diagnostic_names(list(df_rec))
+        # Read the flags column from records and add it to 
+        # the final data as the first column
+        df.insert(0,"Flags",df_rec["flags"])
 
-        if t_name is not None:
-            t_df = 273.15 + pd.DataFrame(df_rec[t_name].astype(float))
-            # Values may be missing: e.g. sensor is broken
-            if (t_df.isna().all().all() and fallback_to_constant_values):
-                t_df = pd.DataFrame(index = df.index)
-                t_df[0] = constant_t
-        elif fallback_to_constant_values:
-            t_df = pd.DataFrame(index = df.index)
-            t_df[0] = constant_t 
-        else:
-            return None
-
-        if p_name is not None:
-            p_df = 100.0 * pd.DataFrame(df_rec[p_name].astype(float))
-            if (p_df.isna().all().all() and fallback_to_constant_values):
-                p_df = pd.DataFrame(index = df.index)
-                p_df[0] = constant_p
-        elif fallback_to_constant_values:
-            p_df = pd.DataFrame(index = df.index)
-            p_df[0] = constant_p
-        else:
-            return None
-
-        if sf_name is not None:
-            if len(sf_name)==2:
-                flow_df = pd.DataFrame(df_rec[sf_name].sum(axis=1,min_count=2).astype(float))
-            else:
-                flow_df = pd.DataFrame(df_rec[sf_name].astype(float))
-            # Test if the sampleflow is in cm3/s (old models) or
-            # l/min and if necessary convert to l/min
-            if (np.nanmedian(flow_df)>300):
-                flow_df = (flow_df/1000.0) * 60.0
-            else:
-                pass
-            if (flow_df.isna().all().all() and fallback_to_constant_values):
-                flow_df = pd.DataFrame(index = df.index)
-                flow_df[0] = constant_flow
-        elif fallback_to_constant_values:
-            flow_df = pd.DataFrame(index = df.index)
-            flow_df[0] = constant_flow
-        else:
-            return None
-
-        # Sanity check the values
-        t_df = t_df.where(((t_df>=223.)|(t_df<=353.)),np.nan)
-        p_df = p_df.where(((p_df>=37000.)|(p_df<=121000.)),np.nan)
-        flow_df = flow_df.where(((flow_df>=48.)|(flow_df<=60.)),np.nan)
-    
-        # Correct the number concentrations to standard conditions
-        if (do_sealevel_corr):
-            stp_corr_df = (pres_ref*t_df.values)/(temp_ref*p_df.values)
-            df = stp_corr_df * df
-       
-        # Diffusion loss correction
-        if mode=="ions":
-            throughput = tubeloss(dp_ion*1e-9,flow_df.values*1.667e-5,pipe_length,t_df.values,p_df.values)
-        if mode=="particles":
-            throughput = tubeloss(dp_par*1e-9,flow_df.values*1.667e-5,pipe_length,t_df.values,p_df.values)
-        
-        df = df / throughput
-    
-        # Robert Wagner's calibration (only ions)
-        if mode=="ions":
-            roberts_corr = 0.713*dp_ion**0.120
-            df = df / roberts_corr
-    
         return df
 
-def clean_data(
+
+def clean_elem_noise(
     df,
     rec,
     mode,
-    pol,
-    remove_corona_ions,
-    remove_electrometer_noise,
-    inverter_name): # Only needed if removing electrometer noise
+    polarity,
+    inverter_name):
 
     if ((df is None) or (rec is None)):
         return None
 
-    if remove_corona_ions:
-        # Only consider likely limit range
-        lower = 1.5e-9
-        upper = 5.0e-9
-        c = (lower <= df.columns.values) & (upper >= df.columns.values)
-        df2 = df.loc[:, c]
-    
-        # Find maximum difference between size bin medians
-        corona_lim = df2.columns.values[df2.median().diff().abs().argmax()]
-    
-        # Set values below corona ion limit to NaNs
-        df.iloc[:,df.columns.values<=corona_lim]=np.nan
-
-    if remove_electrometer_noise:
-
-        if inverter_name =="hires_25":
-            if mode=="ions":
-                if pol=="neg":
-                    elm2dp = ions_neg_v141_hrnd_elm25_chv
-                if pol=="pos":
-                    elm2dp = ions_pos_v141_hrnd_elm25_chv
-            if mode=="particles":
-                if pol=="neg":
-                    elm2dp = particles_neg_v14_hrnd_elm25_chv
-                if pol=="pos":
-                    elm2dp = particles_pos_v14_hrnd_elm25_chv
-        elif inverter_name == "lores_25":
-            if mode=="ions":
-                if pol=="neg":
-                    elm2dp = ions_neg_v141_lrnd_elm25_chv
-                if pol=="pos":
-                    elm2dp = ions_pos_v141_lrnd_elm25_chv
-            if mode=="particles":
-                if pol=="neg":
-                    elm2dp = particles_neg_v14_lrnd_elm25_chv
-                if pol=="pos": 
-                    elm2dp = particles_pos_v14_lrnd_elm25_chv
-        elif inverter_name == "lores_21":
-            if mode=="ions":
-                if pol=="neg":
-                    elm2dp = ions_neg_v14_lrnd
-                if pol=="pos":
-                    elm2dp = ions_pos_v14_lrnd
-            if mode=="particles":
-                if pol=="neg":
-                    elm2dp = particles_neg_v14_lrnd
-                if pol=="pos": 
-                    elm2dp = particles_pos_v14_lrnd
-        else:
-            return df
-
-        # Extract the records that match the mode
+    if inverter_name =="hires_25":
         if mode=="ions":
-            df_rec = rec[rec.opmode=='ions']
+            if polarity=="neg":
+                elm2dp = ions_neg_v141_hrnd_elm25_chv
+            if polarity=="pos":
+                elm2dp = ions_pos_v141_hrnd_elm25_chv
         if mode=="particles":
-            df_rec = rec[rec.opmode=='particles']
+            if polarity=="neg":
+                elm2dp = particles_neg_v14_hrnd_elm25_chv
+            if polarity=="pos":
+                elm2dp = particles_pos_v14_hrnd_elm25_chv
+    elif inverter_name == "lores_25":
+        if mode=="ions":
+            if polarity=="neg":
+                elm2dp = ions_neg_v141_lrnd_elm25_chv
+            if polarity=="pos":
+                elm2dp = ions_pos_v141_lrnd_elm25_chv
+        if mode=="particles":
+            if polarity=="neg":
+                elm2dp = particles_neg_v14_lrnd_elm25_chv
+            if polarity=="pos": 
+                elm2dp = particles_pos_v14_lrnd_elm25_chv
+    elif inverter_name == "lores_21":
+        if mode=="ions":
+            if polarity=="neg":
+                elm2dp = ions_neg_v14_lrnd
+            if polarity=="pos":
+                elm2dp = ions_pos_v14_lrnd
+        if mode=="particles":
+            if polarity=="neg":
+                elm2dp = particles_neg_v14_lrnd
+            if polarity=="pos": 
+                elm2dp = particles_pos_v14_lrnd
+    else:
+        return df
 
-        df_rec = df_rec.reindex(df.index,method="nearest")
+    # Extract the records that match the mode
+    if mode=="ions":
+        df_rec = rec[rec.opmode=='ions']
+    if mode=="particles":
+        df_rec = rec[rec.opmode=='particles']
 
-        elm2dp = {int(k):v for k,v in elm2dp.items()}
-        number_of_elms = len(elm2dp)
+    df_rec = df_rec.reindex(df.index,method="nearest")
 
-        # Rolling time windows
-        reso_in_seconds = (df.index[1]-df.index[0]).seconds
-        small_window = int((10.*60.)/(reso_in_seconds))          # 10 minutes
-        medium_window = int((4.*60.*60.)/(reso_in_seconds))      # 6 hours
-        large_window = int((12.*60.*60.)/(reso_in_seconds))      # 12 hours
+    elm2dp = {int(k):v for k,v in elm2dp.items()}
+    number_of_elms = len(elm2dp)
 
-        # NOISE LEVEL FROM THE RECORDS
-        if pol == "neg":
-            df_std = df_rec.iloc[:,2+2*number_of_elms:2+3*number_of_elms]
-        if pol == "pos":
-            df_std = df_rec.iloc[:,2+3*number_of_elms:2+4*number_of_elms]
-        else:
-            return None
+    # Rolling time windows
+    reso_in_seconds = (df.index[1]-df.index[0]).seconds
+    small_window = int((10.*60.)/(reso_in_seconds))          # 10 minutes
+    medium_window = int((4.*60.*60.)/(reso_in_seconds))      # 6 hours
+    large_window = int((12.*60.*60.)/(reso_in_seconds))      # 12 hours
 
-        # Set index to electrometer number
-        elm_header = np.arange(0,number_of_elms).astype(int)
-        df_std.columns = elm_header
+    # NOISE LEVEL FROM THE RECORDS
+    if polarity == "neg":
+        df_std = df_rec.iloc[:,2+2*number_of_elms:2+3*number_of_elms]
+    if polarity == "pos":
+        df_std = df_rec.iloc[:,2+3*number_of_elms:2+4*number_of_elms]
+    else:
+        return None
 
-        # Calculate noise level at each diameter
-        df_std2 = df.copy()
+    # Set index to electrometer number
+    elm_header = np.arange(0,number_of_elms).astype(int)
+    df_std.columns = elm_header
 
-        for d in df.columns.values:
-            elms = []
-            for elm in df_std.columns.values:
-                if ((d >= elm2dp[elm][0]) & (d <= elm2dp[elm][1])):
-                    elms.append(elm)
-            df_std2[d] = df_std[elms].mean(axis=1).values
-        
-        # Apply medium window to get rid of small fluctuations in electrometer noise
-        df_std2 = df_std2.rolling(medium_window, min_periods=int((medium_window+1.)/2.), center=True).median()      
-        
-        # Get the median noise
-        median_std2 = np.nanmedian(df_std2)
+    # Calculate noise level at each diameter
+    df_std2 = df.copy()
 
-        # Then find where the noise is more than N times median 
-        N = 500
-        df_std3 = df_std2.where((df_std2>N*median_std2), np.nan)
-        # NOISE LEVEL FROM THE INVERTED DATA
-
-        # Calculate standard deviation in 10 min segments
-        df2 = df.rolling(small_window, min_periods=int((small_window+1.)/2.), center=True).std()
+    for d in df.columns.values:
+        elms = []
+        for elm in df_std.columns.values:
+            if ((d >= elm2dp[elm][0]) & (d <= elm2dp[elm][1])):
+                elms.append(elm)
+        df_std2[d] = df_std[elms].mean(axis=1).values
     
-        # In a bigger window (12 hours) calculate the 75th quantile of the standard deviations
-        # (semi)continuous noise causes higher values compared to normal and rare sudden changes in conc
-        df2 = df2.rolling(large_window, min_periods=int((large_window+1.)/2.), center=True).quantile(0.75)
+    # Apply medium window to get rid of small fluctuations in electrometer noise
+    df_std2 = df_std2.rolling(medium_window, min_periods=int((medium_window+1.)/2.), center=True).median()      
     
-        # find where the noise is more than M times the median
-        M = 7
-        threshold = M*np.nanmedian(df2)
-        
-        df3 = df2.where(df2 > threshold, np.nan)
+    # Get the median noise
+    median_std2 = np.nanmedian(df_std2)
 
-        # REMOVE DATA FROM WHERE THE ELECTROMETER NOISE AND THE INVERTED DATA NOISE AGREE
-        df = df[df3.isna() & df_std3.isna()]
+    # Then find where the noise is more than N times median 
+    N = 500
+    df_std3 = df_std2.where((df_std2>N*median_std2), np.nan)
+    # NOISE LEVEL FROM THE INVERTED DATA
+
+    # Calculate standard deviation in 10 min segments
+    df2 = df.rolling(small_window, min_periods=int((small_window+1.)/2.), center=True).std()
+
+    # In a bigger window (12 hours) calculate the 75th quantile of the standard deviations
+    # (semi)continuous noise causes higher values compared to normal and rare sudden changes in conc
+    df2 = df2.rolling(large_window, min_periods=int((large_window+1.)/2.), center=True).quantile(0.75)
+
+    # find where the noise is more than M times the median
+    M = 7
+    threshold = M*np.nanmedian(df2)
+    
+    df3 = df2.where(df2 > threshold, np.nan)
+
+    # REMOVE DATA FROM WHERE THE ELECTROMETER NOISE AND THE INVERTED DATA NOISE AGREE
+    df = df[df3.isna() & df_std3.isna()]
     
     return df
+
+
+def clean_corona_ions(
+    df,
+    rec,
+    mode):
+
+    if ((df is None) or (rec is None)):
+        return None
+
+    # Only consider likely limit range
+    lower = 1.5e-9
+    upper = 5.0e-9
+    c = (lower <= df.columns.values) & (upper >= df.columns.values)
+    df2 = df.loc[:, c]
+ 
+    # Find maximum difference between size bin medians
+    corona_lim = df2.columns.values[df2.median().diff().abs().argmax()]
+ 
+    # Set values below corona ion limit to NaNs
+    df.iloc[:,df.columns.values<=corona_lim]=np.nan
+
+    return df
+
+def choose_particle_polarity(negpar,pospar):
+
+    if ((negpar is None) & (pospar is None)):
+        return None
+    elif ((negpar is None) & (pospar is not None)):
+        return "pos"
+    elif ((pospar is None) & (negpar is not None)):
+        return "neg"
+    else:
+        pass
+
+    # Calculate number concentration between 2-3 nm
+    # and determine the better polarity based on that
+    neg_conc = af.calc_conc(negpar,2e-9,3e-9)
+    pos_conc = af.calc_conc(pospar,2e-9,3e-9)
+
+    neg_med = float(neg_conc.median())
+    pos_med = float(pos_conc.median())
+
+    if (np.isnan(neg_med) & np.isnan(pos_med)):
+        return None
+    elif np.isnan(neg_med):
+        return "pos"
+    elif np.isnan(pos_med):
+        return "neg"
+    elif (pos_med<neg_med):
+        return "pos"
+    else:
+        return "neg"
 
 def nais_processor(config_file):
     """ Processes NAIS data
@@ -764,20 +904,22 @@ def nais_processor(config_file):
         save_path = config['processed_folder']
         start_date = config['start_date']
         database = config['database_file']
-        location = config['location']
+        location = config['measurement_location']
         end_date = config['end_date']
         allow_reprocess = config["allow_reprocess"]
         pipelength = config['inlet_length']
-        sealevel_correction = config['sealevel_correction']
-        apply_corrections = config['apply_corrections']
-        apply_cleaning=config["apply_cleaning"]
+        do_inlet_loss_correction = config['do_inlet_loss_correction']
+        convert_to_standard_conditions = config['convert_to_standard_conditions']
+        do_wagner_ion_mode_correction = config["do_wagner_ion_mode_correction"]
+        choose_better_particle_polarity=config["choose_better_particle_polarity"]
         remove_noisy_electrometers = config["remove_noisy_electrometers"]
         remove_corona_ions = config["remove_corona_ions"]
         inverter_name = config["inverter_name"]
-        fallback_to_constant_values = config["fallback_to_constant_values"]
-        constant_t = config["constant_temp"]
-        constant_p = config["constant_pres"]
-        constant_flow = config["constant_flow"]
+        use_default_values = config["use_default_values"]
+        default_temperature = config["default_temperature"]
+        default_pressure = config["default_pressure"]
+        default_flowrate = config["default_flowrate"]
+        include_flags = config["include_flags"]
 
     db = TinyDB(database)
     check = Query()
@@ -789,23 +931,25 @@ def nais_processor(config_file):
     assert isinstance(allow_reprocess,bool)
     assert isinstance(remove_corona_ions,bool)
     assert isinstance(remove_noisy_electrometers,bool)
-    assert isinstance(sealevel_correction,bool)
-    assert isinstance(apply_cleaning,bool)
-    assert isinstance(apply_corrections,bool)
+    assert isinstance(convert_to_standard_conditions,bool)
+    assert isinstance(do_wagner_ion_mode_correction,bool)
+    assert isinstance(do_inlet_loss_correction,bool)
+    assert isinstance(choose_better_particle_polarity,bool)
     assert ((inverter_name=="hires_25") | (inverter_name=="lores_25") | (inverter_name=="lores_21") | (inverter_name==''))
     assert (isinstance(pipelength,(float, int)) & (not isinstance(pipelength,bool)))
-    assert isinstance(fallback_to_constant_values,bool)
-    assert ((isinstance(constant_t,(float, int)) & (not isinstance(constant_t,bool))) | (constant_t==''))
-    assert ((isinstance(constant_p,(float, int)) & (not isinstance(constant_p,bool))) |  (constant_p==''))
-    assert ((isinstance(constant_flow,(float, int)) & (not isinstance(constant_flow,bool))) | (constant_flow==''))
+    assert isinstance(use_default_values,bool)
+    assert ((isinstance(default_temperature,(float, int)) & (not isinstance(default_temperature,bool))) | (default_temperature==''))
+    assert ((isinstance(default_pressure,(float, int)) & (not isinstance(default_pressure,bool))) |  (default_pressure==''))
+    assert ((isinstance(default_flowrate,(float, int)) & (not isinstance(default_flowrate,bool))) | (default_flowrate==''))
+    assert isinstance(include_flags,bool)
 
     end_date = date.today() if end_date=='' else end_date
 
     db = TinyDB(database)
     check = Query()
 
-    start_dt=pd.to_datetime(start_date)
-    end_dt=pd.to_datetime(end_date)
+    start_dt = pd.to_datetime(start_date)
+    end_dt = pd.to_datetime(end_date)
 
     start_date_str = start_dt.strftime("%Y%m%d")
     end_date_str = end_dt.strftime("%Y%m%d")
@@ -902,130 +1046,183 @@ def nais_processor(config_file):
             check.particles.exists() &
             (check.timestamp==x["timestamp"])))
 
-        records = read_file(x["diagnostics"])
+        records,flags = read_file(x["diagnostics"],"records")
+
+        if include_flags:
+            my_save_path_flags = os.path.join(save_path,"NAIS"+x["timestamp"]+".flags")
+            flags.to_csv(my_save_path_flags,index=False)
 
         # ions
         if ions_exist:
 
-            ions = read_file(x["ions"])
+            ions = read_file(x["ions"],"spectra")
 
             negion_datamatrix,posion_datamatrix = process_data(ions,"ions")
 
-            if apply_corrections:
-                negion_datamatrix = correct_data(
-                       negion_datamatrix,
-                       records,
-                       "ions",
-                       sealevel_correction,
-                       pipelength,
-                       fallback_to_constant_values,
-                       constant_t,
-                       constant_p,
-                       constant_flow)
-    
-                posion_datamatrix = correct_data(
-                       posion_datamatrix,
-                       records,
-                       "ions",
-                       sealevel_correction,
-                       pipelength,
-                       fallback_to_constant_values,
-                       constant_t,
-                       constant_p,
-                       constant_flow)
- 
-            if apply_cleaning:
+            if (convert_to_standard_conditions or do_inlet_loss_correction):
+                temperature_ion_df,pressure_ion_df,flowrate_ion_df = get_environmental_data(
+                    negion_datamatrix,
+                    records,
+                    "ions",
+                    use_default_values,
+                    default_pressure,
+                    default_temperature,
+                    default_flowrate)
 
-                negion_datamatrix = clean_data(
+            if convert_to_standard_conditions:
+                 negion_datamatrix = bring_to_sealevel(negion_datamatrix,temperature_ion_df,pressure_ion_df)
+                 posion_datamatrix = bring_to_sealevel(posion_datamatrix,temperature_ion_df,pressure_ion_df)
+
+            if do_inlet_loss_correction:
+                 negion_datamatrix = correct_inlet_losses(
+                      negion_datamatrix,
+                      "ions",
+                      pipelength,
+                      temperature_ion_df,
+                      pressure_ion_df,
+                      flowrate_ion_df)
+                 posion_datamatrix = correct_inlet_losses(
+                      posion_datamatrix,
+                      "ions",
+                      pipelength,
+                      temperature_ion_df,
+                      pressure_ion_df,
+                      flowrate_ion_df)
+
+            if do_wagner_ion_mode_correction:
+                negion_datamatrix = wagner_ion_mode_correction(negion_datamatrix)
+                posion_datamatrix = wagner_ion_mode_correction(posion_datamatrix)
+ 
+            if remove_noisy_electrometers: 
+                negion_datamatrix = clean_elem_noise(
                        negion_datamatrix,
                        records,
                        "ions",
                        "neg",
-                       False,
-                       remove_noisy_electrometers,
                        inverter_name)
-
-                posion_datamatrix = clean_data(
+ 
+                posion_datamatrix = clean_elem_noise(
                        posion_datamatrix,
                        records,
                        "ions",
                        "pos",
-                       False,
-                       remove_noisy_electrometers,
                        inverter_name)
- 
+            
             if (negion_datamatrix is not None):
+
+                if include_flags:
+                    negion_datamatrix = add_flags(negion_datamatrix,records,"ions")
+                    
                 my_save_path_neg=os.path.join(save_path,"NAISn"+x["timestamp"]+"nds.sum")
                 negion_datamatrix.to_csv(my_save_path_neg)
+
                 db.update({"processed_neg_ion_file": my_save_path_neg},
                     check.timestamp==x["timestamp"])
 
             if (posion_datamatrix is not None):
-                my_save_path_pos=os.path.join(save_path,"NAISp"+x["timestamp"]+"nds.sum")
+
+                if include_flags:
+                    posion_datamatrix = add_flags(posion_datamatrix,records,"ions")
+
+                my_save_path_pos = os.path.join(save_path,"NAISp"+x["timestamp"]+"nds.sum")
                 posion_datamatrix.to_csv(my_save_path_pos)
+
                 db.update({"processed_pos_ion_file": my_save_path_pos},
                     check.timestamp==x["timestamp"])
 
         # particles
         if particles_exist:
 
-            particles = read_file(x["particles"])
+            particles = read_file(x["particles"], "spectra")
 
             negpar_datamatrix,pospar_datamatrix = process_data(particles,"particles")
 
-            if apply_corrections:
+            if (convert_to_standard_conditions or do_inlet_loss_correction):
+                temperature_particle_df,pressure_particle_df,flowrate_particle_df = get_environmental_data(
+                    negpar_datamatrix,
+                    records,
+                    "particles",
+                    use_default_values,
+                    default_pressure,
+                    default_temperature,
+                    default_flowrate)
 
-                negpar_datamatrix = correct_data(
+            if convert_to_standard_conditions:
+                 negpar_datamatrix = bring_to_sealevel(negpar_datamatrix,temperature_ion_df,pressure_ion_df)
+                 pospar_datamatrix = bring_to_sealevel(pospar_datamatrix,temperature_ion_df,pressure_ion_df)
+
+            if do_inlet_loss_correction:
+                 negpar_datamatrix = correct_inlet_losses(
+                      negpar_datamatrix,
+                      "particles",
+                      pipelength,
+                      temperature_particle_df,
+                      pressure_particle_df,
+                      flowrate_particle_df)
+                 pospar_datamatrix = correct_inlet_losses(
+                      pospar_datamatrix,
+                      "particles",
+                      pipelength,
+                      temperature_particle_df,
+                      pressure_particle_df,
+                      flowrate_particle_df)
+
+            if remove_noisy_electrometers:
+                negpar_datamatrix = clean_elem_noise(
                        negpar_datamatrix,
                        records,
                        "particles",
-                       sealevel_correction,
-                       pipelength,
-                       fallback_to_constant_values,
-                       constant_t,
-                       constant_p,
-                       constant_flow)
-    
-                pospar_datamatrix = correct_data(
-                       pospar_datamatrix,
-                       records,
-                       "particles",
-                       sealevel_correction,
-                       pipelength,
-                       fallback_to_constant_values,
-                       constant_t,
-                       constant_p,
-                       constant_flow)
-
-            if apply_cleaning:
-
-                negpar_datamatrix = clean_data(
-                       negion_datamatrix,
-                       records,
-                       "particles",
                        "neg",
-                       remove_corona_ions,
-                       remove_noisy_electrometers,
                        inverter_name)
-
-                pospar_datamatrix = clean_data(
+ 
+                pospar_datamatrix = clean_elem_noise(
                        pospar_datamatrix,
                        records,
                        "particles",
                        "pos",
-                       remove_corona_ions,
-                       remove_noisy_electrometers,
                        inverter_name)
  
-            if (negpar_datamatrix is not None):
+            if choose_better_particle_polarity:
+                better_polarity = choose_particle_polarity(
+                        negpar_datamatrix,
+                        pospar_datamatrix)
+            else:
+                better_polarity = None
+ 
+            if remove_corona_ions:
+                negpar_datamatrix = clean_corona_ions(
+                    negpar_datamatrix,
+                    records,
+                    "particles")
+ 
+                pospar_datamatrix = clean_corona_ions(
+                    pospar_datamatrix,
+                    records,
+                    "particles")
+
+            if ((negpar_datamatrix is not None) & 
+               ((choose_better_particle_polarity==True) & (better_polarity=="neg") |
+               (choose_better_particle_polarity==False))):
+                
+                if include_flags:
+                    negpar_datamatrix = add_flags(negpar_datamatrix,records,"particles")
+
                 my_save_path_neg=os.path.join(save_path,"NAISn"+x["timestamp"]+"np.sum")
                 negpar_datamatrix.to_csv(my_save_path_neg)
+
                 db.update({"processed_neg_particle_file": my_save_path_neg},
                     check.timestamp==x["timestamp"])
 
-            if (pospar_datamatrix is not None):
+            if ((pospar_datamatrix is not None) &
+               ((choose_better_particle_polarity==True) & (better_polarity=="pos") |
+               (choose_better_particle_polarity==False))): 
+
+                if include_flags:
+                    pospar_datamatrix = add_flags(pospar_datamatrix,records,"particles")
+
                 my_save_path_pos=os.path.join(save_path,"NAISp"+x["timestamp"]+"np.sum")
                 pospar_datamatrix.to_csv(my_save_path_pos)
+
                 db.update({"processed_pos_particle_file": my_save_path_pos},
                     check.timestamp==x["timestamp"])
 
@@ -1068,92 +1265,3 @@ def combine_databases(database_list, combined_database):
 
     with open(combined_database, "w") as f:
         json.dump({"_default":DB},f)
-
-def combine_spectra(
-    database_file,
-    begin_time,
-    end_time,
-    spectrum_type="negion",
-    reso=60):
-    """
-    Combine processed particle or ion data from some time range
-
-    Parameters
-    ----------
-
-    database_file : str
-        full path to database_file
-
-    begin_time : str
-        time zone aware iso formatted time string
-
-        For example `"2013-01-02 15:00:00+02:00"`
-
-    end_time : str
-        time zone aware iso formatted time string
-
-        For example `"2013-01-03 17:00:00+02:00"`
-
-    spectrum_type : str
-        negative ions `negion` (default)
-
-        positive ions `posion`
-
-        negative particles `negpar`
-
-        positive particles `pospar`
-
-    reso : int
-        desired resolution given in minutes
-
-    Returns
-    -------
-
-    pandas.DataFrame
-        Combined aerosol number size distribution in the given 
-        time interval
-
-    """
-
-    db = TinyDB(database_file)
-    check = Query()
-
-    begin_dt=pd.to_datetime(begin_time)
-    end_dt=pd.to_datetime(end_time)
-
-    begin_date=begin_dt.strftime("%Y%m%d")
-    end_date=end_dt.strftime("%Y%m%d")
-
-    assert spectrum_type in ["posion","pospar","negpar","negion"],\
-            "%s is not valid 'spectrum_type'" % spectrum_type
-
-    if spectrum_type=="negpar":
-        iterator = iter(db.search(
-            (check.processed_neg_particle_file.exists()) &
-            (check.timestamp>=begin_date) &
-            (check.timestamp<=end_date)))
-        db_entry = "processed_neg_particle_file"
-    elif spectrum_type=="pospar":
-        iterator = iter(db.search(
-            (check.processed_pos_particle_file.exists()) &
-            (check.timestamp>=begin_date) &
-            (check.timestamp<=end_date)))
-        db_entry = "processed_pos_particle_file"
-    elif spectrum_type=="negion":
-        iterator = iter(db.search(
-            (check.processed_neg_ion_file.exists()) &
-            (check.timestamp>=begin_date) &
-            (check.timestamp<=end_date)))
-        db_entry = "processed_neg_ion_file"
-    else:
-        iterator = iter(db.search(
-            (check.processed_pos_ion_file.exists()) &
-            (check.timestamp>=begin_date) &
-            (check.timestamp<=end_date)))
-        db_entry = "processed_pos_ion_file"
-
-    filenames = [x[db_entry] for x in iterator]
-
-    df = af.stack_data(filenames, begin_time, end_time, reso)
-
-    return df
