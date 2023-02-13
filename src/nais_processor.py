@@ -1148,8 +1148,8 @@ def nais_processor(config_file):
                     default_flowrate)
 
             if convert_to_standard_conditions:
-                 negpar_datamatrix = bring_to_sealevel(negpar_datamatrix,temperature_ion_df,pressure_ion_df)
-                 pospar_datamatrix = bring_to_sealevel(pospar_datamatrix,temperature_ion_df,pressure_ion_df)
+                 negpar_datamatrix = bring_to_sealevel(negpar_datamatrix,temperature_particle_df,pressure_particle_df)
+                 pospar_datamatrix = bring_to_sealevel(pospar_datamatrix,temperature_particle_df,pressure_particle_df)
 
             if do_inlet_loss_correction:
                  negpar_datamatrix = correct_inlet_losses(

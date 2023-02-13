@@ -1,3 +1,2 @@
 include *.in
-include *.png
 recursive-include docs *.html
