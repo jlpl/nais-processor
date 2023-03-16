@@ -1,11 +1,15 @@
 # NAIS processor
-Use this code package to process [NAIS](https://www.airel.ee/products/nais/) (Neutral cluster and Air Ion Spectrometer, Airel Ltd.) data files.
+Code package to process [NAIS](https://www.airel.ee/products/nais/) (Neutral cluster and Air Ion Spectrometer, Airel Ltd.) data files.
 
-The code can correct for diffusion losses in the inlet line (Gromley and Kennedy, 1948) and apply an ion mode calibration (Wagner et al. 2016). Optionally the data can be converted to standard conditions (273.15 K, 101325 Pa), which can be useful when comparing aerosol particle and ion data from locations at different altitudes.
+The below options are possible:
 
-Optionally one can also apply a data cleaning procedure where the corona ion band is removed from the particle data and instances of electrometer noise are removed from ion and particle data.
+* Inlet loss correction (Gromley and Kennedy, 1948)
+* Ion mode correction (Wagner et al. 2016)
+* Conversion to standard conditions (273.15 K, 101325 Pa)
+* Remove charger ion band from total particle data
+* Use fill values in case of missing environmental sensor data
 
-[Documentation](https://jlpl.github.io/nais-processor/)
+Some additional utility methods are also included. See [documentation](https://jlpl.github.io/nais-processor/).
 
 ## Installation
 ```shell
@@ -25,6 +29,8 @@ This will create a configuration file template called `/home/user/viikki.yml`. A
 the file may look like this:
 ```yaml
 measurement_location: Viikki, Helsinki, Finland
+longitude: 25.02
+latitude: 60.23
 data_folder:
 - /home/user/data/2021
 - /home/user/data/2022
@@ -37,38 +43,26 @@ do_inlet_loss_correction: true
 convert_to_standard_conditions: true
 do_wagner_ion_mode_correction: true
 remove_corona_ions: true
-remove_noisy_electrometers: true
-inverter_name: hires_25
 allow_reprocess: false
-choose_better_particle_polarity: false
-use_default_values: true
-default_temperature: 273.15
-default_pressure: 101325.0
-default_flowrate: 54.0
-include_flags: false
+use_fill_values: true
+fill_temperature: 273.15
+fill_pressure: 101325.0
+fill_flowrate: 54.0
 ```
 Then process the data files by running [`nais_processor()`](https://jlpl.github.io/nais-processor/#nais_processor.nais_processor) method with the config file as the input argument.
 
 In our example case:
 ```
 >>> nais_processor("/home/user/viikki.yml")
-building database...
-processing 20220928 (Viikki, Helsinki, Finland)
-processing 20220929 (Viikki, Helsinki, Finland)
-processing 20220930 (Viikki, Helsinki, Finland)
+Building database...
+Processing 20220928 (Viikki, Helsinki, Finland)
+Processing 20220929 (Viikki, Helsinki, Finland)
+Processing 20220930 (Viikki, Helsinki, Finland)
 Done!
 ```
-The code produces daily processed data files for ion and particle data. These files are saved in the destinations given in the configuration file.
+The code produces daily processed data files `NAIS_yyyymmdd.nc` (netCDF format). These files are saved in the destination given in the configuration file.
 
-The processed data files are named
-
-`NAIS[n|p][yyyymmdd][np|nds].sum`
-
-where `n` and `p` refer to negative and positive polarity respectively. `yyyymmdd` tells the date in the year-month-day format. `np` and `nds` refer to particle and ion data respectively.
-
-In the processed data files the header contains the geometric mean diameters of the size bins, the first column is the time and the rest of the data is the number-size distribution matrix with normalized number concentrations (dN/dlogDp). 
-
-The locations of raw files, processed files and cleaned processed files are written in the JSON formatted `database_file`.
+The locations of raw and processed files for each day are written in the JSON formatted `database_file`.
 
 ## License
 This project is licensed under the terms of the GNU GPLv3.
