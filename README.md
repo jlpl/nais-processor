@@ -64,6 +64,27 @@ The code produces daily processed data files `NAIS_yyyymmdd.nc` (netCDF format).
 
 The locations of raw and processed files for each day are written in the JSON formatted `database_file`.
 
+## netCDF files
+
+| Fields             | Dimensions    | Data type      | Units | Comments          |
+|--------------------|---------------|----------------|-------|-------------------|
+| **Coordinates**    |               |                |       |                   |
+| time               | time          | datetime64[ns] |       | timezone: utc     |
+| diameter           | diameter      | float64        | m     |                   |
+| flag               | flag          | str            |       | flags encountered |
+| **Data variables** |               |                |       |                   |
+| neg_ions           | time,diameter | float64        | cm-3  | dN/dlogDp         |
+| pos_ions           | time,diameter | float64        | cm-3  | dN/dlogDp         |
+| neg_particles      | time,diameter | float64        | cm-3  | dN/dlogDp         |
+| pos_particles      | time,diameter | float64        | cm-3  | dN/dlogDp         |
+| neg_ion_flags      | time,flag     | int64          |       |                   |
+| pos_ion_flags      | time,flag     | int64          |       |                   |
+| neg_particle_flags | time,flag     | int64          |       |                   |
+| pos_particle_flags | time,flag     | int64          |       |                   |
+| flag_message       | flag          | str            |       | flag explanations |
+| **Attributes**     |               |                |       |                   |
+| Measurement info   |               |                |       |                   |
+
 ## License
 This project is licensed under the terms of the GNU GPLv3.
 
