@@ -376,13 +376,9 @@ __pdoc__ = {
     &#39;flags2polarity&#39;: False,
     &#39;save_as_netcdf&#39;:False}
 
-
 # CONSTANTS
 LEN_DP = 40
 LEN_TIME = 289
-
-NAN_FLAGS = np.nan*np.ones(LEN_TIME)
-NAN_SPECTRUM = np.nan*np.ones((LEN_TIME,LEN_DP))
 
 DP_STANDARD = np.array([
 5.00000000e-10, 5.61009227e-10, 6.29462706e-10, 7.06268772e-10,
@@ -463,7 +459,6 @@ PRESSURE_NAMES = [
 # Standard conditions
 TEMP_REF = 273.15
 PRES_REF = 101325.0
-
 
 def make_config_template(file_name):
     &#34;&#34;&#34;
@@ -610,16 +605,16 @@ def read_raw(file_name,file_type,timestamp):
                 ion_records_and_flags = ion_records_and_flags.reindex(standard_time, method=&#34;nearest&#34;, tolerance=pd.Timedelta(&#34;5min&#34;))
                 ion_records_and_flags.index = ion_records_and_flags.index.tz_convert(&#39;UTC&#39;)
                 ion_records = ion_records_and_flags.iloc[:,3:-1].apply(pd.to_numeric, errors=&#39;coerce&#39;).astype(float)
-                ion_flags = ion_records_and_flags.iloc[:,-1].fillna(&#39;&#39;)
+                ion_flags = ion_records_and_flags.iloc[:,-1].fillna(&#39;&#39;).str.split(&#34;!&#34;,expand=True).fillna(&#39;&#39;)
             else:
                 ion_records = None
                 ion_flags = None
                 
-            if particle_records_and_flags.empty==False:
+            if particle_records_and_flags.empty == False:
                 particle_records_and_flags = particle_records_and_flags.reindex(standard_time, method=&#34;nearest&#34;, tolerance=pd.Timedelta(&#34;5min&#34;))
                 particle_records_and_flags.index = particle_records_and_flags.index.tz_convert(&#39;UTC&#39;)
                 particle_records = particle_records_and_flags.iloc[:,3:-1].apply(pd.to_numeric, errors=&#39;coerce&#39;).astype(float)
-                particle_flags = particle_records_and_flags.iloc[:,-1].fillna(&#39;&#39;)
+                particle_flags = particle_records_and_flags.iloc[:,-1].fillna(&#39;&#39;).str.split(&#34;!&#34;,expand=True).fillna(&#39;&#39;)
             else:
                 particle_records = None
                 particle_flags = None
@@ -628,7 +623,7 @@ def read_raw(file_name,file_type,timestamp):
                 offset_records_and_flags = offset_records_and_flags.reindex(standard_time, method=&#34;nearest&#34;, tolerance=pd.Timedelta(&#34;5min&#34;))
                 offset_records_and_flags.index = offset_records_and_flags.index.tz_convert(&#39;UTC&#39;)
                 offset_records = offset_records_and_flags.iloc[:,3:-1].apply(pd.to_numeric, errors=&#39;coerce&#39;).astype(float)
-                offset_flags = offset_records_and_flags.iloc[:,-1].fillna(&#39;&#39;)
+                offset_flags = offset_records_and_flags.iloc[:,-1].fillna(&#39;&#39;).str.split(&#34;!&#34;,expand=True).fillna(&#39;&#39;)
             else:
                 offset_records = None
                 offset_flags = None
@@ -845,32 +840,34 @@ def flags2polarity(
     
     else:
         
-        # Lets collect a set of indices that belong to  
-        pos_spectra_idx = set()
-        neg_spectra_idx = set()
+        
+        LEN_FLAG = len(flag_explanations[&#34;flag&#34;].values)
+        
+        flags_pos_spectra = pd.DataFrame(index = flags_spectra.index, 
+                                         columns = flag_explanations[&#34;flag&#34;].values,
+                                         data = np.zeros((LEN_TIME,LEN_FLAG)),dtype=int)
+        flags_neg_spectra = pd.DataFrame(index = flags_spectra.index, 
+                                         columns = flag_explanations[&#34;flag&#34;].values,
+                                         data = np.zeros((LEN_TIME,LEN_FLAG)),dtype=int)
         
         for flag, message in zip(flag_explanations[&#34;flag&#34;],flag_explanations[&#34;message&#34;]):
-            
-            offset_set = set(flags_offset.index[flags_offset.str.contains(flag)])
-            spectra_set = set(flags_spectra.index[flags_spectra.str.contains(flag)])
-            
+                        
+            spectra_idx = flags_spectra[flags_spectra==flag].index
+            offset_idx = flags_offset[flags_offset==flag].index
+            combined_idx = spectra_idx.join(offset_idx,how=&#34;inner&#34;)
+                        
             # Message/flag only concerns positive polarity of the given spectrum
-            if (&#34;+&#34; in message):             
-                pos_spectra_idx = pos_spectra_idx.union(spectra_set).union(offset_set)
+            if (&#34;+&#34; in message):                
+                flags_pos_spectra.loc[combined_idx,flag] = 1 
                                     
             # Message/flag only concerns negative polarity
             elif (&#34;−&#34; in message):   
-                neg_spectra_idx = neg_spectra_idx.union(spectra_set).union(offset_set)              
-                
+                flags_neg_spectra.loc[combined_idx,flag] = 1
+            
             # Message/flag concerns both polarities
             else:
-                pos_spectra_idx = pos_spectra_idx.union(spectra_set).union(offset_set)
-                neg_spectra_idx = neg_spectra_idx.union(spectra_set).union(offset_set) 
-                                
-        flags_pos_spectra = (flags_spectra.loc[np.sort(list(pos_spectra_idx))]
-            .reindex(flags_spectra.index,method=&#34;nearest&#34;,fill_value=&#39;&#39;,tolerance=pd.Timedelta(&#34;5min&#34;)))
-        flags_neg_spectra = (flags_spectra.loc[np.sort(list(neg_spectra_idx))]
-            .reindex(flags_spectra.index,method=&#34;nearest&#34;,fill_value=&#39;&#39;,tolerance=pd.Timedelta(&#34;5min&#34;)))
+                flags_pos_spectra.loc[combined_idx,flag] = 1
+                flags_neg_spectra.loc[combined_idx,flag] = 1
             
         return flags_neg_spectra, flags_pos_spectra
 
@@ -919,15 +916,13 @@ def save_as_netcdf(
             if spectra is not None:
                 time = spectra.index.values
                 nan_data = np.nan*np.ones((LEN_TIME,LEN_DP))
-                nan_flags = LEN_TIME*[&#39;&#39;]
                 break
         
         ds = xr.Dataset()
         ds = ds.assign_coords(
             coords = {
                 &#34;time&#34;: time,
-                &#34;diameter&#34;: DP_STANDARD,
-                &#34;flag&#34;: &#39;&#39;
+                &#34;diameter&#34;: DP_STANDARD
             }
         )
         
@@ -966,32 +961,37 @@ def save_as_netcdf(
         
         ds.pos_particles.attrs[&#34;units&#34;] = &#34;cm-3&#34;
         ds.pos_particles.attrs[&#34;description&#34;] = &#34;Positive particle number-size distribution (dN/dlogDp)&#34;
-    
-        # If flags exist add them     
-        if negion_flags is not None:
-            ds = ds.assign(neg_ion_flags=(&#34;time&#34;,negion_flags.values))
-        else:
-            ds = ds.assign(neg_ion_flags=(&#34;time&#34;,nan_flags))
-            
-        if posion_flags is not None:
-            ds = ds.assign(pos_ion_flags=(&#34;time&#34;,posion_flags.values))
-        else:
-            ds = ds.assign(pos_ion_flags=(&#34;time&#34;,nan_flags))
-            
-        if negpar_flags is not None:
-            ds = ds.assign(neg_particle_flags=(&#34;time&#34;,negpar_flags.values))
-        else:
-            ds = ds.assign(neg_particle_flags=(&#34;time&#34;,nan_flags))
-            
-        if pospar_flags is not None:
-            ds = ds.assign(pos_particle_flags=(&#34;time&#34;,pospar_flags.values))
-        else:
-            ds = ds.assign(pos_particle_flags=(&#34;time&#34;,nan_flags))
-            
+
         # Add flag explanations if they exist
         if flag_explanations is not None:
             ds = ds.assign_coords(flag = flag_explanations[&#34;flag&#34;].values)
             ds = ds.assign(flag_message = (&#34;flag&#34;,flag_explanations[&#34;message&#34;].values))
+            nan_flags = np.zeros((LEN_TIME,ds.flag.size)).astype(int)
+        else:
+            ds = ds.assign_coords(flag = [&#34;&#34;])
+            ds = ds.assign(flag_message = (&#34;flag&#34;,[&#34;&#34;]))
+            nan_flags = np.zeros((LEN_TIME,1)).astype(int)
+
+        # If flags exist add them     
+        if ((negion_flags is not None) and (flag_explanations is not None)):
+            ds = ds.assign(neg_ion_flags=((&#34;time&#34;,&#34;flag&#34;),negion_flags.values))
+        else:
+            ds = ds.assign(neg_ion_flags=((&#34;time&#34;,&#34;flag&#34;),nan_flags))
+            
+        if ((posion_flags is not None) and (flag_explanations is not None)):
+            ds = ds.assign(pos_ion_flags=((&#34;time&#34;,&#34;flag&#34;),posion_flags.values))
+        else:
+            ds = ds.assign(pos_ion_flags=((&#34;time&#34;,&#34;flag&#34;),nan_flags))
+            
+        if ((negpar_flags is not None) and (flag_explanations is not None)):
+            ds = ds.assign(neg_particle_flags=((&#34;time&#34;,&#34;flag&#34;),negpar_flags.values))
+        else:
+            ds = ds.assign(neg_particle_flags=((&#34;time&#34;,&#34;flag&#34;),nan_flags))
+            
+        if ((pospar_flags is not None) and (flag_explanations is not None)):
+            ds = ds.assign(pos_particle_flags=((&#34;time&#34;,&#34;flag&#34;),pospar_flags.values))
+        else:
+            ds = ds.assign(pos_particle_flags=((&#34;time&#34;,&#34;flag&#34;),nan_flags))
             
         # Add measurement info
         ds = ds.assign_attrs(measurement_info)
@@ -1297,7 +1297,7 @@ def remove_flagged_rows(ds,flag):
     ds : xarray.Dataset
         NAIS dataset
     
-    flags : str
+    flag : str
     
     Returns
     -------
@@ -1307,12 +1307,12 @@ def remove_flagged_rows(ds,flag):
     
     &#34;&#34;&#34;
     
-    ds2 = ds.copy(deep=True)
+    ds2 = ds.copy(deep=True)    
         
-    idx0 = ds2.neg_ion_flags.str.contains(flag)
-    idx1 = ds2.pos_ion_flags.str.contains(flag)
-    idx2 = ds2.neg_particle_flags.str.contains(flag)
-    idx3 = ds2.pos_particle_flags.str.contains(flag)
+    idx0 = ds2.neg_ion_flags.sel(flag=flag)==1
+    idx1 = ds2.pos_ion_flags.sel(flag=flag)==1
+    idx2 = ds2.neg_particle_flags.sel(flag=flag)==1
+    idx3 = ds2.pos_particle_flags.sel(flag=flag)==1
     
     ds2.neg_ions[idx0,:] = np.nan
     ds2.pos_ions[idx1,:] = np.nan
@@ -1903,7 +1903,7 @@ the second earliest and so on</p>
 <dl>
 <dt><strong><code>ds</code></strong> :&ensp;<code>xarray.Dataset</code></dt>
 <dd>NAIS dataset</dd>
-<dt><strong><code>flags</code></strong> :&ensp;<code>str</code></dt>
+<dt><strong><code>flag</code></strong> :&ensp;<code>str</code></dt>
 <dd>&nbsp;</dd>
 </dl>
 <h2 id="returns">Returns</h2>
@@ -1924,7 +1924,7 @@ the second earliest and so on</p>
     ds : xarray.Dataset
         NAIS dataset
     
-    flags : str
+    flag : str
     
     Returns
     -------
@@ -1934,12 +1934,12 @@ the second earliest and so on</p>
     
     &#34;&#34;&#34;
     
-    ds2 = ds.copy(deep=True)
+    ds2 = ds.copy(deep=True)    
         
-    idx0 = ds2.neg_ion_flags.str.contains(flag)
-    idx1 = ds2.pos_ion_flags.str.contains(flag)
-    idx2 = ds2.neg_particle_flags.str.contains(flag)
-    idx3 = ds2.pos_particle_flags.str.contains(flag)
+    idx0 = ds2.neg_ion_flags.sel(flag=flag)==1
+    idx1 = ds2.pos_ion_flags.sel(flag=flag)==1
+    idx2 = ds2.neg_particle_flags.sel(flag=flag)==1
+    idx3 = ds2.pos_particle_flags.sel(flag=flag)==1
     
     ds2.neg_ions[idx0,:] = np.nan
     ds2.pos_ions[idx1,:] = np.nan
