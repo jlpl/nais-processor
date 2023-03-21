@@ -70,18 +70,17 @@ The locations of raw and processed files for each day are written in the JSON fo
 |--------------------|---------------|----------------|-------|------------------- |
 | **Coordinates**    |               |                |       |                    |
 | time               | time          | datetime64[ns] |       | timezone: utc      |
-| diameter           | diameter      | float64        | m     |                    |
-| flag               | flag          | str            |       | flag abbreviations |
+| diameter           | diameter      | float          | m     | particle diameter  |
+| flag               | flag          | string         |       |                    |
 | **Data variables** |               |                |       |                    |
-| neg_ions           | time,diameter | float64        | cm-3  | dN/dlogDp          |
-| pos_ions           | time,diameter | float64        | cm-3  | dN/dlogDp          |
-| neg_particles      | time,diameter | float64        | cm-3  | dN/dlogDp          |
-| pos_particles      | time,diameter | float64        | cm-3  | dN/dlogDp          |
-| neg_ion_flags      | time,flag     | int64          |       | flag=1, no flag=0  |
-| pos_ion_flags      | time,flag     | int64          |       | flag=1, no flag=0  |
-| neg_particle_flags | time,flag     | int64          |       | flag=1, no flag=0  |
-| pos_particle_flags | time,flag     | int64          |       | flag=1, no flag=0  |
-| flag_message       | flag          | str            |       | flag explanations  |
+| neg_ions           | time,diameter | float          | cm-3  | dN/dlogDp          |
+| pos_ions           | time,diameter | float          | cm-3  | dN/dlogDp          |
+| neg_particles      | time,diameter | float          | cm-3  | dN/dlogDp          |
+| pos_particles      | time,diameter | float          | cm-3  | dN/dlogDp          |
+| neg_ion_flags      | time,flag     | int            |       | flag=1, no flag=0  |
+| pos_ion_flags      | time,flag     | int            |       | flag=1, no flag=0  |
+| neg_particle_flags | time,flag     | int            |       | flag=1, no flag=0  |
+| pos_particle_flags | time,flag     | int            |       | flag=1, no flag=0  |
 | **Attributes**     |               |                |       |                    |
 | Measurement info   |               |                |       |                    |
 

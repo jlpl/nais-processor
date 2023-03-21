@@ -844,30 +844,30 @@ def flags2polarity(
         LEN_FLAG = len(flag_explanations[&#34;flag&#34;].values)
         
         flags_pos_spectra = pd.DataFrame(index = flags_spectra.index, 
-                                         columns = flag_explanations[&#34;flag&#34;].values,
+                                         columns = flag_explanations[&#34;message&#34;].values,
                                          data = np.zeros((LEN_TIME,LEN_FLAG)),dtype=int)
         flags_neg_spectra = pd.DataFrame(index = flags_spectra.index, 
-                                         columns = flag_explanations[&#34;flag&#34;].values,
+                                         columns = flag_explanations[&#34;message&#34;].values,
                                          data = np.zeros((LEN_TIME,LEN_FLAG)),dtype=int)
         
         for flag, message in zip(flag_explanations[&#34;flag&#34;],flag_explanations[&#34;message&#34;]):
                         
-            spectra_idx = flags_spectra[flags_spectra==flag].index
-            offset_idx = flags_offset[flags_offset==flag].index
-            combined_idx = spectra_idx.join(offset_idx,how=&#34;inner&#34;)
+            spectra_idx = flags_spectra[(flags_spectra==flag).sum(axis=1)&gt;0].index
+            offset_idx = flags_offset[(flags_offset==flag).sum(axis=1)&gt;0].index
+            combined_idx = spectra_idx.join(offset_idx,how=&#34;outer&#34;)
                         
             # Message/flag only concerns positive polarity of the given spectrum
             if (&#34;+&#34; in message):                
-                flags_pos_spectra.loc[combined_idx,flag] = 1 
+                flags_pos_spectra.loc[combined_idx,message] = 1 
                                     
             # Message/flag only concerns negative polarity
             elif (&#34;−&#34; in message):   
-                flags_neg_spectra.loc[combined_idx,flag] = 1
+                flags_neg_spectra.loc[combined_idx,message] = 1
             
             # Message/flag concerns both polarities
             else:
-                flags_pos_spectra.loc[combined_idx,flag] = 1
-                flags_neg_spectra.loc[combined_idx,flag] = 1
+                flags_pos_spectra.loc[combined_idx,message] = 1
+                flags_neg_spectra.loc[combined_idx,message] = 1
             
         return flags_neg_spectra, flags_pos_spectra
 
@@ -964,12 +964,10 @@ def save_as_netcdf(
 
         # Add flag explanations if they exist
         if flag_explanations is not None:
-            ds = ds.assign_coords(flag = flag_explanations[&#34;flag&#34;].values)
-            ds = ds.assign(flag_message = (&#34;flag&#34;,flag_explanations[&#34;message&#34;].values))
+            ds = ds.assign_coords(flag = flag_explanations[&#34;message&#34;].values)
             nan_flags = np.zeros((LEN_TIME,ds.flag.size)).astype(int)
         else:
             ds = ds.assign_coords(flag = [&#34;&#34;])
-            ds = ds.assign(flag_message = (&#34;flag&#34;,[&#34;&#34;]))
             nan_flags = np.zeros((LEN_TIME,1)).astype(int)
 
         # If flags exist add them     
@@ -1031,9 +1029,14 @@ def nais_processor(config_file):
         do_wagner_ion_mode_correction = config[&#34;do_wagner_ion_mode_correction&#34;]
         remove_charger_ions = config[&#34;remove_corona_ions&#34;]
         use_fill_values = config[&#34;use_fill_values&#34;]
-        fill_temperature = config[&#34;fill_temperature&#34;]
-        fill_pressure = config[&#34;fill_pressure&#34;]
-        fill_flowrate = config[&#34;fill_flowrate&#34;]
+        if use_fill_values:
+            fill_temperature = config[&#34;fill_temperature&#34;]
+            fill_pressure = config[&#34;fill_pressure&#34;]
+            fill_flowrate = config[&#34;fill_flowrate&#34;]
+        else:
+            fill_temperature = 1.0
+            fill_pressure = 1.0
+            fill_flowrate = 1.0           
         
     # Check the config file
     assert isinstance(start_date,date)
@@ -1342,11 +1345,8 @@ def combine_databases(database_list, combined_database):
     i = 0
 
     for database in database_list:
-
         fid=open(database)
-
         database_json=json.load(fid)
-
         for key in database_json[&#34;_default&#34;]:
             DB[i] = database_json[&#34;_default&#34;][key]
             i=i+1
@@ -1355,7 +1355,11 @@ def combine_databases(database_list, combined_database):
         json.dump({&#34;_default&#34;:DB},f)
         
         
-def combine_data(source_dir, date_range, time_reso):
+def combine_data(
+    source_dir, 
+    date_range, 
+    time_reso, 
+    flag_sensitivity=0.5):
     &#34;&#34;&#34;
     
     Parameters
@@ -1369,13 +1373,20 @@ def combine_data(source_dir, date_range, time_reso):
         
     time_reso : timedelta, str
     
+    flag_sensitivity : float
+        fraction of time flag needs to be present 
+        in resampling
+    
     Returns
     -------
     
     xarray.Dataset or None
-        Combined dataset, None if no data in the date range
+        Combined dataset, None if no data in the 
+        date range
     
     &#34;&#34;&#34;
+    
+    assert pd.Timedelta(time_reso)&gt;pd.Timedelta(&#34;5min&#34;)
     
     data_read = False
     for date in date_range:
@@ -1384,20 +1395,46 @@ def combine_data(source_dir, date_range, time_reso):
         
         if os.path.isfile(filename_date):       
             ds = xr.open_dataset(filename_date)
-            ds_size_dist = ds[[&#34;neg_ions&#34;,&#34;pos_ions&#34;,&#34;neg_particles&#34;,&#34;pos_particles&#34;]]
-            ds_resampled = ds_size_dist.resample({&#34;time&#34;:time_reso}).median()
+            ds_data = ds[[&#34;neg_ions&#34;,&#34;pos_ions&#34;,&#34;neg_particles&#34;,&#34;pos_particles&#34;]]
+            ds_flags = ds[[&#34;neg_ion_flags&#34;,&#34;pos_ion_flags&#34;,&#34;neg_particle_flags&#34;,&#34;pos_particle_flags&#34;]]
+            ds_data_resampled = ds_data.resample({&#34;time&#34;:time_reso}).median()
+            ds_flags_resampled = xr.where(
+                ds_flags.resample({&#34;time&#34;:time_reso}).mean()&gt;flag_sensitivity,1,0
+            )
+            
+            #ds_flags_resampled[]
             ds.close()
 
             if data_read==False:
-                ds_combined = ds_resampled
+                ds_data_combined = ds_data_resampled
+                ds_flags_combined = ds_flags_resampled
                 data_read = True
             else:
-                ds_combined = xr.concat((ds_combined,ds_resampled),dim=&#34;time&#34;)
+                ds_data_combined = xr.concat(
+                    (ds_data_combined,ds_data_resampled),
+                    dim=&#34;time&#34;
+                )
+                ds_flags_combined = xr.concat(
+                    (ds_flags_combined,ds_flags_resampled),
+                    dim=&#34;time&#34;,
+                    fill_value=0
+                )
                        
     if data_read:
-        ds_combined_resampled = ds_combined.resample(indexer={&#34;time&#34;:time_reso}).median()
-        idx_final = pd.date_range(date_range[0],date_range[-1],freq=time_reso)
-        ds_final = ds_combined_resampled.reindex(indexers={&#34;time&#34;:idx_final.values}, method=&#34;nearest&#34;,tolerance=time_reso)
+        ds_data_combined_resampled = ds_data_combined.resample({&#34;time&#34;:time_reso}).median()
+        ds_flags_combined_resampled = xr.where(
+            ds_flags_combined.resample({&#34;time&#34;:time_reso}).mean()&gt;flag_sensitivity,1,0
+        )
+        
+        # Combine the two data frames
+        ds_data_and_flags =  xr.merge((ds_data_combined_resampled,ds_flags_combined_resampled))
+        
+        idx_final=pd.date_range(date_range[0],date_range[-1],freq=time_reso)
+        ds_final=ds_data_and_flags.reindex(
+            indexers={&#34;time&#34;:idx_final.values}, 
+            method=&#34;nearest&#34;,
+            tolerance=time_reso
+        )
         
         return ds_final
     
@@ -1413,7 +1450,7 @@ def combine_data(source_dir, date_range, time_reso):
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="nais_processor.combine_data"><code class="name flex">
-<span>def <span class="ident">combine_data</span></span>(<span>source_dir, date_range, time_reso)</span>
+<span>def <span class="ident">combine_data</span></span>(<span>source_dir, date_range, time_reso, flag_sensitivity=0.5)</span>
 </code></dt>
 <dd>
 <div class="desc"><h2 id="parameters">Parameters</h2>
@@ -1424,17 +1461,25 @@ def combine_data(source_dir, date_range, time_reso):
 <dd>Range of dates for combining data</dd>
 <dt><strong><code>time_reso</code></strong> :&ensp;<code>timedelta, str</code></dt>
 <dd>&nbsp;</dd>
+<dt><strong><code>flag_sensitivity</code></strong> :&ensp;<code>float</code></dt>
+<dd>fraction of time flag needs to be present
+in resampling</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
 <dt><code>xarray.Dataset</code> or <code>None</code></dt>
-<dd>Combined dataset, None if no data in the date range</dd>
+<dd>Combined dataset, None if no data in the
+date range</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def combine_data(source_dir, date_range, time_reso):
+<pre><code class="python">def combine_data(
+    source_dir, 
+    date_range, 
+    time_reso, 
+    flag_sensitivity=0.5):
     &#34;&#34;&#34;
     
     Parameters
@@ -1448,13 +1493,20 @@ def combine_data(source_dir, date_range, time_reso):
         
     time_reso : timedelta, str
     
+    flag_sensitivity : float
+        fraction of time flag needs to be present 
+        in resampling
+    
     Returns
     -------
     
     xarray.Dataset or None
-        Combined dataset, None if no data in the date range
+        Combined dataset, None if no data in the 
+        date range
     
     &#34;&#34;&#34;
+    
+    assert pd.Timedelta(time_reso)&gt;pd.Timedelta(&#34;5min&#34;)
     
     data_read = False
     for date in date_range:
@@ -1463,20 +1515,46 @@ def combine_data(source_dir, date_range, time_reso):
         
         if os.path.isfile(filename_date):       
             ds = xr.open_dataset(filename_date)
-            ds_size_dist = ds[[&#34;neg_ions&#34;,&#34;pos_ions&#34;,&#34;neg_particles&#34;,&#34;pos_particles&#34;]]
-            ds_resampled = ds_size_dist.resample({&#34;time&#34;:time_reso}).median()
+            ds_data = ds[[&#34;neg_ions&#34;,&#34;pos_ions&#34;,&#34;neg_particles&#34;,&#34;pos_particles&#34;]]
+            ds_flags = ds[[&#34;neg_ion_flags&#34;,&#34;pos_ion_flags&#34;,&#34;neg_particle_flags&#34;,&#34;pos_particle_flags&#34;]]
+            ds_data_resampled = ds_data.resample({&#34;time&#34;:time_reso}).median()
+            ds_flags_resampled = xr.where(
+                ds_flags.resample({&#34;time&#34;:time_reso}).mean()&gt;flag_sensitivity,1,0
+            )
+            
+            #ds_flags_resampled[]
             ds.close()
 
             if data_read==False:
-                ds_combined = ds_resampled
+                ds_data_combined = ds_data_resampled
+                ds_flags_combined = ds_flags_resampled
                 data_read = True
             else:
-                ds_combined = xr.concat((ds_combined,ds_resampled),dim=&#34;time&#34;)
+                ds_data_combined = xr.concat(
+                    (ds_data_combined,ds_data_resampled),
+                    dim=&#34;time&#34;
+                )
+                ds_flags_combined = xr.concat(
+                    (ds_flags_combined,ds_flags_resampled),
+                    dim=&#34;time&#34;,
+                    fill_value=0
+                )
                        
     if data_read:
-        ds_combined_resampled = ds_combined.resample(indexer={&#34;time&#34;:time_reso}).median()
-        idx_final = pd.date_range(date_range[0],date_range[-1],freq=time_reso)
-        ds_final = ds_combined_resampled.reindex(indexers={&#34;time&#34;:idx_final.values}, method=&#34;nearest&#34;,tolerance=time_reso)
+        ds_data_combined_resampled = ds_data_combined.resample({&#34;time&#34;:time_reso}).median()
+        ds_flags_combined_resampled = xr.where(
+            ds_flags_combined.resample({&#34;time&#34;:time_reso}).mean()&gt;flag_sensitivity,1,0
+        )
+        
+        # Combine the two data frames
+        ds_data_and_flags =  xr.merge((ds_data_combined_resampled,ds_flags_combined_resampled))
+        
+        idx_final=pd.date_range(date_range[0],date_range[-1],freq=time_reso)
+        ds_final=ds_data_and_flags.reindex(
+            indexers={&#34;time&#34;:idx_final.values}, 
+            method=&#34;nearest&#34;,
+            tolerance=time_reso
+        )
         
         return ds_final
     
@@ -1525,11 +1603,8 @@ the second earliest and so on</p>
     i = 0
 
     for database in database_list:
-
         fid=open(database)
-
         database_json=json.load(fid)
-
         for key in database_json[&#34;_default&#34;]:
             DB[i] = database_json[&#34;_default&#34;][key]
             i=i+1
@@ -1637,9 +1712,14 @@ the second earliest and so on</p>
         do_wagner_ion_mode_correction = config[&#34;do_wagner_ion_mode_correction&#34;]
         remove_charger_ions = config[&#34;remove_corona_ions&#34;]
         use_fill_values = config[&#34;use_fill_values&#34;]
-        fill_temperature = config[&#34;fill_temperature&#34;]
-        fill_pressure = config[&#34;fill_pressure&#34;]
-        fill_flowrate = config[&#34;fill_flowrate&#34;]
+        if use_fill_values:
+            fill_temperature = config[&#34;fill_temperature&#34;]
+            fill_pressure = config[&#34;fill_pressure&#34;]
+            fill_flowrate = config[&#34;fill_flowrate&#34;]
+        else:
+            fill_temperature = 1.0
+            fill_pressure = 1.0
+            fill_flowrate = 1.0           
         
     # Check the config file
     assert isinstance(start_date,date)
