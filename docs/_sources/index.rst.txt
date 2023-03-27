@@ -6,6 +6,8 @@
 Welcome to nais-processor's documentation!
 ==========================================
 
+Version: |version|
+
 .. toctree::
    :maxdepth: 4
    :caption: Contents:
