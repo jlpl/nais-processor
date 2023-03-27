@@ -1,2 +1,0 @@
-include *.in
-recursive-include docs *.html
