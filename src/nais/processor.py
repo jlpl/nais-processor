@@ -16,23 +16,9 @@ from tinydb import TinyDB, Query
 from tinydb.operations import add
 import time
 import json
-import aerosol_functions as af
+import aerosol.functions as af
 from scipy.interpolate import interp1d
 import xarray as xr
-
-__pdoc__ = {
-    'tubeloss': False,
-    'raw2sum': False,
-    'regrid_columns': False,
-    'find_diagnostic_names': False,
-    'read_raw': False,
-    'get_diagnostic_data': False,
-    'bring_to_sealevel': False,
-    'correct_inlet_losses': False,
-    'wagner_ion_mode_correction': False,
-    'remove_corona_ions': False,
-    'flags2polarity': False,
-    'save_as_netcdf':False}
 
 # CONSTANTS
 LEN_DP = 40
@@ -153,18 +139,6 @@ def make_config_template(file_name):
         f.write("fill_temperature: # temperature in K (float)\n")
         f.write("fill_pressure: # pressure in Pa (float)\n")
         f.write("fill_flowrate: # flow rate in lpm (float)\n")
-        
-def tubeloss(diameters,sampleflow,pipe_length,temperature,pressure):
-    diameter_grid,temperature_grid = np.meshgrid(diameters,temperature)
-    diameter_grid,pressure_grid = np.meshgrid(diameters,pressure)
-    diameter_grid,sampleflow_grid = np.meshgrid(diameters,sampleflow)
-    rmuu = np.pi*af.particle_diffusivity(diameter_grid,temperature_grid,pressure_grid)*pipe_length/sampleflow_grid
-    penetration = np.nan*np.ones(rmuu.shape)
-    condition1 = (rmuu<0.02)
-    condition2 = (rmuu>=0.02)
-    penetration[condition1] = 1. - 2.56*rmuu[condition1]**(2./3.) + 1.2*rmuu[condition1]+0.177*rmuu[condition1]**(4./3.)
-    penetration[condition2] = 0.819*np.exp(-3.657*rmuu[condition2]) + 0.097*np.exp(-22.3*rmuu[condition2]) + 0.032*np.exp(-57.0*rmuu[condition2])
-    return penetration
 
 def read_raw(file_name,file_type,timestamp):
     with open(file_name,'r') as f:
@@ -218,6 +192,9 @@ def read_raw(file_name,file_type,timestamp):
         # Construct dataframes
         df = pd.DataFrame(columns = header, data = data_matrix, dtype = str)
         flag_explanations = pd.DataFrame(columns=["flag","message"], data=flag_explanations, dtype=str)
+        
+        # Remove duplicate flags (may happen due to restarts)        
+        flag_explanations = flag_explanations[~flag_explanations["message"].duplicated()]
         
         # Construct time index, this will fail for example in the rare case if time zone was changed
         try:
@@ -467,7 +444,7 @@ def correct_inlet_losses(
         return None
     else:
         # Diffusion loss correction
-        throughput = tubeloss(
+        throughput = af.tubeloss(
             DP_STANDARD,
             sampleflow.values*1.667e-5,
             pipe_length,
@@ -948,153 +925,3 @@ def nais_processor(config_file):
             db.update({"processed_file": my_save_path},check.timestamp==x["timestamp"])
             
     print("Done!")
-
-def remove_flagged_rows(ds,flag):
-    """
-    
-    Parameters
-    ----------
-    
-    ds : xarray.Dataset
-        NAIS dataset
-    
-    flag : str
-    
-    Returns
-    -------
-    
-    xarray.Dataset
-        NAIS dataset with flag rows set to NaN
-    
-    """
-    
-    ds2 = ds.copy(deep=True)    
-        
-    idx0 = ds2.neg_ion_flags.sel(flag=flag)==1
-    idx1 = ds2.pos_ion_flags.sel(flag=flag)==1
-    idx2 = ds2.neg_particle_flags.sel(flag=flag)==1
-    idx3 = ds2.pos_particle_flags.sel(flag=flag)==1
-    
-    ds2.neg_ions[idx0,:] = np.nan
-    ds2.pos_ions[idx1,:] = np.nan
-    ds2.neg_particles[idx2,:] = np.nan
-    ds2.pos_particles[idx3,:] = np.nan     
-
-    return ds2
-    
-def combine_databases(database_list, combined_database):
-    """Combine JSON databases
-
-    Parameters
-    ----------
-
-    database_list : list of str
-        List of full paths to databases that should be combined
-
-        First database should have the earliest data, second database
-        the second earliest and so on
-
-    combined_database : str
-        full path to combined database
-    
-    """
-
-    DB = {}
-    i = 0
-
-    for database in database_list:
-        fid=open(database)
-        database_json=json.load(fid)
-        for key in database_json["_default"]:
-            DB[i] = database_json["_default"][key]
-            i=i+1
-
-    with open(combined_database, "w") as f:
-        json.dump({"_default":DB},f)
-        
-        
-def combine_data(
-    source_dir, 
-    date_range, 
-    time_reso, 
-    flag_sensitivity=0.5):
-    """
-    
-    Parameters
-    ----------
-    
-    source_dir : str
-        Directory for NAIS datafiles
-    
-    date_range : pandas.DatetimeIndex
-        Range of dates for combining data
-        
-    time_reso : timedelta, str
-    
-    flag_sensitivity : float
-        fraction of time flag needs to be present 
-        in resampling
-    
-    Returns
-    -------
-    
-    xarray.Dataset or None
-        Combined dataset, None if no data in the 
-        date range
-    
-    """
-    
-    assert pd.Timedelta(time_reso)>pd.Timedelta("5min")
-    
-    data_read = False
-    for date in date_range:
-        
-        filename_date = os.path.join(source_dir,"NAIS_"+date.strftime("%Y%m%d")+".nc")
-        
-        if os.path.isfile(filename_date):       
-            ds = xr.open_dataset(filename_date)
-            ds_data = ds[["neg_ions","pos_ions","neg_particles","pos_particles"]]
-            ds_flags = ds[["neg_ion_flags","pos_ion_flags","neg_particle_flags","pos_particle_flags"]]
-            ds_data_resampled = ds_data.resample({"time":time_reso}).median()
-            ds_flags_resampled = xr.where(
-                ds_flags.resample({"time":time_reso}).mean()>flag_sensitivity,1,0
-            )
-            
-            #ds_flags_resampled[]
-            ds.close()
-
-            if data_read==False:
-                ds_data_combined = ds_data_resampled
-                ds_flags_combined = ds_flags_resampled
-                data_read = True
-            else:
-                ds_data_combined = xr.concat(
-                    (ds_data_combined,ds_data_resampled),
-                    dim="time"
-                )
-                ds_flags_combined = xr.concat(
-                    (ds_flags_combined,ds_flags_resampled),
-                    dim="time",
-                    fill_value=0
-                )
-                       
-    if data_read:
-        ds_data_combined_resampled = ds_data_combined.resample({"time":time_reso}).median()
-        ds_flags_combined_resampled = xr.where(
-            ds_flags_combined.resample({"time":time_reso}).mean()>flag_sensitivity,1,0
-        )
-        
-        # Combine the two data frames
-        ds_data_and_flags =  xr.merge((ds_data_combined_resampled,ds_flags_combined_resampled))
-        
-        idx_final=pd.date_range(date_range[0],date_range[-1],freq=time_reso)
-        ds_final=ds_data_and_flags.reindex(
-            indexers={"time":idx_final.values}, 
-            method="nearest",
-            tolerance=time_reso
-        )
-        
-        return ds_final
-    
-    else:
-        return None

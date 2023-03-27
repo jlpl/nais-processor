@@ -1,7 +1,16 @@
-# NAIS processor
+# NAIS Processor
 Code package to process [NAIS](https://www.airel.ee/products/nais/) (Neutral cluster and Air Ion Spectrometer, Airel Ltd.) data files.
 
-The below options are possible:
+## Installation
+```shell
+pip install nais-processor
+```
+
+## Documentation
+See [here](https://jlpl.github.io/nais-processor/)
+
+## Processor
+The `nais.processor` module can be used to process the data to netcdf files and allows options for the following operations:
 
 * Inlet loss correction (Gromley and Kennedy, 1948)
 * Ion mode correction (Wagner et al. 2016)
@@ -9,20 +18,12 @@ The below options are possible:
 * Remove charger ion band from total particle data
 * Use fill values in case of missing environmental sensor data
 
-Some additional utility methods are also included. See [documentation](https://jlpl.github.io/nais-processor/).
-
-## Installation
-```shell
-pip install nais-processor
-```
-
-## Example usage
-Use the [`make_config_template()`](https://jlpl.github.io/nais-processor/#nais_processor.make_config_template) method to create a configuration file template and fill it with necessary information. The configuration file is used at processing the data files.
+### Example usage
+Use the `make_config_template()`method to create a configuration file template and fill it with necessary information. The configuration file is used at processing the data files.
 
 For example:
-```
-$ python
->>> from nais_processor import *
+```python
+>>> from nais.processor import make_config_template
 >>> make_config_template("/home/user/viikki.yml")
 ```
 This will create a configuration file template called `/home/user/viikki.yml`. After filling in the information for our example measurement
@@ -49,10 +50,11 @@ fill_temperature: 273.15
 fill_pressure: 101325.0
 fill_flowrate: 54.0
 ```
-Then process the data files by running [`nais_processor()`](https://jlpl.github.io/nais-processor/#nais_processor.nais_processor) method with the config file as the input argument.
+Then process the data files by running `nais_processor()` method with the config file as the input argument.
 
 In our example case:
-```
+```python
+>>> from nais.processor import nais_processor
 >>> nais_processor("/home/user/viikki.yml")
 Building database...
 Processing 20220928 (Viikki, Helsinki, Finland)
@@ -64,7 +66,7 @@ The code produces daily processed data files `NAIS_yyyymmdd.nc` (netCDF format).
 
 The locations of raw and processed files for each day are written in the JSON formatted `database_file`.
 
-## netCDF files
+### netCDF files
 
 | Fields             | Dimensions    | Data type      | Units | Comments           |
 |--------------------|---------------|----------------|-------|------------------- |
@@ -82,7 +84,32 @@ The locations of raw and processed files for each day are written in the JSON fo
 | neg_particle_flags | time,flag     | int            |       | flag=1, no flag=0  |
 | pos_particle_flags | time,flag     | int            |       | flag=1, no flag=0  |
 | **Attributes**     |               |                |       |                    |
-| Measurement info   |               |                |       |                    |
+| Measurement info   |               | dictionary     |       |                    |
+
+## Utils
+
+The `nais.utils` module contains functions that allow one to do operations on the NAIS data files.
+
+For example combine the previously created files into a single continuous dataset with two hour 
+time resolution and only raise a flag if at least 90% of the data points inside the two hour window
+contain the flag. Then save it at as a netcdf file.
+```python
+from nais.utils import combine_data
+import pandas as pd
+
+data_source = "/home/user/viikki"
+date_range = pd.date_range("2022-09-28","2022-09-30")
+
+combine_data(data_source, date_range, "2H",
+    flag_sensitivity=0.9).to_netcdf("combined_nais_dataset.nc")
+```
+
+## Checker
+With the `nais.checker` module one can visually inspect the nais ion/aerosol size distributions along with the flags and identify bad data by drawing a bounding box around it and saving the coordinates.
+```python
+>>> from nais.checker import startNaisChecker
+>>> startNaisChecker("combined_nais_dataset.nc","bad_data_bounds.nc")
+```
 
 ## License
 This project is licensed under the terms of the GNU GPLv3.

@@ -1,0 +1,27 @@
+nais package
+============
+
+nais.checker module
+-------------------
+
+.. automodule:: nais.checker
+   :members: startNaisChecker
+..   :undoc-members:
+   :show-inheritance:
+   :inherited-members: PyQt5.QtWidgets.QWidget
+
+nais.processor module
+---------------------
+
+.. automodule:: nais.processor
+   :members:
+..   :undoc-members:
+   :show-inheritance:
+
+nais.utils module
+-----------------
+
+.. automodule:: nais.utils
+   :members:
+..   :undoc-members:
+   :show-inheritance:
