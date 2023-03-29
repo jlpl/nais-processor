@@ -112,9 +112,7 @@ def make_config_template(file_name):
     ----------
 
     file_name : str
-        full path to configuration file
-
-        For example `/home/user/config.yml`
+        full path to configuration file. For example `/home/user/config.yml`
 
     """
     
@@ -285,14 +283,14 @@ def raw2sum(spectra, mode):
 
     else:
         spectra_columns = spectra.columns
-        spectra_inverter_reso = int((len(spectra_columns)-3)/4)
-
-        neg_arr = spectra.iloc[:,3:3+spectra_inverter_reso].values
-        pos_arr = spectra.iloc[:,3+(2*spectra_inverter_reso):3+(3*spectra_inverter_reso)].values
+        spectra_inverter_reso = int(len(spectra_columns)/4)
         
+        neg_arr = spectra.iloc[:,:spectra_inverter_reso].values
+        pos_arr = spectra.iloc[:,2*spectra_inverter_reso:3*spectra_inverter_reso].values
+
         if mode == "ions":
             mob_ion_column = np.array([float(re.findall(r"[-+]?\d*\.\d+|\d+",y)[0])
-                for y in spectra_columns[3:3+spectra_inverter_reso]])
+                for y in spectra_columns[:spectra_inverter_reso]])
 
             # mobilities need to be flipped so they are monotonically increasing
             neg_arr = regrid_columns(np.fliplr(neg_arr),np.flip(mob_ion_column),np.flip(MOB_STANDARD))
@@ -304,8 +302,8 @@ def raw2sum(spectra, mode):
             
         if mode == "particles":
             dp_par_column = 2.0*np.array([float(re.findall(r"[-+]?\d*\.\d+|\d+",y)[0])
-                for y in spectra_columns[3:3+spectra_inverter_reso]])*1e-9
-        
+                for y in spectra_columns[:spectra_inverter_reso]])*1e-9
+            
             neg_arr = regrid_columns(neg_arr,dp_par_column,DP_STANDARD)
             pos_arr = regrid_columns(pos_arr,dp_par_column,DP_STANDARD)
         

@@ -22,6 +22,7 @@ import xarray as xr
 
 def remove_flagged_rows(ds,flag):
     """
+    Set data associated with given flag as NaN
     
     Parameters
     ----------
@@ -29,7 +30,7 @@ def remove_flagged_rows(ds,flag):
     ds : xarray.Dataset
         NAIS dataset
     flag : str
-	    Flag to be removed
+        Flag to be removed
     
     Returns
     -------
@@ -60,8 +61,7 @@ def combine_databases(database_list, combined_database):
     ----------
 
     database_list : list of str
-        List of full paths to databases that should be combined
-
+        List of full paths to databases that should be combined.
         First database should have the earliest data, second database
         the second earliest and so on
     combined_database : str
@@ -88,6 +88,8 @@ def combine_data(
     time_reso, 
     flag_sensitivity=0.5):
     """
+    Combine netcdf datafiles and resample to new resolution
+    on continuous time index  
     
     Parameters
     ----------
@@ -97,9 +99,7 @@ def combine_data(
     date_range : pandas.DatetimeIndex
         Range of dates for combining data        
     time_reso : str
-        A pandas date frequency string
-        
-        See for all options here: 
+        A pandas date frequency string. See for all options here: 
         https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases
     flag_sensitivity : float
         fraction of time flag needs to be present 
@@ -147,7 +147,7 @@ def combine_data(
                     dim="time",
                     fill_value=0
                 )
-                       
+
     if data_read:
         ds_data_combined_resampled = ds_data_combined.resample({"time":time_reso}).median()
         ds_flags_combined_resampled = xr.where(
@@ -169,5 +169,88 @@ def combine_data(
     else:
         return None
 
-		
+def remove_bad_data(data_file,bounds_file):
+    """
+    Set bad data to NaNs
+
+    Parameters
+    ----------
+    data_files : str
+        absolute path to processed netcdf file
+    bounds_file : str
+        absolute path to the boundary file containing the
+        user-determined bad data boundaries using the `NaisChecker()`
+
+    Returns
+    -------
+    xarray.Dataset
+        Dataset with possible bad data set to `NaN`
+    """
+    
+    bad_data = xr.open_dataset(bounds_file)
+
+    neg_ion_bounds = [
+        bad_data.neg_ion_time_left.values,
+        bad_data.neg_ion_time_right.values,
+        bad_data.neg_ion_diam_left.values,
+        bad_data.neg_ion_diam_right.values]
+
+    pos_ion_bounds = [
+        bad_data.pos_ion_time_left.values,
+        bad_data.pos_ion_time_right.values,
+        bad_data.pos_ion_diam_left.values,
+        bad_data.pos_ion_diam_right.values]
+
+    neg_par_bounds = [
+        bad_data.neg_par_time_left.values,
+        bad_data.neg_par_time_right.values,
+        bad_data.neg_par_diam_left.values,
+        bad_data.neg_par_diam_right.values]
+
+    pos_par_bounds = [
+        bad_data.pos_par_time_left.values,
+        bad_data.pos_par_time_right.values,
+        bad_data.pos_par_diam_left.values,
+        bad_data.pos_par_diam_right.values]
+
+    bad_data.close()
+
+    ds = xr.open_dataset(data_file)
+    ds_checked = ds.copy(deep=True)
+    ds.close()
+    
+    neg_ions_checked = ds_checked.neg_ions.to_pandas()
+    pos_ions_checked = ds_checked.pos_ions.to_pandas()
+    neg_particles_checked = ds_checked.neg_particles.to_pandas()
+    pos_particles_checked = ds_checked.pos_particles.to_pandas()
+    
+    time_num = dts.date2num(ds.time.values)
+    dp = ds.diameter.values
+    
+    for i in bad_data.neg_ion_roi_id.values:
+        neg_ions_checked.iloc[
+            (time_num>=neg_ion_bounds[0][i])&(time_num<=neg_ion_bounds[1][i]),
+            (dp>=neg_ion_bounds[2][i])&(dp<=neg_ion_bounds[3][i])] = np.nan
+    
+    for i in bad_data.pos_ion_roi_id.values:
+        pos_ions_checked.iloc[
+            (time_num>=pos_ion_bounds[0][i])&(time_num<=pos_ion_bounds[1][i]),
+            (dp>=pos_ion_bounds[2][i])&(dp<=pos_ion_bounds[3][i])] = np.nan
+    
+    for i in bad_data.neg_par_roi_id.values:
+        neg_particles_checked.iloc[
+            (time_num>=neg_par_bounds[0][i])&(time_num<=neg_par_bounds[1][i]),
+            (dp>=neg_par_bounds[2][i])&(dp<=neg_par_bounds[3][i])] = np.nan
+    
+    for i in bad_data.pos_par_roi_id.values:
+        pos_particles_checked.iloc[
+            (time_num>=pos_par_bounds[0][i])&(time_num<=pos_par_bounds[1][i]),
+            (dp>=pos_par_bounds[2][i])&(dp<=pos_par_bounds[3][i])] = np.nan
+    
+    ds_checked.assign(neg_ions=(("time","diameter"),neg_ions_checked.values))
+    ds_checked.assign(pos_ions=(("time","diameter"),pos_ions_checked.values))
+    ds_checked.assign(neg_particles=(("time","diameter"),neg_particles_checked.values))
+    ds_checked.assign(pos_particles=(("time","diameter"),pos_particles_checked.values))
+    
+    return ds_checked
 

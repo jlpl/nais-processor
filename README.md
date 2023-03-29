@@ -9,7 +9,10 @@ pip install nais-processor
 ## Documentation
 See [here](https://jlpl.github.io/nais-processor/)
 
-## Processor
+
+## Modules
+
+### Processor
 The `nais.processor` module can be used to process the data to netcdf files and allows options for the following operations:
 
 * Inlet loss correction (Gromley and Kennedy, 1948)
@@ -18,16 +21,19 @@ The `nais.processor` module can be used to process the data to netcdf files and 
 * Remove charger ion band from total particle data
 * Use fill values in case of missing environmental sensor data
 
-### Example usage
-Use the `make_config_template()`method to create a configuration file template and fill it with necessary information. The configuration file is used at processing the data files.
+### Utils
+The `nais.utils` module contains functions that allow one to do operations on the NAIS data files.
 
-For example:
+### Checker
+The `nais.checker` module contains a GUI application with which one can visually inspect the nais ion/aerosol size distributions along with the flags and identify bad data by drawing a bounding box around it and saving the coordinates for later use.
+
+## Example usage
+Use the `make_config_template()` method to create a configuration file template and fill it with necessary information. The configuration file is used at processing the data files.
 ```python
->>> from nais.processor import make_config_template
->>> make_config_template("/home/user/viikki.yml")
+from nais.processor import make_config_template
+make_config_template("/home/user/viikki.yml")
 ```
-This will create a configuration file template called `/home/user/viikki.yml`. After filling in the information for our example measurement
-the file may look like this:
+Running this will create a configuration file template called `/home/user/viikki.yml`. After filling in the information in the confguration file for our example measurement the file may look like this:
 ```yaml
 measurement_location: Viikki, Helsinki, Finland
 longitude: 25.02
@@ -36,7 +42,7 @@ data_folder:
 - /home/user/data/2021
 - /home/user/data/2022
 processed_folder: /home/user/viikki
-database_file: /home/user/viikki.json 
+database_file: /home/user/viikki.json
 start_date: 2022-09-28
 end_date: 2022-09-30
 inlet_length: 1.0
@@ -54,8 +60,10 @@ Then process the data files by running `nais_processor()` method with the config
 
 In our example case:
 ```python
->>> from nais.processor import nais_processor
->>> nais_processor("/home/user/viikki.yml")
+from nais.processor import nais_processor
+nais_processor("/home/user/viikki.yml")
+```
+```
 Building database...
 Processing 20220928 (Viikki, Helsinki, Finland)
 Processing 20220929 (Viikki, Helsinki, Finland)
@@ -64,10 +72,9 @@ Done!
 ```
 The code produces daily processed data files `NAIS_yyyymmdd.nc` (netCDF format). These files are saved in the destination given in the configuration file.
 
-The locations of raw and processed files for each day are written in the JSON formatted `database_file`.
+The locations of raw and processed files for each day are written in the JSON formatted `database_file`. This prevents reprocessing when `allow_reprocess: false`.
 
-### netCDF files
-
+The netcdf files have the following structure:
 | Fields             | Dimensions    | Data type      | Units | Comments           |
 |--------------------|---------------|----------------|-------|------------------- |
 | **Coordinates**    |               |                |       |                    |
@@ -86,13 +93,7 @@ The locations of raw and processed files for each day are written in the JSON fo
 | **Attributes**     |               |                |       |                    |
 | Measurement info   |               | dictionary     |       |                    |
 
-## Utils
-
-The `nais.utils` module contains functions that allow one to do operations on the NAIS data files.
-
-For example combine the previously created files into a single continuous dataset with two hour 
-time resolution and only raise a flag if at least 90% of the data points inside the two hour window
-contain the flag. Then save it at as a netcdf file.
+Next we combine the previously created files into a single continuous dataset with two hour time resolution and only raise a flag if at least 50% of the data points inside the two hour window contain the flag. We save it at as a netcdf file.
 ```python
 from nais.utils import combine_data
 import pandas as pd
@@ -100,16 +101,29 @@ import pandas as pd
 data_source = "/home/user/viikki"
 date_range = pd.date_range("2022-09-28","2022-09-30")
 
-combine_data(data_source, date_range, "2H",
-    flag_sensitivity=0.9).to_netcdf("combined_nais_dataset.nc")
+ds = combine_data(data_source, date_range, "2H",
+    flag_sensitivity=0.5)
+ds.to_netcdf("combined_nais_dataset.nc")
 ```
-
-## Checker
-With the `nais.checker` module one can visually inspect the nais ion/aerosol size distributions along with the flags and identify bad data by drawing a bounding box around it and saving the coordinates.
+Then we launch the data checker with the combined data in order to identify bad data. Bounding boxes are drawn around bad data in the size distributions (initiate a box with double left click and remove from the menu opened by right click). By clicking the save boundaries button the box coordinates are saved to a netcdf file.
 ```python
->>> from nais.checker import startNaisChecker
->>> startNaisChecker("combined_nais_dataset.nc","bad_data_bounds.nc")
+from nais.checker import startNaisChecker
+startNaisChecker("combined_nais_dataset.nc","bad_data_bounds.nc")
 ```
+We can set the bad data to `NaN` in our daily processed files by using the appropriate utility function and a simple for loop.
+```python
+from nais.utils import remove_bad_data
+import os
+
+data_file_dir = "/home/user/viikki"
+for data_file in os.listdir(data_file_dir):
+    if (("NAIS" in data_file) and (".nc" in data_file)):
+        f = os.path.join(data_file_dir,data_file)
+        ds = remove_bad_data(f,"bad_data_bounds.nc")
+        ds.to_netcdf(os.path.join(
+            data_file_dir,data_file[:-3]+"_checked.nc"))
+```
+This will create files named `NAIS_yyyymmdd_checked.nc` to the data file folder, which can be the starting point for further analysis.
 
 ## License
 This project is licensed under the terms of the GNU GPLv3.

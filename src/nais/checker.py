@@ -1,6 +1,6 @@
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLabel
 import numpy as np
 import pandas as pd
 import os
@@ -19,6 +19,7 @@ class NaisChecker(QWidget):
         self.boundary_file = boundary_file
         
         figWidget = pg.GraphicsLayoutWidget()
+        lowerLayout = QHBoxLayout()
         layout = QVBoxLayout()
         
         self.negIonPlot = figWidget.addPlot(row=0,col=0,title="Negative ions")
@@ -29,19 +30,23 @@ class NaisChecker(QWidget):
         self.parFlagPlot = figWidget.addPlot(row=5,col=0,title="Particle flags")
         
         boundButton = QPushButton("Save boundaries")
-        boundButton.setFont(QtGui.QFont("sans",20))
+        boundButton.setFont(QtGui.QFont("Times",20))
         boundButton.setStyleSheet("background-color : lightgrey")
         boundButton.clicked.connect(lambda: self.saveBoundaries())
-    
+        
+        self.coordinateLabel = QLabel("")
+        
         layout.addWidget(figWidget)
-        layout.addWidget(boundButton)
+        lowerLayout.addWidget(self.coordinateLabel)
+        layout.addLayout(lowerLayout)
+        lowerLayout.addWidget(boundButton)
+        
         self.window.setLayout(layout)
-                
         self.window.show()
         
         # Create plot items from nais data
         self.createNaisImg()
-    
+        
         self.negIonPlot.addItem(self.negIonImg)
         self.posIonPlot.addItem(self.posIonImg)
         self.negParPlot.addItem(self.negParImg)
@@ -82,7 +87,7 @@ class NaisChecker(QWidget):
         posIonColorbar.setImageItem(self.posIonImg,insert_in=self.posIonPlot)
         negParColorbar.setImageItem(self.negParImg,insert_in=self.negParPlot)
         posParColorbar.setImageItem(self.posParImg,insert_in=self.posParPlot)
-    
+       
         negIonColorbar.setLevels([1, 4])
         posIonColorbar.setLevels([1, 4])
         negParColorbar.setLevels([1, 5])
@@ -91,8 +96,32 @@ class NaisChecker(QWidget):
         # Create ROI with double click
         figWidget.scene().sigMouseClicked.connect(self.onClick)
         
+        # Track the coordinates
+        proxy = pg.SignalProxy(self.negIonPlot.scene().sigMouseMoved, rateLimit=60, slot=self.mouseMoved)
+        figWidget.scene().sigMouseMoved.connect(self.mouseMoved)
         
-    def onClick(self,event):      
+        
+    def mouseMoved(self,event):
+        p_neg_ion = self.negIonPlot.getViewBox().mapSceneToView(event)
+        p_pos_ion = self.posIonPlot.getViewBox().mapSceneToView(event)
+        p_neg_par = self.negParPlot.getViewBox().mapSceneToView(event)
+        p_pos_par = self.posParPlot.getViewBox().mapSceneToView(event)
+        negIonRect = self.negIonPlot.getViewBox().viewRect()
+        posIonRect = self.posIonPlot.getViewBox().viewRect()
+        negParRect = self.negParPlot.getViewBox().viewRect()
+        posParRect = self.posParPlot.getViewBox().viewRect()
+        if negIonRect.contains(p_neg_ion):
+            self.coordinateLabel.setText(dts.num2date(p_neg_ion.x()).strftime("%Y-%m-%d %H:%M:%S") + " UTC, " + "%.2e"%(10**p_neg_ion.y()) + " m")
+        elif posIonRect.contains(p_pos_ion):
+            self.coordinateLabel.setText(dts.num2date(p_neg_ion.x()).strftime("%Y-%m-%d %H:%M:%S") + " UTC, " + "%.2e"%(10**p_pos_ion.y()) + " m")
+        elif negParRect.contains(p_neg_par):
+            self.coordinateLabel.setText(dts.num2date(p_neg_ion.x()).strftime("%Y-%m-%d %H:%M:%S") + " UTC, " + "%.2e"%(10**p_neg_par.y()) + " m")
+        elif negParRect.contains(p_pos_par):
+            self.coordinateLabel.setText(dts.num2date(p_neg_ion.x()).strftime("%Y-%m-%d %H:%M:%S") + " UTC, " + "%.2e"%(10**p_pos_par.y()) + " m")
+        else:
+            pass
+        
+    def onClick(self,event):
         if ((event.button()==1) & event.double()):
             
             p_neg_ion = self.negIonPlot.getViewBox().mapSceneToView(event.scenePos())
@@ -105,13 +134,34 @@ class NaisChecker(QWidget):
             posParRect = self.posParPlot.getViewBox().viewRect()
             
             if negIonRect.contains(p_neg_ion):
-                self.addNegIonRoi((p_neg_ion.x(),p_neg_ion.y()),(0,0))            
+                self.addNegIonRoi((p_neg_ion.x(),p_neg_ion.y()),(0,0))
             elif posIonRect.contains(p_pos_ion):
                 self.addPosIonRoi((p_pos_ion.x(),p_pos_ion.y()),(0,0)) 
             elif negParRect.contains(p_neg_par):
                 self.addNegParRoi((p_neg_par.x(),p_neg_par.y()),(0,0)) 
             elif negParRect.contains(p_pos_par):
                 self.addPosParRoi((p_pos_par.x(),p_pos_par.y()),(0,0)) 
+            else:
+                pass
+            
+        if (event.button()==4):
+            p_neg_ion = self.negIonPlot.getViewBox().mapSceneToView(event.scenePos())
+            p_pos_ion = self.posIonPlot.getViewBox().mapSceneToView(event.scenePos())
+            p_neg_par = self.negParPlot.getViewBox().mapSceneToView(event.scenePos())
+            p_pos_par = self.posParPlot.getViewBox().mapSceneToView(event.scenePos())
+            negIonRect = self.negIonPlot.getViewBox().viewRect()
+            posIonRect = self.posIonPlot.getViewBox().viewRect()
+            negParRect = self.negParPlot.getViewBox().viewRect()
+            posParRect = self.posParPlot.getViewBox().viewRect()
+            
+            if negIonRect.contains(p_neg_ion):
+                print((dts.num2date(p_neg_ion.x()),10**p_neg_ion.y()))
+            elif posIonRect.contains(p_pos_ion):
+                print((dts.num2date(p_pos_ion.x()),10**p_pos_ion.y()))
+            elif negParRect.contains(p_neg_par):
+                print((dts.num2date(p_neg_par.x()),10**p_neg_par.y()))
+            elif negParRect.contains(p_pos_par):
+                print((dts.num2date(p_pos_par.x()),10**p_pos_par.y()))
             else:
                 pass
             
@@ -220,15 +270,16 @@ class NaisChecker(QWidget):
             i=0
             
             for roi in roiItems:
-                x_upper_left,y_upper_left = roi.pos()        
-                width,height = roi.size()                
-                time_left = x_upper_left
-                time_right = x_upper_left+width
-                diam_bottom = 10**(y_upper_left-height)
-                diam_top = 10**y_upper_left                
-                df.loc[i] = [time_left,time_right,diam_bottom,diam_top]                
-                i+=1
+                x_lower_left,y_lower_left = roi.pos()
+                width,height = roi.size()
+                time_left = x_lower_left
+                time_right = x_lower_left+width
+                diam_top = 10**(y_lower_left+height)
+                diam_bottom = 10**(y_lower_left)
                 
+                df.loc[i] = [time_left,time_right,diam_bottom,diam_top]
+                i+=1
+
             if idx==0:
                 ds = ds.assign_coords(neg_ion_roi_id=df.index)
                 ds = ds.assign(neg_ion_time_left=("neg_ion_roi_id",df["time_left"]))
@@ -267,17 +318,18 @@ class NaisChecker(QWidget):
 
 def startNaisChecker(dataset_path,bounding_boxes_path):
     """
-    Manually check a NAIS dataset and draw bounding boxes around bad data
+    Manually check a NAIS dataset, draw bounding boxes around bad data
+    and save the boundaries into a netcdf file for later use.
     
     Parameters
     ----------
     
     data_file : str
-        Name of NAIS netcdf data file including path
+        Absolute path to NAIS netcdf data file
     boundary_file : str
         Name of file where to save the coordinates 
         of bad data bounding boxes.
     """
     app = QApplication([])
     NaisChecker(dataset_path,bounding_boxes_path)
-    app.exec_()
+    sys.exit(app.exec_())

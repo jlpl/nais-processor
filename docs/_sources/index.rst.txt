@@ -14,7 +14,6 @@ Version: |version|
    
    modules
 
-
 Indices and tables
 ==================
 

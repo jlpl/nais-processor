@@ -6,12 +6,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
-    <title>nais package &#8212; nais-processor 0.0.24 documentation</title>
+    <title>nais package &#8212; nais-processor 0.0.25 documentation</title>
     <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
     <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
     <script src="_static/doctools.js"></script>
     <script src="_static/sphinx_highlight.js"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="prev" title="&lt;no title&gt;" href="modules.html" />
@@ -38,11 +39,12 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="nais.checker.startNaisChecker">
 <span class="sig-prename descclassname"><span class="pre">nais.checker.</span></span><span class="sig-name descname"><span class="pre">startNaisChecker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bounding_boxes_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#nais.checker.startNaisChecker" title="Permalink to this definition">¶</a></dt>
-<dd><p>Manually check a NAIS dataset and draw bounding boxes around bad data</p>
+<dd><p>Manually check a NAIS dataset, draw bounding boxes around bad data
+and save the boundaries into a netcdf file for later use.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
-<dt><strong>data_file</strong><span class="classifier">str</span></dt><dd><p>Name of NAIS netcdf data file including path</p>
+<dt><strong>data_file</strong><span class="classifier">str</span></dt><dd><p>Absolute path to NAIS netcdf data file</p>
 </dd>
 <dt><strong>boundary_file</strong><span class="classifier">str</span></dt><dd><p>Name of file where to save the coordinates 
 of bad data bounding boxes.</p>
@@ -59,11 +61,10 @@ of bad data bounding boxes.</p>
 <dt class="sig sig-object py" id="nais.processor.make_config_template">
 <span class="sig-prename descclassname"><span class="pre">nais.processor.</span></span><span class="sig-name descname"><span class="pre">make_config_template</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#nais.processor.make_config_template" title="Permalink to this definition">¶</a></dt>
 <dd><p>Make a configuration file template</p>
-<dl class="field-list">
+<dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl>
-<dt><strong>file_name</strong><span class="classifier">str</span></dt><dd><p>full path to configuration file</p>
-<p>For example <cite>/home/user/config.yml</cite></p>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>file_name</strong><span class="classifier">str</span></dt><dd><p>full path to configuration file. For example <cite>/home/user/config.yml</cite></p>
 </dd>
 </dl>
 </dd>
@@ -90,15 +91,16 @@ of bad data bounding boxes.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="nais.utils.combine_data">
 <span class="sig-prename descclassname"><span class="pre">nais.utils.</span></span><span class="sig-name descname"><span class="pre">combine_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">date_range</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_reso</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag_sensitivity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#nais.utils.combine_data" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="field-list">
+<dd><p>Combine netcdf datafiles and resample to new resolution
+on continuous time index</p>
+<dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl>
+<dd class="field-odd"><dl class="simple">
 <dt><strong>source_dir</strong><span class="classifier">str</span></dt><dd><p>Directory for NAIS datafiles</p>
 </dd>
 <dt><strong>date_range</strong><span class="classifier">pandas.DatetimeIndex</span></dt><dd><p>Range of dates for combining data</p>
 </dd>
-<dt><strong>time_reso</strong><span class="classifier">str</span></dt><dd><p>A pandas date frequency string</p>
-<p>See for all options here: 
+<dt><strong>time_reso</strong><span class="classifier">str</span></dt><dd><p>A pandas date frequency string. See for all options here: 
 <a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases">https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases</a></p>
 </dd>
 <dt><strong>flag_sensitivity</strong><span class="classifier">float</span></dt><dd><p>fraction of time flag needs to be present 
@@ -120,11 +122,11 @@ date range</p>
 <dt class="sig sig-object py" id="nais.utils.combine_databases">
 <span class="sig-prename descclassname"><span class="pre">nais.utils.</span></span><span class="sig-name descname"><span class="pre">combine_databases</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">database_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">combined_database</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#nais.utils.combine_databases" title="Permalink to this definition">¶</a></dt>
 <dd><p>Combine JSON databases</p>
-<dl class="field-list">
+<dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl>
-<dt><strong>database_list</strong><span class="classifier">list of str</span></dt><dd><p>List of full paths to databases that should be combined</p>
-<p>First database should have the earliest data, second database
+<dd class="field-odd"><dl class="simple">
+<dt><strong>database_list</strong><span class="classifier">list of str</span></dt><dd><p>List of full paths to databases that should be combined.
+First database should have the earliest data, second database
 the second earliest and so on</p>
 </dd>
 <dt><strong>combined_database</strong><span class="classifier">str</span></dt><dd><p>full path to combined database</p>
@@ -135,9 +137,33 @@ the second earliest and so on</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="nais.utils.remove_bad_data">
+<span class="sig-prename descclassname"><span class="pre">nais.utils.</span></span><span class="sig-name descname"><span class="pre">remove_bad_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bounds_file</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#nais.utils.remove_bad_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set bad data to NaNs</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>data_files</strong><span class="classifier">str</span></dt><dd><p>absolute path to processed netcdf file</p>
+</dd>
+<dt><strong>bounds_file</strong><span class="classifier">str</span></dt><dd><p>absolute path to the boundary file containing the
+user-determined bad data boundaries using the <cite>NaisChecker()</cite></p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><dl class="simple">
+<dt>xarray.Dataset</dt><dd><p>Dataset with possible bad data set to <cite>NaN</cite></p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="nais.utils.remove_flagged_rows">
 <span class="sig-prename descclassname"><span class="pre">nais.utils.</span></span><span class="sig-name descname"><span class="pre">remove_flagged_rows</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#nais.utils.remove_flagged_rows" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="field-list simple">
+<dd><p>Set data associated with given flag as NaN</p>
+<dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><dl class="simple">
 <dt><strong>ds</strong><span class="classifier">xarray.Dataset</span></dt><dd><p>NAIS dataset</p>
@@ -193,6 +219,7 @@ the second earliest and so on</p>
 <li class="toctree-l2"><a class="reference internal" href="#module-nais.utils">nais.utils module</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#nais.utils.combine_data"><code class="docutils literal notranslate"><span class="pre">combine_data()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#nais.utils.combine_databases"><code class="docutils literal notranslate"><span class="pre">combine_databases()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#nais.utils.remove_bad_data"><code class="docutils literal notranslate"><span class="pre">remove_bad_data()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#nais.utils.remove_flagged_rows"><code class="docutils literal notranslate"><span class="pre">remove_flagged_rows()</span></code></a></li>
 </ul>
 </li>
