@@ -130,7 +130,6 @@ def combine_data(
                 ds_flags.resample({"time":time_reso}).mean()>flag_sensitivity,1,0
             )
             
-            #ds_flags_resampled[]
             ds.close()
 
             if data_read==False:

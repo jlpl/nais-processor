@@ -81,14 +81,16 @@ FILENAME_FORMATS = [
 ["%Y%m%d-block-ions.spectra","%Y%m%d-block-particles.spectra","%Y%m%d-block.records"],
 ["%Y%m%d-block-ions.spectra","%Y%m%d-block-particles.spectra","%Y%m%d-block.diagnostics"]]
 
-SAMPLEFLOW_NAMES1 = [
+TOTAL_SAMPLEFLOW_NAMES = [
 "sampleflow",
 "Flowaer"]
 
-SAMPLEFLOW_NAMES2 = [
+POS_SAMPLEFLOW_NAMES = [
 "pos_sampleflow.mean",
+"pos_sampleflow"]
+
+NEG_SAMPLEFLOW_NAMES = [
 "neg_sampleflow.mean",
-"pos_sampleflow",
 "neg_sampleflow"]
 
 TEMPERATURE_NAMES = [
@@ -314,6 +316,8 @@ def raw2sum(spectra, mode):
 
 def find_diagnostic_names(diag_params):
     sampleflow_name=None
+    neg_sampleflow_name=None
+    pos_sampleflow_name=None
     temperature_name=None
     pressure_name=None
 
@@ -327,22 +331,22 @@ def find_diagnostic_names(diag_params):
             pressure_name = pres_name
             break
 
-    # try single flow sensor
-    for flow_name in SAMPLEFLOW_NAMES1:
+    for flow_name in TOTAL_SAMPLEFLOW_NAMES:
         if flow_name in diag_params:
             sampleflow_name = flow_name
             break
 
-    if sampleflow_name is None:
-        # try two flow sensors
-        sf_name = []
-        for flow_name in SAMPLEFLOW_NAMES2:
-            if flow_name in diag_params:
-                sf_name.append(flow_name)
-        if len(sf_name)==2:
-            sampleflow_name=sf_name
+    for pos_flow_name in POS_SAMPLEFLOW_NAMES:
+        if pos_flow_name in diag_params:
+            pos_sampleflow_name = pos_flow_name
+            break
 
-    return temperature_name, pressure_name, sampleflow_name
+    for neg_flow_name in NEG_SAMPLEFLOW_NAMES:
+        if neg_flow_name in diag_params:
+            neg_sampleflow_name = neg_flow_name
+            break
+
+    return temperature_name, pressure_name, sampleflow_name, pos_sampleflow_name, neg_sampleflow_name
 
 def get_diagnostic_data(
     records,
@@ -358,7 +362,9 @@ def get_diagnostic_data(
         # Check that the relevant diagnostic data is found
         (temperature_name,
         pressure_name,
-        sampleflow_name) = find_diagnostic_names(list(records))
+        sampleflow_name,
+        pos_sampleflow_name,
+        neg_sampleflow_name) = find_diagnostic_names(list(records))
 
         if temperature_name is not None:
             temperature = 273.15 + pd.DataFrame(records[temperature_name].astype(float))
@@ -384,16 +390,14 @@ def get_diagnostic_data(
             pressure = None
 
         if sampleflow_name is not None:
-            if len(sampleflow_name)==2:
-                sampleflow = pd.DataFrame(records[sampleflow_name].sum(axis=1,min_count=2).astype(float))
-            else:
-                sampleflow = pd.DataFrame(records[sampleflow_name].astype(float))
-            # Test if the sampleflow is in cm3/s (old models) or
-            # l/min and if necessary convert to l/min
-            if (np.nanmedian(sampleflow)>300):
-                sampleflow = (sampleflow/1000.0) * 60.0
-            else:
-                pass
+            sampleflow = pd.DataFrame(records[sampleflow_name].astype(float))
+            if (sampleflow.isna().all().all() and use_fill_values):
+                sampleflow = pd.DataFrame(index = records.index)
+                sampleflow[0] = fill_flowrate
+        elif ((neg_sampleflow_name is not None) and (pos_sampleflow_name is not None)):
+            neg_sampleflow = pd.DataFrame(records[neg_sampleflow_name].astype(float))
+            pos_sampleflow = pd.DataFrame(records[pos_sampleflow_name].astype(float))
+            sampleflow = neg_sampleflow + pos_sampleflow
             if (sampleflow.isna().all().all() and use_fill_values):
                 sampleflow = pd.DataFrame(index = records.index)
                 sampleflow[0] = fill_flowrate
@@ -403,15 +407,21 @@ def get_diagnostic_data(
         else:
             sampleflow = None
 
+        # Convert from cm3/s to lpm
+        if (np.nanmedian(sampleflow)>300):
+            sampleflow = (sampleflow/1000.0) * 60.0
+        else:
+            pass
+           
         # Sanity check the values
         if temperature is not None:
-            temperature = temperature.where(((temperature>=223.)|(temperature<=353.)),np.nan)
+            temperature = temperature.where(((temperature>=223.)&(temperature<=353.)),np.nan)
         
         if pressure is not None:
-            pressure = pressure.where(((pressure>=37000.)|(pressure<=121000.)),np.nan)
+            pressure = pressure.where(((pressure>=37000.)&(pressure<=121000.)),np.nan)
         
         if sampleflow is not None:
-            sampleflow = sampleflow.where(((sampleflow>=48.)|(sampleflow<=65.)),np.nan)
+            sampleflow = sampleflow.where(((sampleflow>=48.)&(sampleflow<=65.)),np.nan)
         
         return temperature, pressure, sampleflow
 
@@ -493,7 +503,7 @@ def flags2polarity(
             if ("+" in message):                
                 flags_pos_spectra.loc[combined_idx,message] = 1 
                                     
-            # Message/flag only concerns negative polarity
+            # M essage/flag only concerns negative polarity
             elif ("−" in message):   
                 flags_neg_spectra.loc[combined_idx,message] = 1
             
@@ -532,7 +542,7 @@ def save_as_netcdf(
     negion_flags,
     posion_flags,
     negpar_flags,
-    pospar_flags,
+    pospar_flags ,
     flag_explanations,
     measurement_info):
     
