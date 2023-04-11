@@ -9,7 +9,6 @@ pip install nais-processor
 ## Documentation
 See [here](https://jlpl.github.io/nais-processor/)
 
-
 ## Modules
 
 ### Processor

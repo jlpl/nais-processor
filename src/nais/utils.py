@@ -174,7 +174,7 @@ def remove_bad_data(data_file,bounds_file):
 
     Parameters
     ----------
-    data_files : str
+    data_file : str
         absolute path to processed netcdf file
     bounds_file : str
         absolute path to the boundary file containing the
@@ -186,7 +186,7 @@ def remove_bad_data(data_file,bounds_file):
         Dataset with possible bad data set to `NaN`
     """
     
-    bad_data = xr.open_dataset(bounds_file)
+    bad_data = xr.open_dataset(bounds_file,engine="netcdf4")
 
     neg_ion_bounds = [
         bad_data.neg_ion_time_left.values,
@@ -214,7 +214,7 @@ def remove_bad_data(data_file,bounds_file):
 
     bad_data.close()
 
-    ds = xr.open_dataset(data_file)
+    ds = xr.open_dataset(data_file,engine="netcdf4")
     ds_checked = ds.copy(deep=True)
     ds.close()
     

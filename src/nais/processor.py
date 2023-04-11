@@ -367,7 +367,7 @@ def get_diagnostic_data(
         neg_sampleflow_name) = find_diagnostic_names(list(records))
 
         if temperature_name is not None:
-            temperature = 273.15 + pd.DataFrame(records[temperature_name].astype(float))
+            temperature = 273.15 + records[temperature_name].astype(float)
             # Values may be missing: e.g. sensor is broken
             if (temperature.isna().all().all() and use_fill_values):
                 temperature = pd.DataFrame(index = records.index)
@@ -379,7 +379,7 @@ def get_diagnostic_data(
             temperature = None
 
         if pressure_name is not None:
-            pressure = 100.0 * pd.DataFrame(records[pressure_name].astype(float))
+            pressure = 100.0 * records[pressure_name].astype(float)
             if (pressure.isna().all().all() and use_fill_values):
                 pressure = pd.DataFrame(index = pressure.index)
                 pressure[0] = fill_pressure
@@ -390,13 +390,13 @@ def get_diagnostic_data(
             pressure = None
 
         if sampleflow_name is not None:
-            sampleflow = pd.DataFrame(records[sampleflow_name].astype(float))
+            sampleflow = records[sampleflow_name].astype(float)
             if (sampleflow.isna().all().all() and use_fill_values):
                 sampleflow = pd.DataFrame(index = records.index)
                 sampleflow[0] = fill_flowrate
         elif ((neg_sampleflow_name is not None) and (pos_sampleflow_name is not None)):
-            neg_sampleflow = pd.DataFrame(records[neg_sampleflow_name].astype(float))
-            pos_sampleflow = pd.DataFrame(records[pos_sampleflow_name].astype(float))
+            neg_sampleflow = records[neg_sampleflow_name].astype(float)
+            pos_sampleflow = records[pos_sampleflow_name].astype(float)
             sampleflow = neg_sampleflow + pos_sampleflow
             if (sampleflow.isna().all().all() and use_fill_values):
                 sampleflow = pd.DataFrame(index = records.index)
@@ -412,7 +412,7 @@ def get_diagnostic_data(
             sampleflow = (sampleflow/1000.0) * 60.0
         else:
             pass
-           
+
         # Sanity check the values
         if temperature is not None:
             temperature = temperature.where(((temperature>=223.)&(temperature<=353.)),np.nan)

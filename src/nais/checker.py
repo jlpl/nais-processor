@@ -93,6 +93,10 @@ class NaisChecker(QWidget):
         negParColorbar.setLevels([1, 5])
         posParColorbar.setLevels([1, 5])
         
+        # If ROI file exists load the boundaries and draw the ROIs in there.
+        if os.path.isfile(self.boundary_file):
+            self.loadBoundaries()
+        
         # Create ROI with double click
         figWidget.scene().sigMouseClicked.connect(self.onClick)
         
@@ -121,6 +125,61 @@ class NaisChecker(QWidget):
         else:
             pass
         
+
+    def loadBoundaries(self):
+        bad_data = xr.open_dataset(self.boundary_file)
+    
+        neg_ion_bounds = [
+            bad_data.neg_ion_time_left.values,
+            bad_data.neg_ion_time_right.values,
+            np.log10(bad_data.neg_ion_diam_left.values),
+            np.log10(bad_data.neg_ion_diam_right.values)]
+    
+        pos_ion_bounds = [
+            bad_data.pos_ion_time_left.values,
+            bad_data.pos_ion_time_right.values,
+            np.log10(bad_data.pos_ion_diam_left.values),
+            np.log10(bad_data.pos_ion_diam_right.values)]
+    
+        neg_par_bounds = [
+            bad_data.neg_par_time_left.values,
+            bad_data.neg_par_time_right.values,
+            np.log10(bad_data.neg_par_diam_left.values),
+            np.log10(bad_data.neg_par_diam_right.values)]
+    
+        pos_par_bounds = [
+            bad_data.pos_par_time_left.values,
+            bad_data.pos_par_time_right.values,
+            np.log10(bad_data.pos_par_diam_left.values),
+            np.log10(bad_data.pos_par_diam_right.values)]
+        
+        bad_data.close()
+        
+        for i in bad_data.neg_ion_roi_id.values:
+            origin = (neg_ion_bounds[0][i],neg_ion_bounds[2][i])
+            size = (neg_ion_bounds[1][i]-neg_ion_bounds[0][i],
+                neg_ion_bounds[3][i]-neg_ion_bounds[2][i])
+            self.addNegIonRoi(origin,size)
+        
+        for i in bad_data.pos_ion_roi_id.values:
+            origin = (pos_ion_bounds[0][i],pos_ion_bounds[2][i])
+            size = (pos_ion_bounds[1][i]-pos_ion_bounds[0][i],
+                pos_ion_bounds[3][i]-pos_ion_bounds[2][i])
+            self.addPosIonRoi(origin,size)
+        
+        for i in bad_data.neg_par_roi_id.values:
+            origin = (neg_par_bounds[0][i],neg_par_bounds[2][i])
+            size = (neg_par_bounds[1][i]-neg_par_bounds[0][i],
+                neg_par_bounds[3][i]-neg_par_bounds[2][i])
+            self.addNegParRoi(origin,size)
+        
+        for i in bad_data.pos_par_roi_id.values:
+            origin = (pos_par_bounds[0][i],pos_par_bounds[2][i])
+            size = (pos_par_bounds[1][i]-pos_par_bounds[0][i],
+                pos_par_bounds[3][i]-pos_par_bounds[2][i])
+            self.addPosParRoi(origin,size)
+        
+
     def onClick(self,event):
         if ((event.button()==1) & event.double()):
             
@@ -327,7 +386,7 @@ def startNaisChecker(dataset_path,bounding_boxes_path):
     data_file : str
         Absolute path to NAIS netcdf data file
     boundary_file : str
-        Name of file where to save the coordinates 
+        Absolyte path to file where to save the coordinates 
         of bad data bounding boxes.
     """
     app = QApplication([])
