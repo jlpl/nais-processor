@@ -54,6 +54,7 @@ use_fill_values: true
 fill_temperature: 273.15
 fill_pressure: 101325.0
 fill_flowrate: 54.0
+dilution_on: false
 ```
 Then process the data files by running `nais_processor()` method with the config file as the input argument.
 
@@ -92,7 +93,7 @@ The netcdf files have the following structure:
 | **Attributes**     |               |                |       |                    |
 | Measurement info   |               | dictionary     |       |                    |
 
-Next we combine the previously created files into a single continuous dataset with two hour time resolution and only raise a flag if at least 50% of the data points inside the two hour window contain the flag. We save it at as a netcdf file.
+Next we combine the previously created files into a single continuous dataset with 1 hour time resolution and only raise a flag if at least 50% of the data points inside the two hour window contain the flag. We save it as a netcdf file.
 ```python
 from nais.utils import combine_data
 import pandas as pd
@@ -100,29 +101,21 @@ import pandas as pd
 data_source = "/home/user/viikki"
 date_range = pd.date_range("2022-09-28","2022-09-30")
 
-ds = combine_data(data_source, date_range, "2H",
+ds = combine_data(data_source, date_range, "1H",
     flag_sensitivity=0.5)
+
 ds.to_netcdf("combined_nais_dataset.nc")
 ```
-Then we launch the data checker with the combined data in order to identify bad data. Bounding boxes are drawn around bad data in the size distributions (initiate a box with double left click and remove from the menu opened by right click). By clicking the save boundaries button the box coordinates are saved to a netcdf file.
+Then we launch the data checker with the combined data in order to identify bad data. Bounding boxes can be drawn around bad data in the size distributions (initiate an adjustable box with double left click and remove from the menu opened by right clicking the box). By clicking the save boundaries button the box coordinates are saved to a netcdf file (filename given in the second argument). If the bounding boxes are saved, they will be reloaded when the checker is reopened with same arguments, so save your work regularly in case the program crashes.
 ```python
 from nais.checker import startNaisChecker
-startNaisChecker("combined_nais_dataset.nc","bad_data_bounds.nc")
+startNaisChecker("combined_nais_dataset.nc", "bad_data_bounds.nc")
 ```
-We can set the bad data to `NaN` in our daily processed files by using the appropriate utility function and a simple for loop.
+We can set the bad data to `NaN` in our combined file and use the resulting dataset as the starting point for further analysis.
 ```python
 from nais.utils import remove_bad_data
-import os
-
-data_file_dir = "/home/user/viikki"
-for data_file in os.listdir(data_file_dir):
-    if (("NAIS" in data_file) and (".nc" in data_file)):
-        f = os.path.join(data_file_dir,data_file)
-        ds = remove_bad_data(f,"bad_data_bounds.nc")
-        ds.to_netcdf(os.path.join(
-            data_file_dir,data_file[:-3]+"_checked.nc"))
+ds = remove_bad_data("combined_nais_dataset.nc", "bad_data_bounds.nc")
 ```
-This will create files named `NAIS_yyyymmdd_checked.nc` to the data file folder, which can be the starting point for further analysis.
 
 ## License
 This project is licensed under the terms of the GNU GPLv3.

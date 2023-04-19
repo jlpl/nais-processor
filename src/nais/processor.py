@@ -102,6 +102,9 @@ PRESSURE_NAMES = [
 "baro.mean",
 "baro"]
 
+DILUTION_FLOW_NAMES = [
+"diluter_sample_flow_rate.mean"]
+
 # Standard conditions
 TEMP_REF = 273.15
 PRES_REF = 101325.0
@@ -139,6 +142,7 @@ def make_config_template(file_name):
         f.write("fill_temperature: # temperature in K (float)\n")
         f.write("fill_pressure: # pressure in Pa (float)\n")
         f.write("fill_flowrate: # flow rate in lpm (float)\n")
+        f.write("dilution_on: # true or false (is the integrated dilution system used)\n")
 
 def read_raw(file_name,file_type,timestamp):
     with open(file_name,'r') as f:
@@ -320,6 +324,7 @@ def find_diagnostic_names(diag_params):
     pos_sampleflow_name=None
     temperature_name=None
     pressure_name=None
+    dilution_flow_name=None
 
     for temp_name in TEMPERATURE_NAMES:
         if temp_name in diag_params:
@@ -346,7 +351,12 @@ def find_diagnostic_names(diag_params):
             neg_sampleflow_name = neg_flow_name
             break
 
-    return temperature_name, pressure_name, sampleflow_name, pos_sampleflow_name, neg_sampleflow_name
+    for dilflow_name in DILUTION_FLOW_NAMES:
+        if dilflow_name in diag_params:
+            dilution_flow_name = dilflow_name 
+            break
+
+    return temperature_name, pressure_name, sampleflow_name, pos_sampleflow_name, neg_sampleflow_name, dilution_flow_name
 
 def get_diagnostic_data(
     records,
@@ -364,46 +374,47 @@ def get_diagnostic_data(
         pressure_name,
         sampleflow_name,
         pos_sampleflow_name,
-        neg_sampleflow_name) = find_diagnostic_names(list(records))
+        neg_sampleflow_name,
+        dilution_flow_name) = find_diagnostic_names(list(records))
 
         if temperature_name is not None:
             temperature = 273.15 + records[temperature_name].astype(float)
             # Values may be missing: e.g. sensor is broken
-            if (temperature.isna().all().all() and use_fill_values):
-                temperature = pd.DataFrame(index = records.index)
-                temperature[0] = fill_temperature
+            if (temperature.isna().all() and use_fill_values):
+                temperature = pd.Series(index = records.index, dtype=float)
+                temperature[:] = fill_temperature
         elif use_fill_values:
-            temperature = pd.DataFrame(index = records.index)
-            temperature[0] = fill_temperature
+            temperature = pd.Series(index = records.index, dtype=float)
+            temperature[:] = fill_temperature
         else:
             temperature = None
 
         if pressure_name is not None:
             pressure = 100.0 * records[pressure_name].astype(float)
-            if (pressure.isna().all().all() and use_fill_values):
-                pressure = pd.DataFrame(index = pressure.index)
-                pressure[0] = fill_pressure
+            if (pressure.isna().all() and use_fill_values):
+                pressure = pd.Series(index = pressure.index, dtype=float)
+                pressure[:] = fill_pressure
         elif use_fill_values:
-            pressure = pd.DataFrame(index = records.index)
-            pressure[0] = fill_pressure
+            pressure = pd.Series(index = records.index, dtype=float)
+            pressure[:] = fill_pressure
         else:
             pressure = None
 
         if sampleflow_name is not None:
             sampleflow = records[sampleflow_name].astype(float)
-            if (sampleflow.isna().all().all() and use_fill_values):
-                sampleflow = pd.DataFrame(index = records.index)
-                sampleflow[0] = fill_flowrate
+            if (sampleflow.isna().all() and use_fill_values):
+                sampleflow = pd.Series(index = records.index, dtype=float)
+                sampleflow[:] = fill_flowrate
         elif ((neg_sampleflow_name is not None) and (pos_sampleflow_name is not None)):
             neg_sampleflow = records[neg_sampleflow_name].astype(float)
             pos_sampleflow = records[pos_sampleflow_name].astype(float)
             sampleflow = neg_sampleflow + pos_sampleflow
-            if (sampleflow.isna().all().all() and use_fill_values):
-                sampleflow = pd.DataFrame(index = records.index)
-                sampleflow[0] = fill_flowrate
+            if (sampleflow.isna().all() and use_fill_values):
+                sampleflow = pd.Series(index = records.index, dtype=float)
+                sampleflow[:] = fill_flowrate
         elif use_fill_values:
-            sampleflow = pd.DataFrame(index = records.index)
-            sampleflow[0] = fill_flowrate
+            sampleflow = pd.Series(index = records.index, dtype=float)
+            sampleflow[:] = fill_flowrate
         else:
             sampleflow = None
 
@@ -412,6 +423,13 @@ def get_diagnostic_data(
             sampleflow = (sampleflow/1000.0) * 60.0
         else:
             pass
+
+        if dilution_flow_name is not None:
+            dilution_flow = records[dilution_flow_name].astype(float)
+            if dilution_flow.isna().all():
+                dilution_flow = None
+        else:
+            dilution_flow = None
 
         # Sanity check the values
         if temperature is not None:
@@ -423,7 +441,7 @@ def get_diagnostic_data(
         if sampleflow is not None:
             sampleflow = sampleflow.where(((sampleflow>=48.)&(sampleflow<=65.)),np.nan)
         
-        return temperature, pressure, sampleflow
+        return temperature, pressure, sampleflow, dilution_flow
 
 def bring_to_sealevel(
     spectra,
@@ -434,7 +452,7 @@ def bring_to_sealevel(
         return None
     else:
         stp_corr_factor = (PRES_REF*temperature.values)/(TEMP_REF*pressure.values)
-        spectra = stp_corr_factor * spectra
+        spectra = stp_corr_factor.reshape(-1,1) * spectra
         
         return spectra
 
@@ -451,7 +469,6 @@ def correct_inlet_losses(
         (sampleflow is None)):
         return None
     else:
-        # Diffusion loss correction
         throughput = af.tubeloss(
             DP_STANDARD,
             sampleflow.values*1.667e-5,
@@ -468,6 +485,20 @@ def wagner_ion_mode_correction(spectra):
         roberts_corr = 0.713*DP_STANDARD_NM**0.120
         spectra = spectra / roberts_corr
         
+        return spectra
+
+def dilution_correction(
+    spectra,
+    dilution_flow,
+    sampleflow):
+
+    if ((spectra is None) or
+        (dilution_flow is None) or
+        (sampleflow is None)):
+        return None
+    else:
+        dilution_factor = sampleflow.values/dilution_flow.values
+        spectra  = spectra * dilution_factor.reshape(-1,1)
         return spectra
     
 def flags2polarity(
@@ -679,7 +710,8 @@ def nais_processor(config_file):
         else:
             fill_temperature = 1.0
             fill_pressure = 1.0
-            fill_flowrate = 1.0           
+            fill_flowrate = 1.0
+        dilution_on = config["dilution_on"]
         
     # Check the config file
     assert isinstance(start_date,date)
@@ -698,6 +730,7 @@ def nais_processor(config_file):
     assert isinstance(fill_temperature,float)
     assert isinstance(fill_pressure,float)
     assert isinstance(fill_flowrate,float)
+    assert isinstance(dilution_on,bool)
     
     # Extract relevant info for metadata from the config
     measurement_info = {
@@ -713,6 +746,7 @@ def nais_processor(config_file):
         "fill_temperature":fill_temperature,
         "fill_pressure":fill_pressure,
         "fill_flowrate":fill_flowrate,
+        "dilution_on":str(dilution_on),
     }    
 
     end_date = date.today() if end_date=='' else end_date
@@ -825,8 +859,8 @@ def nais_processor(config_file):
             negion_flags, posion_flags = flags2polarity(ion_flags, offset_flags, flag_explanations)
                         
             # Get diagnostic data for corrections and conversions
-            if (convert_to_standard_conditions or do_inlet_loss_correction):
-                temperature_ion,pressure_ion,sampleflow_ion = get_diagnostic_data(
+            if (convert_to_standard_conditions or do_inlet_loss_correction or dilution_on):
+                temperature_ion,pressure_ion,sampleflow_ion,dilution_flow_ion = get_diagnostic_data(
                     ion_records,
                     use_fill_values,
                     fill_pressure,
@@ -861,6 +895,10 @@ def nais_processor(config_file):
                 negion_datamatrix = wagner_ion_mode_correction(negion_datamatrix)
                 posion_datamatrix = wagner_ion_mode_correction(posion_datamatrix)
                 
+            if dilution_on:
+                negion_datamatrix = dilution_correction(negion_datamatrix,dilution_flow_ion,sampleflow_ion)
+                posion_datamatrix = dilution_correction(posion_datamatrix,dilution_flow_ion,sampleflow_ion)
+
         else:
             negion_datamatrix, posion_datamatrix = None, None
             negion_flags, posion_flags = None, None
@@ -873,8 +911,8 @@ def nais_processor(config_file):
             negpar_flags, pospar_flags = flags2polarity(particle_flags, offset_flags, flag_explanations)
 
             # Get diagnostic data for corrections and conversions
-            if (convert_to_standard_conditions or do_inlet_loss_correction):
-                temperature_particle,pressure_particle,sampleflow_particle = get_diagnostic_data(
+            if (convert_to_standard_conditions or do_inlet_loss_correction or dilution_on):
+                temperature_particle,pressure_particle,sampleflow_particle,dilution_flow_particle = get_diagnostic_data(
                     particle_records,
                     use_fill_values,
                     fill_pressure,
@@ -908,7 +946,11 @@ def nais_processor(config_file):
             if remove_charger_ions:  
                 negpar_datamatrix = remove_corona_ions(negpar_datamatrix)
                 pospar_datamatrix = remove_corona_ions(pospar_datamatrix)
-                
+
+            if dilution_on:
+                negpar_datamatrix = dilution_correction(negpar_datamatrix,dilution_flow_particle,sampleflow_particle)
+                pospar_datamatrix = dilution_correction(pospar_datamatrix,dilution_flow_particle,sampleflow_particle)
+
         else:
             negpar_datamatrix, pospar_datamatrix = None, None
             negpar_flags, pospar_flags = None, None
