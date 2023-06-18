@@ -20,9 +20,9 @@ import aerosol.functions as af
 from scipy.interpolate import interp1d
 import xarray as xr
 
+
 # CONSTANTS
 LEN_DP = 40
-LEN_TIME = 289
 
 DP_STANDARD = np.array([
 5.00000000e-10, 5.61009227e-10, 6.29462706e-10, 7.06268772e-10,
@@ -76,11 +76,6 @@ DLOGMOB_STANDARD = np.array([
 0.09777017, 0.09748592, 0.09716477, 0.09680199, 0.09639233,
 0.09593002, 0.09540877, 0.09482182, 0.09416202, 0.09342199])
 
-FILENAME_FORMATS = [
-["%Y-%m-%d.ions.nds","%Y-%m-%d.particles.nds","%Y-%m-%d.log"],
-["%Y%m%d-block-ions.spectra","%Y%m%d-block-particles.spectra","%Y%m%d-block.records"],
-["%Y%m%d-block-ions.spectra","%Y%m%d-block-particles.spectra","%Y%m%d-block.diagnostics"]]
-
 TOTAL_SAMPLEFLOW_NAMES = [
 "sampleflow",
 "Flowaer"]
@@ -129,7 +124,7 @@ def make_config_template(file_name):
         f.write("- # Data folder 1\n")
         f.write("- # Data folder 2, and so on...\n")
         f.write("processed_folder: # Full path to folder where procesed data is saved\n")
-        f.write("database_file: # Full path to database file (will be created on first run) \n")
+        f.write("database_file: # Full path to database file (will be created on first run)\n")
         f.write("start_date: # Format: yyyy-mm-dd\n")
         f.write("end_date: # Format: yyyy-mm-dd or '' for current day\n")
         f.write("inlet_length: # length of inlet in meters (float)\n")
@@ -138,13 +133,16 @@ def make_config_template(file_name):
         f.write("do_wagner_ion_mode_correction: # true or false\n")
         f.write("remove_corona_ions: # true or false\n")
         f.write("allow_reprocess: # true or false\n")
+        f.write("redo_database: #true or false\n")
         f.write("use_fill_values: # true or false\n")
         f.write("fill_temperature: # temperature in K (float)\n")
         f.write("fill_pressure: # pressure in Pa (float)\n")
         f.write("fill_flowrate: # flow rate in lpm (float)\n")
         f.write("dilution_on: # true or false (is the integrated dilution system used)\n")
+        f.write('file_format: # 1s, 10s or block\n')
+        f.write('resolution: # processed data time resolution in seconds')
 
-def read_raw(file_name,file_type,timestamp):
+def read_raw(file_name,file_type,timestamp,resolution_str):
     with open(file_name,'r') as f:
         header_found = False
         data_matrix = []
@@ -199,26 +197,28 @@ def read_raw(file_name,file_type,timestamp):
         
         # Remove duplicate flags (may happen due to restarts)        
         flag_explanations = flag_explanations[~flag_explanations["message"].duplicated()]
-        
-        # Construct time index, this will fail for example in the rare case if time zone was changed
-        try:
-            begin_time = pd.DatetimeIndex(df[df.columns[0]])
-            end_time = pd.DatetimeIndex(df[df.columns[1]])
-            center_time = begin_time + (end_time - begin_time)/2.
-            df.index = center_time
-            df = df.sort_index() # sort just in case
-            df = df[~df.index.duplicated(keep='first')] # remove duplicates just in case
-            
-            if df.index[0].tz is None:
-                df.index = df.index.tz_localize("UTC")
+       
+        # Contruct the datetime index
+        # there can be timezone change
+
+        begin_time = []
+        end_time = []
+
+        for bt, et in zip(df[df.columns[0]], df[df.columns[1]]):
+            if pd.to_datetime(bt).tz is None:
+                begin_time.append(pd.to_datetime(bt).tz_localize("UTC"))
+                end_time.append(pd.to_datetime(et).tz_localize("UTC"))
             else:
-                pass
-        
-        except:
-            if file_type=="records":
-                return None,None,None,None,None,None
-            if file_type=="spectra":
-                return None
+                begin_time.append(pd.to_datetime(bt).tz_convert("UTC"))
+                end_time.append(pd.to_datetime(et).tz_convert("UTC"))
+
+        begin_time = pd.DatetimeIndex(begin_time)
+        end_time = pd.DatetimeIndex(end_time)
+        center_time = begin_time + (end_time - begin_time)/2.
+        df.index = center_time
+
+        df = df.sort_index() # sort just in case
+        df = df[~df.index.duplicated(keep='first')] # remove duplicates just in case
         
         # Still if something is wrong, just bail out 
         if not df.index.is_monotonic_increasing:
@@ -230,9 +230,7 @@ def read_raw(file_name,file_type,timestamp):
         # Define a standard time index for all data of the day
         standard_start_time = pd.to_datetime(timestamp)
         standard_end_time = standard_start_time + pd.Timedelta(days=1)
-        standard_time = pd.date_range(start=standard_start_time, end=standard_end_time, freq="5min").tz_localize(df.index[0].tz)
-        
-        assert (len(standard_time)==LEN_TIME)
+        standard_time = pd.date_range(start=standard_start_time, end=standard_end_time, freq=resolution_str).tz_localize("UTC")
         
         if file_type=="records":
             # Extract records for ions, particles and offset
@@ -241,17 +239,16 @@ def read_raw(file_name,file_type,timestamp):
             offset_records_and_flags = df[df.opmode=='offset']
             
             if ion_records_and_flags.empty==False:
-                ion_records_and_flags = ion_records_and_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta("5min"))
-                ion_records_and_flags.index = ion_records_and_flags.index.tz_convert('UTC')
+                ion_records_and_flags = ion_records_and_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
                 ion_records = ion_records_and_flags.iloc[:,3:-1].apply(pd.to_numeric, errors='coerce').astype(float)
                 ion_flags = ion_records_and_flags.iloc[:,-1].fillna('').str.split("!",expand=True).fillna('')
+
             else:
                 ion_records = None
                 ion_flags = None
                 
             if particle_records_and_flags.empty == False:
-                particle_records_and_flags = particle_records_and_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta("5min"))
-                particle_records_and_flags.index = particle_records_and_flags.index.tz_convert('UTC')
+                particle_records_and_flags = particle_records_and_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
                 particle_records = particle_records_and_flags.iloc[:,3:-1].apply(pd.to_numeric, errors='coerce').astype(float)
                 particle_flags = particle_records_and_flags.iloc[:,-1].fillna('').str.split("!",expand=True).fillna('')
             else:
@@ -259,8 +256,7 @@ def read_raw(file_name,file_type,timestamp):
                 particle_flags = None
                 
             if offset_records_and_flags.empty==False:
-                offset_records_and_flags = offset_records_and_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta("5min"))
-                offset_records_and_flags.index = offset_records_and_flags.index.tz_convert('UTC')
+                offset_records_and_flags = offset_records_and_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
                 offset_records = offset_records_and_flags.iloc[:,3:-1].apply(pd.to_numeric, errors='coerce').astype(float)
                 offset_flags = offset_records_and_flags.iloc[:,-1].fillna('').str.split("!",expand=True).fillna('')
             else:
@@ -274,9 +270,9 @@ def read_raw(file_name,file_type,timestamp):
         
         if file_type=="spectra":
             spectra = df.iloc[:,3:].apply(pd.to_numeric, errors='coerce').astype(float)
-            spectra = spectra.reindex(standard_time, method="nearest", tolerance=pd.Timedelta("5min"))
-            spectra.index = spectra.index.tz_convert('UTC')
-            
+
+            spectra = spectra.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
+             
             return spectra
 
 def regrid_columns(data, old_columns, new_columns):
@@ -514,8 +510,8 @@ def flags2polarity(
     
     else:
         
-        
         LEN_FLAG = len(flag_explanations["flag"].values)
+        LEN_TIME = len(flags_spectra.index)
         
         flags_pos_spectra = pd.DataFrame(index = flags_spectra.index, 
                                          columns = flag_explanations["message"].values,
@@ -589,6 +585,7 @@ def save_as_netcdf(
         for spectra in [negion_data,posion_data,negpar_data,pospar_data]:
             if spectra is not None:
                 time = spectra.index.values
+                LEN_TIME = len(time)
                 nan_data = np.nan*np.ones((LEN_TIME,LEN_DP))
                 break
         
@@ -697,12 +694,15 @@ def nais_processor(config_file):
         latitude = config["latitude"]
         end_date = config['end_date']
         allow_reprocess = config["allow_reprocess"]
+        redo_database = config["redo_database"]
         pipelength = config['inlet_length']
         do_inlet_loss_correction = config['do_inlet_loss_correction']
         convert_to_standard_conditions = config['convert_to_standard_conditions']
         do_wagner_ion_mode_correction = config["do_wagner_ion_mode_correction"]
         remove_charger_ions = config["remove_corona_ions"]
         use_fill_values = config["use_fill_values"]
+        file_format = config["file_format"]
+        resolution = config["resolution"]
         if use_fill_values:
             fill_temperature = config["fill_temperature"]
             fill_pressure = config["fill_pressure"]
@@ -731,6 +731,8 @@ def nais_processor(config_file):
     assert isinstance(fill_pressure,float)
     assert isinstance(fill_flowrate,float)
     assert isinstance(dilution_on,bool)
+    assert isinstance(redo_database,bool)
+    pd.tseries.frequencies.to_offset(resolution)
     
     # Extract relevant info for metadata from the config
     measurement_info = {
@@ -747,12 +749,24 @@ def nais_processor(config_file):
         "fill_pressure":fill_pressure,
         "fill_flowrate":fill_flowrate,
         "dilution_on":str(dilution_on),
+        "resolution":resolution
     }    
 
     end_date = date.today() if end_date=='' else end_date
 
+    if redo_database:
+        try:
+            os.remove(database)
+        except:
+            pass
+
     db = TinyDB(database)
     check = Query()
+
+    filename_formats = [
+    ["%Y-%m-%d.ions.nds","%Y-%m-%d.particles.nds","%Y-%m-%d.log"],
+    [f"%Y%m%d-{file_format}-ions.spectra",f"%Y%m%d-{file_format}-particles.spectra",f"%Y%m%d-{file_format}.records"],
+    [f"%Y%m%d-{file_format}-ions.spectra",f"%Y%m%d-{file_format}-particles.spectra",f"%Y%m%d-{file_format}.diagnostics"]]
 
     start_dt = pd.to_datetime(start_date)
     end_dt = pd.to_datetime(end_date)
@@ -763,7 +777,7 @@ def nais_processor(config_file):
     # List existing dates based on if diagnostic file was found
     list_of_existing_dates = [x["timestamp"] for x in db.search(check.diagnostics.exists())]
 
-    if len(list_of_existing_dates)==0:
+    if (len(list_of_existing_dates)==0):
         print("Building database...")
         list_of_datetimes = pd.date_range(start=start_date_str, end=end_date_str)
     else:
@@ -777,7 +791,7 @@ def nais_processor(config_file):
         else:
             files_found=False
             for z in load_path:
-                for y in FILENAME_FORMATS:
+                for y in filename_formats:
 
                     ion_filename = os.path.join(z,x.strftime(y[0]))
                     particle_filename = os.path.join(z,x.strftime(y[1]))
@@ -818,7 +832,7 @@ def nais_processor(config_file):
         last_day=np.max([datetime.strptime(x["timestamp"],"%Y%m%d") 
             for x in processed_days]).strftime("%Y%m%d")
     else:
-        last_day=end_date_str
+        allow_reprocess=True
 
     if allow_reprocess:
         database_iterator = iter(db.search(
@@ -849,15 +863,16 @@ def nais_processor(config_file):
             ion_flags, 
             particle_flags, 
             offset_flags, 
-            flag_explanations) = read_raw(x["diagnostics"],"records",x["timestamp"])
+            flag_explanations) = read_raw(x["diagnostics"],"records",x["timestamp"],resolution)
 
         # ions
         if ions_exist:
 
-            ions = read_raw(x["ions"],"spectra",x["timestamp"])                        
+            ions = read_raw(x["ions"],"spectra",x["timestamp"],resolution)
+
             negion_datamatrix, posion_datamatrix = raw2sum(ions,"ions")
             negion_flags, posion_flags = flags2polarity(ion_flags, offset_flags, flag_explanations)
-                        
+            
             # Get diagnostic data for corrections and conversions
             if (convert_to_standard_conditions or do_inlet_loss_correction or dilution_on):
                 temperature_ion,pressure_ion,sampleflow_ion,dilution_flow_ion = get_diagnostic_data(
@@ -906,7 +921,7 @@ def nais_processor(config_file):
         # Particles
         if particles_exist:
 
-            particles = read_raw(x["particles"],"spectra",x["timestamp"])            
+            particles = read_raw(x["particles"],"spectra",x["timestamp"],resolution)            
             negpar_datamatrix, pospar_datamatrix = raw2sum(particles,"particles")
             negpar_flags, pospar_flags = flags2polarity(particle_flags, offset_flags, flag_explanations)
 

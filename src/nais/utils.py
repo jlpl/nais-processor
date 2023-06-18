@@ -114,7 +114,7 @@ def combine_data(
     
     """
     
-    assert pd.Timedelta(time_reso)>pd.Timedelta("5min")
+    #assert pd.Timedelta(time_reso)>pd.Timedelta("5min")
     
     data_read = False
     for date in date_range:
@@ -168,16 +168,15 @@ def combine_data(
     else:
         return None
 
-def remove_bad_data(data_file,bounds_file):
+def remove_bad_data(ds,bad_data):
     """
     Set bad data to NaNs
 
     Parameters
     ----------
-    data_file : str
-        absolute path to processed netcdf file
-    bounds_file : str
-        absolute path to the boundary file containing the
+    ds : xarray.Dataset
+        NAIS datafile
+    bad_data : xarray.Dataset
         user-determined bad data boundaries using the `NaisChecker()`
 
     Returns
@@ -185,8 +184,6 @@ def remove_bad_data(data_file,bounds_file):
     xarray.Dataset
         Dataset with possible bad data set to `NaN`
     """
-    
-    bad_data = xr.open_dataset(bounds_file,engine="netcdf4")
 
     neg_ion_bounds = [
         bad_data.neg_ion_time_left.values,
@@ -214,7 +211,6 @@ def remove_bad_data(data_file,bounds_file):
 
     bad_data.close()
 
-    ds = xr.open_dataset(data_file,engine="netcdf4")
     ds_checked = ds.copy(deep=True)
     ds.close()
     

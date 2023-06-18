@@ -1,3 +1,7 @@
+![logo](https://github.com/jlpl/nais-processor/blob/master/docs/_static/logo.png?raw=true)
+
+---
+
 # NAIS Processor
 Code package to process [NAIS](https://www.airel.ee/products/nais/) (Neutral cluster and Air Ion Spectrometer, Airel Ltd.) data files.
 
@@ -50,11 +54,14 @@ convert_to_standard_conditions: true
 do_wagner_ion_mode_correction: true
 remove_corona_ions: true
 allow_reprocess: false
+redo_database: false
 use_fill_values: true
 fill_temperature: 273.15
 fill_pressure: 101325.0
 fill_flowrate: 54.0
 dilution_on: false
+file_format: block
+resolution: 300 
 ```
 Then process the data files by running `nais_processor()` method with the config file as the input argument.
 
@@ -97,6 +104,7 @@ Next we combine the previously created files into a single continuous dataset wi
 ```python
 from nais.utils import combine_data
 import pandas as pd
+import xarray as xr
 
 data_source = "/home/user/viikki"
 date_range = pd.date_range("2022-09-28","2022-09-30")
@@ -114,7 +122,10 @@ startNaisChecker("combined_nais_dataset.nc", "bad_data_bounds.nc")
 We can set the bad data to `NaN` in our combined file and use the resulting dataset as the starting point for further analysis.
 ```python
 from nais.utils import remove_bad_data
-ds = remove_bad_data("combined_nais_dataset.nc", "bad_data_bounds.nc")
+
+ds = xr.open_dataset("combined_nais_dataset.nc")
+bad_data = xr.open_dataset("bad_data_bounds.nc")
+ds = remove_bad_data(ds, bad_data)
 ```
 
 ## License
