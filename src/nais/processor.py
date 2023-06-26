@@ -140,7 +140,7 @@ def make_config_template(file_name):
         f.write("fill_flowrate: # flow rate in lpm (float)\n")
         f.write("dilution_on: # true or false (is the integrated dilution system used)\n")
         f.write('file_format: # 1s, 10s or block\n')
-        f.write('resolution: # processed data time resolution in seconds')
+        f.write('resolution: # processed data time resolution (pandas time offset string), e.g. 5min')
 
 def read_raw(file_name,file_type,timestamp,resolution_str):
     with open(file_name,'r') as f:

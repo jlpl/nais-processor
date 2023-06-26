@@ -1,7 +1,5 @@
 ![logo](https://github.com/jlpl/nais-processor/blob/master/docs/_static/logo.png?raw=true)
 
----
-
 # NAIS Processor
 Code package to process [NAIS](https://www.airel.ee/products/nais/) (Neutral cluster and Air Ion Spectrometer, Airel Ltd.) data files.
 
@@ -61,7 +59,7 @@ fill_pressure: 101325.0
 fill_flowrate: 54.0
 dilution_on: false
 file_format: block
-resolution: 300 
+resolution: 5min 
 ```
 Then process the data files by running `nais_processor()` method with the config file as the input argument.
 
