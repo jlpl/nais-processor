@@ -20,7 +20,6 @@ import aerosol.functions as af
 from scipy.interpolate import interp1d
 import xarray as xr
 
-
 # CONSTANTS
 LEN_DP = 40
 
@@ -118,6 +117,7 @@ def make_config_template(file_name):
     
     with open(file_name,"w") as f:
         f.write("measurement_location: # Name of the measurement site\n")
+        f.write("description: # Additional description\n")
         f.write("longitude: # decimal degrees west/east = -/+ (float)\n")
         f.write("latitude: # decimal degrees south/north = -/+ (float)\n")
         f.write("data_folder: # Full paths to raw data folders\n")
@@ -690,6 +690,7 @@ def nais_processor(config_file):
         start_date = config['start_date']
         database = config['database_file']
         location = config['measurement_location']
+        description = config['description']
         longitude = config["longitude"]
         latitude = config["latitude"]
         end_date = config['end_date']
@@ -737,6 +738,7 @@ def nais_processor(config_file):
     # Extract relevant info for metadata from the config
     measurement_info = {
         'measurement_location':location,
+        'description':description,
         'longitude':longitude,
         'latitude':latitude,
         'inlet_length':pipelength,

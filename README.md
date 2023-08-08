@@ -7,6 +7,7 @@ Code package to process [NAIS](https://www.airel.ee/products/nais/) (Neutral clu
 ```shell
 pip install nais-processor
 ```
+You can find the package on [PyPI](https://pypi.org/project/nais-processor/).
 
 ## Documentation
 See [here](https://jlpl.github.io/nais-processor/)
@@ -37,6 +38,7 @@ make_config_template("/home/user/viikki.yml")
 Running this will create a configuration file template called `/home/user/viikki.yml`. After filling in the information in the confguration file for our example measurement the file may look like this:
 ```yaml
 measurement_location: Viikki, Helsinki, Finland
+description: Agricultural site
 longitude: 25.02
 latitude: 60.23
 data_folder:
