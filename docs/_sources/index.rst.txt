@@ -6,17 +6,7 @@
 Welcome to nais-processor's documentation!
 ==========================================
 
-Version: |version|
-
 .. toctree::
-   :maxdepth: 4
-   :caption: Contents:
-   
-   modules
+    :maxdepth: 4
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+    modules
