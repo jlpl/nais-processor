@@ -19,7 +19,7 @@ The `nais.processor` module can be used to process the data to netcdf files and 
 
 * Inlet loss correction (Gromley and Kennedy, 1948)
 * Ion mode correction (Wagner et al. 2016)
-* Conversion to standard conditions (273.15 K, 101325 Pa)
+* Conversion to standard conditions (293.15 K, 101325 Pa)
 * Remove charger ion band from total particle data
 * Use fill values in case of missing environmental sensor data
 
@@ -28,6 +28,8 @@ The `nais.utils` module contains functions that allow one to do operations on th
 
 ### Checker
 The `nais.checker` module contains a GUI application with which one can visually inspect the nais ion/aerosol size distributions along with the flags and identify bad data by drawing a bounding box around it and saving the coordinates for later use.
+
+(Tested with Qt vers. 5.15.2)
 
 ## Example usage
 Use the `make_config_template()` method to create a configuration file template and fill it with necessary information. The configuration file is used at processing the data files.
@@ -55,6 +57,7 @@ do_wagner_ion_mode_correction: true
 remove_corona_ions: true
 allow_reprocess: false
 redo_database: false
+use_fill_values: true
 fill_temperature: 273.15
 fill_pressure: 101325.0
 fill_flowrate: 54.0
