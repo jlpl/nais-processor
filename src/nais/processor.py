@@ -21,59 +21,66 @@ from scipy.interpolate import interp1d
 import xarray as xr
 
 # CONSTANTS
-LEN_DP = 40
-
+LEN_DP = 55
 DP_STANDARD = np.array([
-5.00000000e-10, 5.61009227e-10, 6.29462706e-10, 7.06268772e-10,
-7.92446596e-10, 8.89139705e-10, 9.97631157e-10, 1.11936057e-09,
-1.25594322e-09, 1.40919147e-09, 1.58113883e-09, 1.77406695e-09,
-1.99053585e-09, 2.23341796e-09, 2.50593617e-09, 2.81170663e-09,
-3.15478672e-09, 3.53972892e-09, 3.97164117e-09, 4.45625469e-09,
-5.00000000e-09, 5.61009227e-09, 6.29462706e-09, 7.06268772e-09,
-7.92446596e-09, 8.89139705e-09, 9.97631157e-09, 1.11936057e-08,
-1.25594322e-08, 1.40919147e-08, 1.58113883e-08, 1.77406695e-08,
-1.99053585e-08, 2.23341796e-08, 2.50593617e-08, 2.81170663e-08,
-3.15478672e-08, 3.53972892e-08, 3.97164117e-08, 4.45625469e-08])
+8.02879995e-10, 8.62828998e-10, 9.27254239e-10, 9.96153364e-10,
+1.07017200e-09, 1.15119523e-09, 1.23835276e-09, 1.33004880e-09,
+1.42853463e-09, 1.53530865e-09, 1.65006335e-09, 1.77383533e-09,
+1.90689151e-09, 2.04892193e-09, 2.20153115e-09, 2.36722904e-09,
+2.54539816e-09, 2.73599893e-09, 2.94087199e-09, 3.16011296e-09,
+3.39569827e-09, 3.65377117e-09, 3.93145759e-09, 4.22385724e-09,
+4.53800393e-09, 4.87892846e-09, 5.24546548e-09, 5.64126564e-09,
+6.06693116e-09, 6.52192045e-09, 7.01103164e-09, 7.54292682e-09,
+8.11517448e-09, 8.72847179e-09, 9.38811851e-09, 1.00955239e-08,
+1.08562331e-08, 1.16916292e-08, 1.25913098e-08, 1.35414036e-08,
+1.45631880e-08, 1.56757975e-08, 1.68734090e-08, 1.81717471e-08,
+1.95699870e-08, 2.10714554e-08, 2.26881210e-08, 2.44557438e-08,
+2.63610813e-08, 2.84161425e-08, 3.06314124e-08, 3.30248335e-08,
+3.56052673e-08, 3.84642036e-08, 4.15526991e-08])
 
-DP_STANDARD_NM = 1e9*np.array([
-5.00000000e-10, 5.61009227e-10, 6.29462706e-10, 7.06268772e-10,
-7.92446596e-10, 8.89139705e-10, 9.97631157e-10, 1.11936057e-09,
-1.25594322e-09, 1.40919147e-09, 1.58113883e-09, 1.77406695e-09,
-1.99053585e-09, 2.23341796e-09, 2.50593617e-09, 2.81170663e-09,
-3.15478672e-09, 3.53972892e-09, 3.97164117e-09, 4.45625469e-09,
-5.00000000e-09, 5.61009227e-09, 6.29462706e-09, 7.06268772e-09,
-7.92446596e-09, 8.89139705e-09, 9.97631157e-09, 1.11936057e-08,
-1.25594322e-08, 1.40919147e-08, 1.58113883e-08, 1.77406695e-08,
-1.99053585e-08, 2.23341796e-08, 2.50593617e-08, 2.81170663e-08,
-3.15478672e-08, 3.53972892e-08, 3.97164117e-08, 4.45625469e-08])
+DP_STANDARD_NM = DP_STANDARD*1e9
 
 MOB_STANDARD = np.array([
-7.81537869e+00, 6.20905133e+00, 4.93298365e+00, 3.91926324e+00,
-3.11394395e+00, 2.47417363e+00, 1.96591248e+00, 1.56212080e+00,
-1.24131927e+00, 9.86445511e-01, 7.83945709e-01, 6.23053061e-01,
-4.95214643e-01, 3.93636140e-01, 3.12920199e-01, 2.48779161e-01,
-1.97806874e-01, 1.57297423e-01, 1.25101151e-01, 9.95102784e-02,
-7.91680500e-02, 6.29965615e-02, 5.01394299e-02, 3.99162509e-02,
-3.17864225e-02, 2.53204062e-02, 2.01768979e-02, 1.60846922e-02,
-1.28282759e-02, 1.02363833e-02, 8.17290349e-03, 6.52965824e-03,
-5.22066324e-03, 4.17756954e-03, 3.34604174e-03, 2.68288051e-03,
-2.15373646e-03, 1.73129367e-03, 1.39382651e-03, 1.12405285e-03])
+3.16000000e+00, 2.73662239e+00, 2.37000000e+00, 2.05390772e+00,
+1.78000000e+00, 1.53862197e+00, 1.33000000e+00, 1.15324482e+00,
+1.00000000e+00, 8.66015299e-01, 7.50000000e-01, 6.49221498e-01,
+5.62000000e-01, 4.86987328e-01, 4.22000000e-01, 3.65167264e-01,
+3.16000000e-01, 2.73658306e-01, 2.37000000e-01, 2.05387387e-01,
+1.78000000e-01, 1.53859150e-01, 1.33000000e-01, 1.15321945e-01,
+1.00000000e-01, 8.65992819e-02, 7.50000000e-02, 6.49201803e-02,
+5.62000000e-02, 4.86970409e-02, 4.22000000e-02, 3.65152221e-02,
+3.16000000e-02, 2.73645321e-02, 2.37000000e-02, 2.05376145e-02,
+1.78000000e-02, 1.53848960e-02, 1.33000000e-02, 1.15313400e-02,
+1.00000000e-02, 8.65916493e-03, 7.50000000e-03, 6.49134354e-03,
+5.62000000e-03, 4.86911920e-03, 4.22000000e-03, 3.65099699e-03,
+3.16000000e-03, 2.73599507e-03, 2.37000000e-03, 2.05336060e-03,
+1.78000000e-03, 1.53812246e-03, 1.33000000e-03])
 
 DLOGDP_STANDARD = np.array([
-0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
-0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
-0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
-0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
+0.0312741 , 0.0312741 , 0.03120074, 0.03112738, 0.03141139,
+0.0316954 , 0.0313593 , 0.0310232 , 0.03116406, 0.03130492,
+0.0313588 , 0.03141268, 0.03130605, 0.03119943, 0.03135743,
+0.03151544, 0.03143782, 0.0313602 , 0.03129334, 0.03122649,
+0.03151937, 0.03181225, 0.03148394, 0.03115564, 0.03130761,
+0.03145958, 0.03152605, 0.03159252, 0.03149947, 0.03140643,
+0.0315822 , 0.03175797, 0.03169916, 0.03164035, 0.03159532,
+0.0315503 , 0.03187309, 0.03219588, 0.03189432, 0.03159277,
+0.03178298, 0.03197319, 0.03208352, 0.03219385, 0.03214892,
+0.032104  , 0.03234317, 0.03258235, 0.03259212, 0.0326019 ,
+0.03263776, 0.03267361, 0.03310805, 0.03354249, 0.03354249])
 
 DLOGMOB_STANDARD = np.array([
-0.09992478, 0.09992478, 0.09991557, 0.09990524, 0.09989364,
-0.09988062, 0.09986599, 0.09984956, 0.09983112, 0.0998104 ,
-0.09978711, 0.09976095, 0.09973156, 0.09969851, 0.09966137,
-0.0996196 , 0.09957262, 0.09951977, 0.0994603 , 0.09939336,
-0.09931799, 0.0992331 , 0.09913745, 0.09902965, 0.09890809,
-0.09877098, 0.09861627, 0.09844164, 0.09824446, 0.09802175,
-0.09777017, 0.09748592, 0.09716477, 0.09680199, 0.09639233,
-0.09593002, 0.09540877, 0.09482182, 0.09416202, 0.09342199])
+0.0624749 , 0.06246942, 0.06231702, 0.06216423, 0.0627246 ,
+0.06328425, 0.06260524, 0.0619259 , 0.06219808, 0.06246946,
+0.06256644, 0.06266258, 0.06243771, 0.06221205, 0.06251308,
+0.06281283, 0.06264173, 0.06246953, 0.06231759, 0.06216436,
+0.06272553, 0.06328441, 0.06260579, 0.06192607, 0.06219918,
+0.06246967, 0.06256765, 0.06266282, 0.06243888, 0.06221233,
+0.06251488, 0.06281316, 0.06264342, 0.06246991, 0.06231955,
+0.0621648 , 0.06272879, 0.06328495, 0.06260779, 0.06192666,
+0.0622031 , 0.06247038, 0.06257201, 0.06266366, 0.06244327,
+0.06221329, 0.06252155, 0.06281432, 0.06264986, 0.06247124,
+0.06232717, 0.06216632, 0.06274126, 0.06328681, 0.06298631])
 
 TOTAL_SAMPLEFLOW_NAMES = [
 "sampleflow",
@@ -100,7 +107,7 @@ DILUTION_FLOW_NAMES = [
 "diluter_sample_flow_rate.mean"]
 
 # Standard conditions
-TEMP_REF = 273.15
+TEMP_REF = 293.15
 PRES_REF = 101325.0
 
 def make_config_template(file_name):
@@ -133,11 +140,10 @@ def make_config_template(file_name):
         f.write("do_wagner_ion_mode_correction: # true or false\n")
         f.write("remove_corona_ions: # true or false\n")
         f.write("allow_reprocess: # true or false\n")
-        f.write("redo_database: #true or false\n")
-        f.write("use_fill_values: # true or false\n")
-        f.write("fill_temperature: # temperature in K (float)\n")
-        f.write("fill_pressure: # pressure in Pa (float)\n")
-        f.write("fill_flowrate: # flow rate in lpm (float)\n")
+        f.write("redo_database: # true or false\n")
+        f.write("fill_temperature: # null or temperature in K\n")
+        f.write("fill_pressure: # null pressure in Pa\n")
+        f.write("fill_flowrate: # null flow rate in lpm\n")
         f.write("dilution_on: # true or false (is the integrated dilution system used)\n")
         f.write('file_format: # 1s, 10s or block\n')
         f.write('resolution: # processed data time resolution (pandas time offset string), e.g. 5min')
@@ -356,7 +362,6 @@ def find_diagnostic_names(diag_params):
 
 def get_diagnostic_data(
     records,
-    use_fill_values,
     fill_pressure,
     fill_temperature,
     fill_flowrate):
@@ -376,10 +381,10 @@ def get_diagnostic_data(
         if temperature_name is not None:
             temperature = 273.15 + records[temperature_name].astype(float)
             # Values may be missing: e.g. sensor is broken
-            if (temperature.isna().all() and use_fill_values):
+            if (temperature.isna().all() and (fill_temperature is not None)):
                 temperature = pd.Series(index = records.index, dtype=float)
                 temperature[:] = fill_temperature
-        elif use_fill_values:
+        elif fill_temperature is not None:
             temperature = pd.Series(index = records.index, dtype=float)
             temperature[:] = fill_temperature
         else:
@@ -387,10 +392,10 @@ def get_diagnostic_data(
 
         if pressure_name is not None:
             pressure = 100.0 * records[pressure_name].astype(float)
-            if (pressure.isna().all() and use_fill_values):
+            if (pressure.isna().all() and (fill_pressure is not None)):
                 pressure = pd.Series(index = pressure.index, dtype=float)
                 pressure[:] = fill_pressure
-        elif use_fill_values:
+        elif fill_pressure is not None:
             pressure = pd.Series(index = records.index, dtype=float)
             pressure[:] = fill_pressure
         else:
@@ -398,17 +403,17 @@ def get_diagnostic_data(
 
         if sampleflow_name is not None:
             sampleflow = records[sampleflow_name].astype(float)
-            if (sampleflow.isna().all() and use_fill_values):
+            if (sampleflow.isna().all() and (fill_flowrate is not None)):
                 sampleflow = pd.Series(index = records.index, dtype=float)
                 sampleflow[:] = fill_flowrate
         elif ((neg_sampleflow_name is not None) and (pos_sampleflow_name is not None)):
             neg_sampleflow = records[neg_sampleflow_name].astype(float)
             pos_sampleflow = records[pos_sampleflow_name].astype(float)
             sampleflow = neg_sampleflow + pos_sampleflow
-            if (sampleflow.isna().all() and use_fill_values):
+            if (sampleflow.isna().all() and (fill_flowrate is not None)):
                 sampleflow = pd.Series(index = records.index, dtype=float)
                 sampleflow[:] = fill_flowrate
-        elif use_fill_values:
+        elif fill_flowrate is not None:
             sampleflow = pd.Series(index = records.index, dtype=float)
             sampleflow[:] = fill_flowrate
         else:
@@ -588,7 +593,7 @@ def save_as_netcdf(
                 LEN_TIME = len(time)
                 nan_data = np.nan*np.ones((LEN_TIME,LEN_DP))
                 break
-        
+
         ds = xr.Dataset()
         ds = ds.assign_coords(
             coords = {
@@ -701,17 +706,11 @@ def nais_processor(config_file):
         convert_to_standard_conditions = config['convert_to_standard_conditions']
         do_wagner_ion_mode_correction = config["do_wagner_ion_mode_correction"]
         remove_charger_ions = config["remove_corona_ions"]
-        use_fill_values = config["use_fill_values"]
         file_format = config["file_format"]
         resolution = config["resolution"]
-        if use_fill_values:
-            fill_temperature = config["fill_temperature"]
-            fill_pressure = config["fill_pressure"]
-            fill_flowrate = config["fill_flowrate"]
-        else:
-            fill_temperature = 1.0
-            fill_pressure = 1.0
-            fill_flowrate = 1.0
+        fill_temperature = config["fill_temperature"]
+        fill_pressure = config["fill_pressure"]
+        fill_flowrate = config["fill_flowrate"]
         dilution_on = config["dilution_on"]
         
     # Check the config file
@@ -725,12 +724,11 @@ def nais_processor(config_file):
     assert isinstance(do_wagner_ion_mode_correction,bool)
     assert isinstance(do_inlet_loss_correction,bool)
     assert isinstance(pipelength,float)
-    assert isinstance(use_fill_values,bool)
     assert isinstance(longitude,float)
     assert isinstance(latitude,float)
-    assert isinstance(fill_temperature,float)
-    assert isinstance(fill_pressure,float)
-    assert isinstance(fill_flowrate,float)
+    assert (isinstance(fill_temperature,float) or (fill_temperature is None))
+    assert (isinstance(fill_pressure,float) or (fill_pressure is None))
+    assert (isinstance(fill_flowrate,float) or (fill_flowrate is None))
     assert isinstance(dilution_on,bool)
     assert isinstance(redo_database,bool)
     pd.tseries.frequencies.to_offset(resolution)
@@ -746,10 +744,9 @@ def nais_processor(config_file):
         'convert_to_standard_conditions':str(convert_to_standard_conditions),
         "do_wagner_ion_mode_correction":str(do_wagner_ion_mode_correction),
         "remove_corona_ions":str(remove_charger_ions),
-        "use_fill_values":str(use_fill_values),
-        "fill_temperature":fill_temperature,
-        "fill_pressure":fill_pressure,
-        "fill_flowrate":fill_flowrate,
+        "fill_temperature":str(fill_temperature),
+        "fill_pressure":str(fill_pressure),
+        "fill_flowrate":str(fill_flowrate),
         "dilution_on":str(dilution_on),
         "resolution":resolution
     }    
@@ -879,7 +876,6 @@ def nais_processor(config_file):
             if (convert_to_standard_conditions or do_inlet_loss_correction or dilution_on):
                 temperature_ion,pressure_ion,sampleflow_ion,dilution_flow_ion = get_diagnostic_data(
                     ion_records,
-                    use_fill_values,
                     fill_pressure,
                     fill_temperature,
                     fill_flowrate)
@@ -931,7 +927,6 @@ def nais_processor(config_file):
             if (convert_to_standard_conditions or do_inlet_loss_correction or dilution_on):
                 temperature_particle,pressure_particle,sampleflow_particle,dilution_flow_particle = get_diagnostic_data(
                     particle_records,
-                    use_fill_values,
                     fill_pressure,
                     fill_temperature,
                     fill_flowrate)
