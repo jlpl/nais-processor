@@ -557,13 +557,18 @@ def remove_corona_ions(spectra):
     c = (lower <= spectra.columns.values) & (upper >= spectra.columns.values)
     spectra2 = spectra.loc[:, c]
     
-    # Find maximum difference between size bin medians
-    corona_lim = spectra2.columns.values[spectra2.median().diff().abs().argmax()]
-    
-    # Set values below corona ion limit to NaNs
-    spectra.iloc[:,spectra.columns.values<=corona_lim]=np.nan
+    # If all the values are NA return spectra
+    # else ifnd the cutoff and set data below it to NA
 
-    return spectra
+    if spectra2.isna().all().all():
+        return spectra
+    else:
+        corona_lim = spectra2.columns.values[spectra2.median().diff().abs().argmax()]
+    
+        # Set values below corona ion limit to NaNs
+        spectra.iloc[:,spectra.columns.values<=corona_lim]=np.nan
+
+        return spectra
 
 def save_as_netcdf(
     netcdf_save_path,
