@@ -211,9 +211,12 @@ def read_raw(file_name,file_type,timestamp,resolution_str):
         end_time = []
 
         for bt, et in zip(df[df.columns[0]], df[df.columns[1]]):
-            if pd.to_datetime(bt).tz is None:
+            # Computer in utc time
+            data_tz = pd.to_datetime(bt).tz
+            if data_tz is None:
                 begin_time.append(pd.to_datetime(bt).tz_localize("UTC"))
                 end_time.append(pd.to_datetime(et).tz_localize("UTC"))
+            # Computer not in utc time
             else:
                 begin_time.append(pd.to_datetime(bt).tz_convert("UTC"))
                 end_time.append(pd.to_datetime(et).tz_convert("UTC"))
@@ -234,9 +237,9 @@ def read_raw(file_name,file_type,timestamp,resolution_str):
                 return None
         
         # Define a standard time index for all data of the day
-        standard_start_time = pd.to_datetime(timestamp)
+        standard_start_time = pd.to_datetime(timestamp).tz_localize(data_tz).tz_convert("UTC")
         standard_end_time = standard_start_time + pd.Timedelta(days=1)
-        standard_time = pd.date_range(start=standard_start_time, end=standard_end_time, freq=resolution_str).tz_localize("UTC")
+        standard_time = pd.date_range(start=standard_start_time, end=standard_end_time, freq=resolution_str)
         
         if file_type=="records":
             # Extract records for ions, particles and offset
