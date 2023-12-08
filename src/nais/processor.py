@@ -237,7 +237,10 @@ def read_raw(file_name,file_type,timestamp,resolution_str):
                 return None
         
         # Define a standard time index for all data of the day
-        standard_start_time = pd.to_datetime(timestamp).tz_localize(data_tz).tz_convert("UTC")
+        if data_tz is None:
+            standard_start_time = pd.to_datetime(timestamp).tz_localize('UTC')
+        else:
+            standard_start_time = pd.to_datetime(timestamp).tz_localize(data_tz).tz_convert("UTC")
         standard_end_time = standard_start_time + pd.Timedelta(days=1)
         standard_time = pd.date_range(start=standard_start_time, end=standard_end_time, freq=resolution_str)
         
