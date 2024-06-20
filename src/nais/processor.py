@@ -124,7 +124,8 @@ def make_config_template(file_name):
     
     with open(file_name,"w") as f:
         f.write("measurement_location: # Name of the measurement site\n")
-        f.write("description: # Additional description\n")
+        f.write("description: # Additional description of the measurement\n")
+        f.write("instrument_model: # e.g. NAIS-5-33")
         f.write("longitude: # decimal degrees west/east = -/+ (float)\n")
         f.write("latitude: # decimal degrees south/north = -/+ (float)\n")
         f.write("data_folder: # Full paths to raw data folders\n")
@@ -142,8 +143,8 @@ def make_config_template(file_name):
         f.write("allow_reprocess: # true or false\n")
         f.write("redo_database: # true or false\n")
         f.write("fill_temperature: # null or temperature in K\n")
-        f.write("fill_pressure: # null pressure in Pa\n")
-        f.write("fill_flowrate: # null flow rate in lpm\n")
+        f.write("fill_pressure: # null or pressure in Pa\n")
+        f.write("fill_flowrate: # null or flow rate in lpm\n")
         f.write("dilution_on: # true or false (is the integrated dilution system used)\n")
         f.write('file_format: # 1s, 10s or block\n')
         f.write('resolution: # processed data time resolution (pandas time offset string), e.g. 5min')
@@ -386,44 +387,58 @@ def get_diagnostic_data(
 
         if temperature_name is not None:
             temperature = 273.15 + records[temperature_name].astype(float)
+            temperature_filled = False
             # Values may be missing: e.g. sensor is broken
             if (temperature.isna().all() and (fill_temperature is not None)):
                 temperature = pd.Series(index = records.index, dtype=float)
                 temperature[:] = fill_temperature
+                temperature_filled = True
         elif fill_temperature is not None:
             temperature = pd.Series(index = records.index, dtype=float)
             temperature[:] = fill_temperature
+            temperature_filled = True
         else:
             temperature = None
+            temperature_filled=False
 
         if pressure_name is not None:
             pressure = 100.0 * records[pressure_name].astype(float)
+            pressure_filled = False
             if (pressure.isna().all() and (fill_pressure is not None)):
                 pressure = pd.Series(index = pressure.index, dtype=float)
                 pressure[:] = fill_pressure
+                pressure_filled = True
         elif fill_pressure is not None:
             pressure = pd.Series(index = records.index, dtype=float)
             pressure[:] = fill_pressure
+            pressure_filled=True
         else:
             pressure = None
+            pressure_filled=False
 
         if sampleflow_name is not None:
             sampleflow = records[sampleflow_name].astype(float)
+            sampleflow_filled=False
             if (sampleflow.isna().all() and (fill_flowrate is not None)):
                 sampleflow = pd.Series(index = records.index, dtype=float)
                 sampleflow[:] = fill_flowrate
+                sampleflow_filled=True
         elif ((neg_sampleflow_name is not None) and (pos_sampleflow_name is not None)):
             neg_sampleflow = records[neg_sampleflow_name].astype(float)
             pos_sampleflow = records[pos_sampleflow_name].astype(float)
             sampleflow = neg_sampleflow + pos_sampleflow
+            sampleflow_filled=False
             if (sampleflow.isna().all() and (fill_flowrate is not None)):
                 sampleflow = pd.Series(index = records.index, dtype=float)
                 sampleflow[:] = fill_flowrate
+                sampleflow_filled=True
         elif fill_flowrate is not None:
             sampleflow = pd.Series(index = records.index, dtype=float)
             sampleflow[:] = fill_flowrate
+            sampleflow_filled=True
         else:
             sampleflow = None
+            sampleflow_filled=False
 
         # Convert from cm3/s to lpm
         if (np.nanmedian(sampleflow)>300):
@@ -448,7 +463,7 @@ def get_diagnostic_data(
         if sampleflow is not None:
             sampleflow = sampleflow.where(((sampleflow>=48.)&(sampleflow<=65.)),np.nan)
         
-        return temperature, pressure, sampleflow, dilution_flow
+        return temperature, pressure, sampleflow, dilution_flow, temperature_filled, pressure_filled, sampleflow_filled
 
 def bring_to_sealevel(
     spectra,
@@ -477,12 +492,12 @@ def correct_inlet_losses(
         return None
     else:
         throughput = af.tubeloss(
-            DP_STANDARD,
-            sampleflow.values*1.667e-5,
+            pd.Series(DP_STANDARD),
+            sampleflow,
             pipe_length,
-            temperature.values,
-            pressure.values)
-        spectra = spectra / throughput
+            temperature,
+            pressure)
+        spectra = spectra / throughput.values
         return spectra
 
 def wagner_ion_mode_correction(spectra):
@@ -587,6 +602,9 @@ def save_as_netcdf(
     negpar_flags,
     pospar_flags ,
     flag_explanations,
+    temp_data,
+    pres_data,
+    sampleflow_data,
     measurement_info):
     
     # If eveything is None, then save nothing
@@ -603,6 +621,7 @@ def save_as_netcdf(
                 time = spectra.index.values
                 LEN_TIME = len(time)
                 nan_data = np.nan*np.ones((LEN_TIME,LEN_DP))
+                nan_env_data = np.nan*np.ones(LEN_TIME)
                 break
 
         ds = xr.Dataset()
@@ -648,6 +667,31 @@ def save_as_netcdf(
         
         ds.pos_particles.attrs["units"] = "cm-3"
         ds.pos_particles.attrs["description"] = "Positive particle number-size distribution (dN/dlogDp)"
+
+        # Add environmental sensor data
+        if temp_data is not None:
+            ds = ds.assign(temperature=(("time",), temp_data.values))   
+        else:
+            ds = ds.assign(temperature=(("time",), nan_env_data))
+
+        ds.temperature.attrs["units"] = "K"
+        ds.temperature.attrs["description"] = "Sample air temperature at the inlet"
+
+        if pres_data is not None:
+            ds = ds.assign(pressure=(("time",), pres_data.values))   
+        else:
+            ds = ds.assign(pressure=(("time",), nan_env_data))
+
+        ds.pressure.attrs["units"] = "Pa"
+        ds.pressure.attrs["description"] = "Sample air pressure at the inlet"
+
+        if sampleflow_data is not None:
+            ds = ds.assign(sample_flow=(("time",), sampleflow_data.values))   
+        else:
+            ds = ds.assign(sample_flow=(("time",), nan_env_data))
+
+        ds.sample_flow.attrs["units"] = "L/min"
+        ds.sample_flow.attrs["description"] = "Flow rate at the outlet"
 
         # Add flag explanations if they exist
         if flag_explanations is not None:
@@ -707,6 +751,7 @@ def nais_processor(config_file):
         database = config['database_file']
         location = config['measurement_location']
         description = config['description']
+        instrument_model = config['instrument_model']
         longitude = config["longitude"]
         latitude = config["latitude"]
         end_date = config['end_date']
@@ -748,6 +793,7 @@ def nais_processor(config_file):
     measurement_info = {
         'measurement_location':location,
         'description':description,
+        'instrument_model':instrument_model,
         'longitude':longitude,
         'latitude':latitude,
         'inlet_length':pipelength,
@@ -787,13 +833,9 @@ def nais_processor(config_file):
     # List existing dates based on if diagnostic file was found
     list_of_existing_dates = [x["timestamp"] for x in db.search(check.diagnostics.exists())]
 
-    if (len(list_of_existing_dates)==0):
-        print("Building database...")
-        list_of_datetimes = pd.date_range(start=start_date_str, end=end_date_str)
-    else:
-        last_existing_date = sorted(list_of_existing_dates)[-1]
-        list_of_datetimes = pd.date_range(start=last_existing_date, end=end_date_str)
-    
+    # Make a list of all dates in the range
+    list_of_datetimes = pd.date_range(start=start_date_str, end=end_date_str)
+
     # Add unprocessed datafiles to the database
     for x in list_of_datetimes:
         if (x.strftime("%Y%m%d") in list_of_existing_dates):
@@ -846,8 +888,9 @@ def nais_processor(config_file):
 
     if allow_reprocess:
         database_iterator = iter(db.search(
-            (check.diagnostics.exists() &
+            ((check.diagnostics.exists()) &
             (check.ions.exists() | check.particles.exists()) &
+            (~check.processed_file.exists()) &
             (check.timestamp>=start_date_str) &
             (check.timestamp<=end_date_str))))
     else:
@@ -882,10 +925,16 @@ def nais_processor(config_file):
 
             negion_datamatrix, posion_datamatrix = raw2sum(ions,"ions")
             negion_flags, posion_flags = flags2polarity(ion_flags, offset_flags, flag_explanations)
-            
+           
             # Get diagnostic data for corrections and conversions
-            if (convert_to_standard_conditions or do_inlet_loss_correction or dilution_on):
-                temperature_ion,pressure_ion,sampleflow_ion,dilution_flow_ion = get_diagnostic_data(
+            #if (convert_to_standard_conditions or do_inlet_loss_correction or dilution_on):
+            (temperature_ion,
+                pressure_ion,
+                sampleflow_ion,
+                dilution_flow_ion,
+                temperature_ion_filled,
+                pressure_ion_filled,
+                sampleflow_ion_filled) = get_diagnostic_data(
                     ion_records,
                     fill_pressure,
                     fill_temperature,
@@ -895,26 +944,30 @@ def nais_processor(config_file):
                 negion_datamatrix = bring_to_sealevel(
                     negion_datamatrix,
                     temperature_ion,
-                    pressure_ion)
+                    pressure_ion
+                    )
                 posion_datamatrix = bring_to_sealevel(
                     posion_datamatrix,
                     temperature_ion,
-                    pressure_ion)
-                
+                    pressure_ion
+                    )
+             
             if do_inlet_loss_correction:
                 negion_datamatrix = correct_inlet_losses(
                     negion_datamatrix,
                     pipelength,
                     temperature_ion,
                     pressure_ion,
-                    sampleflow_ion)
+                    sampleflow_ion
+                    )
                 posion_datamatrix = correct_inlet_losses(
                     posion_datamatrix,
                     pipelength,
                     temperature_ion,
                     pressure_ion,
-                    sampleflow_ion)
-                
+                    sampleflow_ion
+                    )
+            
             if do_wagner_ion_mode_correction:
                 negion_datamatrix = wagner_ion_mode_correction(negion_datamatrix)
                 posion_datamatrix = wagner_ion_mode_correction(posion_datamatrix)
@@ -934,9 +987,15 @@ def nais_processor(config_file):
             negpar_datamatrix, pospar_datamatrix = raw2sum(particles,"particles")
             negpar_flags, pospar_flags = flags2polarity(particle_flags, offset_flags, flag_explanations)
 
-            # Get diagnostic data for corrections and conversions
-            if (convert_to_standard_conditions or do_inlet_loss_correction or dilution_on):
-                temperature_particle,pressure_particle,sampleflow_particle,dilution_flow_particle = get_diagnostic_data(
+            ## Get diagnostic data for corrections and conversions
+            #if (convert_to_standard_conditions or do_inlet_loss_correction or dilution_on):
+            (temperature_particle,
+                pressure_particle,
+                sampleflow_particle,
+                dilution_flow_particle,
+                temperature_particle_filled,
+                pressure_particle_filled,
+                sampleflow_particle_filled) = get_diagnostic_data(
                     particle_records,
                     fill_pressure,
                     fill_temperature,
@@ -977,7 +1036,34 @@ def nais_processor(config_file):
         else:
             negpar_datamatrix, pospar_datamatrix = None, None
             negpar_flags, pospar_flags = None, None
-                
+
+        if ((ions_exist & (not temperature_ion_filled)) & (particles_exist & (not temperature_particle_filled))):
+            temperature_data = (temperature_ion + temperature_particle)/2.
+        elif (ions_exist & (not temperature_ion_filled)):
+            temperature_data = temperature_ion
+        elif (particles_exist & (not temperature_particle_filled)):
+            temperature_data = temperature_particle
+        else:
+            temperature_data = None
+
+        if ((ions_exist & (not pressure_ion_filled)) & (particles_exist & (not pressure_particle_filled))):
+            pressure_data = (pressure_ion + pressure_particle)/2.
+        elif (ions_exist & (not pressure_ion_filled)):
+            pressure_data = pressure_ion
+        elif (particles_exist & (not pressure_particle_filled)):
+            pressure_data = pressure_particle
+        else:
+            pressure_data = None
+
+        if ((ions_exist & (not sampleflow_ion_filled)) & (particles_exist & (not sampleflow_particle_filled))):
+            sampleflow_data = (sampleflow_ion + sampleflow_particle)/2.
+        elif (ions_exist & (not sampleflow_ion_filled)):
+            sampleflow_data = sampleflow_ion
+        elif (particles_exist & (not sampleflow_particle_filled)):
+            sampleflow_data = sampleflow_particle
+        else:
+            sampleflow_data = None
+
         my_save_path = os.path.join(save_path,"NAIS_"+x["timestamp"]+".nc")
         
         saved = save_as_netcdf(
@@ -991,6 +1077,9 @@ def nais_processor(config_file):
             negpar_flags,
             pospar_flags,
             flag_explanations,
+            temperature_data,
+            pressure_data,
+            sampleflow_data,
             measurement_info
         )
         

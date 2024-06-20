@@ -98,10 +98,31 @@ The netcdf files have the following structure:
 | pos_ion_flags      | time,flag     | int            |       | flag=1, no flag=0  |
 | neg_particle_flags | time,flag     | int            |       | flag=1, no flag=0  |
 | pos_particle_flags | time,flag     | int            |       | flag=1, no flag=0  |
+| temperature        | time          | float          | K     |                    |
+| pressure           | time          | float          | Pa    |                    |
+| sample_flow        | time          | float          | lpm   |                    |
 | **Attributes**     |               |                |       |                    |
 | Measurement info   |               | dictionary     |       |                    |
 
-Next we combine the previously created files into a single continuous dataset with 1 hour time resolution and only raise a flag if at least 50% of the data points inside the two hour window contain the flag. We save it as a netcdf file.
+Below are some examples of how to access the different variables in the netcdf file.
+```python
+import xarray as xr
+import pandas as pd
+
+# load the dataset
+ds = xr.open_dataset("/home/user/viikki/NAIS_20220928.nc")
+
+# Get negative ion number size distribution
+df_neg_ions = ds.neg_ions.to_pandas()
+
+# Get temperature
+df_temperature = ds.temperature.to_pandas()
+
+# Close the file
+ds.close()
+```
+
+Continuing on with the data analysis, next we combine the previously created files into a single continuous dataset with 1 hour time resolution and only raise a flag if at least 50% of the data points inside the two hour window contain the flag. We save it as a netcdf file.
 ```python
 from nais.utils import combine_data
 import pandas as pd
