@@ -41,6 +41,7 @@ Running this will create a configuration file template called `/home/user/viikki
 ```yaml
 measurement_location: Viikki, Helsinki, Finland
 description: Agricultural site
+instrument_model: NAIS-5-27
 longitude: 25.02
 latitude: 60.23
 data_folder:
