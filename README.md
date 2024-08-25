@@ -1,13 +1,14 @@
-![logo](https://github.com/jlpl/nais-processor/blob/master/docs/_static/logo.png?raw=true)
-
-# NAIS Processor
+# `nais-processor` package
 Code package to process [NAIS](https://www.airel.ee/products/nais/) (Neutral cluster and Air Ion Spectrometer, Airel Ltd.) data files.
 
+Latest version: 0.0.35
+
 ## Installation
+
+Install from GitHub using `pip`
 ```shell
-pip install nais-processor
+pip install git+https://github.com/jlpl/nais-processor.git
 ```
-You can find the package on [PyPI](https://pypi.org/project/nais-processor/).
 
 ## Documentation
 See [here](https://jlpl.github.io/nais-processor/)
@@ -29,7 +30,7 @@ The `nais.utils` module contains functions that allow one to do operations on th
 ### Checker
 The `nais.checker` module contains a GUI application with which one can visually inspect the nais ion/aerosol size distributions along with the flags and identify bad data by drawing a bounding box around it and saving the coordinates for later use.
 
-(Tested with Qt vers. 5.15.2)
+(Tested with Qt vers. 0.0.35)
 
 ## Example usage
 Use the `make_config_template()` method to create a configuration file template and fill it with necessary information. The configuration file is used at processing the data files.
