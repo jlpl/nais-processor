@@ -30,8 +30,6 @@ The `nais.utils` module contains functions that allow one to do operations on th
 ### Checker
 The `nais.checker` module contains a GUI application with which one can visually inspect the nais ion/aerosol size distributions along with the flags and identify bad data by drawing a bounding box around it and saving the coordinates for later use.
 
-(Tested with Qt vers. 0.0.35)
-
 ## Example usage
 Use the `make_config_template()` method to create a configuration file template and fill it with necessary information. The configuration file is used at processing the data files.
 ```python
