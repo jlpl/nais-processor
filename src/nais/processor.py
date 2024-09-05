@@ -880,7 +880,7 @@ def nais_processor(config_file):
                             preferred_path = load_path.pop(i)
                             load_path.insert(0,preferred_path)
 
-                        if (filename_formats[i]!=preferred_format):
+                        if (filename_formats[j]!=preferred_format):
                             preferred_format = filename_formats.pop(j)
                             filename_formats.insert(0,preferred_format)
 
