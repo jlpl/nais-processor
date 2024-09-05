@@ -10,6 +10,8 @@ Install from GitHub using `pip`
 pip install git+https://github.com/jlpl/nais-processor.git
 ```
 
+Installation of [`aerosol-functions`](https://github.com/jlpl/aerosol-functions) is required.
+
 ## Documentation
 See [here](https://jlpl.github.io/nais-processor/)
 

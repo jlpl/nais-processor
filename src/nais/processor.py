@@ -836,18 +836,21 @@ def nais_processor(config_file):
     # Make a list of all dates in the range
     list_of_datetimes = pd.date_range(start=start_date_str, end=end_date_str)
 
+    preferred_path = load_path[0]
+    preferred_format = filename_formats[0]
+
     # Add unprocessed datafiles to the database
     for x in list_of_datetimes:
         if (x.strftime("%Y%m%d") in list_of_existing_dates):
             continue
         else:
             files_found=False
-            for z in load_path:
-                for y in filename_formats:
+            for i in range(len(load_path)):
+                for j in range(len(filename_formats)):
 
-                    ion_filename = os.path.join(z,x.strftime(y[0]))
-                    particle_filename = os.path.join(z,x.strftime(y[1]))
-                    diagnostic_filename = os.path.join(z,x.strftime(y[2]))
+                    ion_filename = os.path.join(load_path[i],x.strftime(filename_formats[j][0]))
+                    particle_filename = os.path.join(load_path[i],x.strftime(filename_formats[j][1]))
+                    diagnostic_filename = os.path.join(load_path[i],x.strftime(filename_formats[j][2]))
 
                     if ( (os.path.exists(ion_filename) | # ions
                          os.path.exists(particle_filename)) & # particles
@@ -872,6 +875,17 @@ def nais_processor(config_file):
                                 check.timestamp==date_str)
 
                         files_found=True
+
+                        if (load_path[i]!=preferred_path):
+                            preferred_path = load_path.pop(i)
+                            load_path.insert(0,preferred_path)
+
+                        if (filename_formats[i]!=preferred_format):
+                            preferred_format = filename_formats.pop(j)
+                            filename_formats.insert(0,preferred_format)
+
+                        print(f"Added date {x.strftime('%Y%m%d')} to database")
+                        
                         break
 
                 if files_found:
