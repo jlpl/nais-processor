@@ -355,10 +355,10 @@ def get_data(records):
             (data_names["neg_mob_2_name"] is not None) and
             (data_names["neg_mob_3_name"] is not None)
             ):
-            neg_cluster_mob = -records[data_names["neg_cluster_mob_name"]].astype(float) # cm2/sV
-            neg_mob_1 = -records[data_names["neg_mob_1_name"]].astype(float) # cm2/sV
-            neg_mob_2 = -records[data_names["neg_mob_2_name"]].astype(float) # cm2/sV
-            neg_mob_3 = -records[data_names["neg_mob_3_name"]].astype(float) # cm2/sV
+            neg_cluster_mob = records[data_names["neg_cluster_mob_name"]].astype(float) # cm2/sV
+            neg_mob_1 = records[data_names["neg_mob_1_name"]].astype(float) # cm2/sV
+            neg_mob_2 = records[data_names["neg_mob_2_name"]].astype(float) # cm2/sV
+            neg_mob_3 = records[data_names["neg_mob_3_name"]].astype(float) # cm2/sV
         else:
             neg_cluster_mob = None
             neg_mob_1 = None
