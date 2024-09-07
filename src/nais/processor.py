@@ -374,7 +374,7 @@ def get_diagnostic_data(
     fill_flowrate):
 
     if records is None:
-        return None, None, None, None
+        return None, None, None, None, None, None, None
 
     else:        
         # Check that the relevant diagnostic data is found
