@@ -13,7 +13,7 @@ pip install git+https://github.com/jlpl/nais-processor.git
 Installation of [`aerosol-functions`](https://github.com/jlpl/aerosol-functions) is required.
 
 ## Documentation
-Documentation for this project can be found [here](https://jlpl.github.io/nais-processor/tutorial.html)
+Documentation for this project can be found [here](https://jlpl.github.io/nais-processor/)
 
 ## `nais` package
 
@@ -28,7 +28,7 @@ Utility tools to work with the processed files
 ### `nais.checker` module
 GUI tool to visually inspect the data together with error flags and define regions of bad data.
 
-## `cic` package´
+## `cic` package
 
 #### `cic.processor` module
 Generate similar netcdf data files from CIC data. Apply optional corrections and transforms.
