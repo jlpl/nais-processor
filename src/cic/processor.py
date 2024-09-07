@@ -370,7 +370,7 @@ def get_data(records):
             (data_names["pos_mob_2_name"] is not None) and
             (data_names["pos_mob_3_name"] is not None)
             ):
-            pos_cluster_mob = -records[data_names["pos_cluster_mob_name"]].astype(float) # cm2/sV
+            pos_cluster_mob = records[data_names["pos_cluster_mob_name"]].astype(float) # cm2/sV
             pos_mob_1 = records[data_names["pos_mob_1_name"]].astype(float) # cm2/sV
             pos_mob_2 = records[data_names["pos_mob_2_name"]].astype(float) # cm2/sV
             pos_mob_3 = records[data_names["pos_mob_3_name"]].astype(float) # cm2/sV
