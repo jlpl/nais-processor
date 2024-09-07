@@ -458,6 +458,9 @@ def get_data(records):
 
 def bring_to_sealevel(data):
 
+    if (data is None):
+        return None
+
     # Negative polarity
     if ((data["neg_cluster_conc"] is None) or 
         (data["neg_conc_1"] is None) or
@@ -499,8 +502,10 @@ def bring_to_sealevel(data):
 
 def correct_inlet_losses(data,pipe_length):
 
-    # Negative polarity
-    if ((data["neg_cluster_conc"] is None) or
+    if (data is None):
+        return None
+
+    elif ((data["neg_cluster_conc"] is None) or
         (data["neg_conc_1"] is None) or
         (data["neg_conc_2"] is None) or
         (data["neg_conc_3"] is None) or
@@ -627,9 +632,11 @@ def save_as_netcdf(
     posion_flags,
     flag_explanations,
     measurement_info):
-    
-    # If everything is None, then save nothing
-    if ((data["neg_cluster_conc"] is None) and
+
+
+    if (data is None):
+        return False    
+    elif ((data["neg_cluster_conc"] is None) and
         (data["neg_conc_1"] is None) and
         (data["neg_conc_2"] is None) and
         (data["neg_conc_3"] is None) and
@@ -640,8 +647,6 @@ def save_as_netcdf(
         ):
         return False
     else:    
-        # Something is not None so let's extract the time and
-        # generate the coords
         for spectra in [
             data["neg_cluster_conc"],
             data["neg_conc_1"],
