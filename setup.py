@@ -18,7 +18,7 @@ setup(
         "pyyaml >= 5.4.1",
         "xarray >= 2023.2.0",
         "tinydb >= 4.7.0",
-        "aerosol-functions >= 0.1.3",
+        "aerosol-functions >= 0.1.4",
 		"netcdf4 >= 1.6.2",
         "PyQt5 >= 5.15.7",
         "pyqtgraph >= 0.13.1",
