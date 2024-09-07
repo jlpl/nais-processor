@@ -5,11 +5,10 @@ with open("README.md","r") as fh:
 
 setup(
     name="nais-processor",
-    version = "0.0.35",
+    version = "0.1.0",
     description='Code to process ion spectrometer data files',
-    py_modules=["processor","utils","checker"],
     package_dir={'':'src'},
-    packages=['nais'], 
+    packages=['nais','cic'], 
     long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires = [
@@ -19,7 +18,7 @@ setup(
         "pyyaml >= 5.4.1",
         "xarray >= 2023.2.0",
         "tinydb >= 4.7.0",
-        "aerosol-functions >= 0.0.7",
+        "aerosol-functions >= 0.1.3",
 		"netcdf4 >= 1.6.2",
         "PyQt5 >= 5.15.7",
         "pyqtgraph >= 0.13.1",

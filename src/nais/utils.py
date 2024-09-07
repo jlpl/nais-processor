@@ -123,8 +123,19 @@ def combine_data(
         
         if os.path.isfile(filename_date):       
             ds = xr.open_dataset(filename_date)
-            ds_data = ds[["neg_ions","pos_ions","neg_particles","pos_particles"]]
-            ds_flags = ds[["neg_ion_flags","pos_ion_flags","neg_particle_flags","pos_particle_flags"]]
+
+            data_variables = []
+            flag_variables = []
+            for v in list(ds):
+                if ("_flags" in v): 
+                    flag_variables.append(v)
+                else:
+                    data_variables.append(v)
+            ds_data = ds[data_variables]
+            ds_flags = ds[flag_variables]
+
+            ds_data = ds[data_variables]
+            ds_flags = ds[flag_variables]
             ds_data_resampled = ds_data.resample({"time":time_reso}).median()
             ds_flags_resampled = xr.where(
                 ds_flags.resample({"time":time_reso}).mean()>flag_sensitivity,1,0

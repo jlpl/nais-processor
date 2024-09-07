@@ -1,0 +1,332 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>nais-processor tutorial &#8212; nais-processor 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/sphinx_highlight.js"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="cic package" href="cic.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="nais-processor-tutorial">
+<h1><code class="docutils literal notranslate"><span class="pre">nais-processor</span></code> tutorial<a class="headerlink" href="#nais-processor-tutorial" title="Permalink to this heading">¶</a></h1>
+<p>Use the <code class="docutils literal notranslate"><span class="pre">nais.processor.make_config_template()</span></code> method to create a configuration file template and fill it with necessary information. The configuration file is used at processing the data files.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nais.processor</span> <span class="kn">import</span> <span class="n">make_config_template</span>
+<span class="n">make_config_template</span><span class="p">(</span><span class="s2">&quot;/home/user/viikki.yml&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Running this will create a configuration file template called <code class="docutils literal notranslate"><span class="pre">/home/user/viikki.yml</span></code>. After filling in the information in the confguration file for our example measurement the file may look like this:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">measurement_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Viikki, Helsinki, Finland</span>
+<span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Agricultural site</span>
+<span class="nt">instrument_model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NAIS-5-27</span>
+<span class="nt">longitude</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">25.02</span>
+<span class="nt">latitude</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60.23</span>
+<span class="nt">data_folder</span><span class="p">:</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/home/user/data/2021</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/home/user/data/2022</span>
+<span class="nt">processed_folder</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/home/user/viikki</span>
+<span class="nt">database_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/home/user/viikki.json</span>
+<span class="nt">start_date</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2022-09-28</span>
+<span class="nt">end_date</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2022-09-30</span>
+<span class="nt">inlet_length</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<span class="nt">do_inlet_loss_correction</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">convert_to_standard_conditions</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">do_wagner_ion_mode_correction</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">remove_corona_ions</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">allow_reprocess</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="nt">redo_database</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="nt">fill_temperature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">273.15</span>
+<span class="nt">fill_pressure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">101325.0</span>
+<span class="nt">fill_flowrate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">54.0</span>
+<span class="nt">dilution_on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="nt">file_format</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">block</span>
+<span class="nt">resolution</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5min</span><span class="w"> </span>
+</pre></div>
+</div>
+<p>The following corrections are available</p>
+<ul class="simple">
+<li><p>Inlet loss correction (Gromley and Kennedy, 1948)</p></li>
+<li><p>Ion mode correction (Wagner et al. 2016)</p></li>
+<li><p>Conversion to standard conditions (293.15 K, 101325 Pa)</p></li>
+<li><p>Remove charger ion band from total particle data</p></li>
+<li><p>Use fill values in case of missing environmental sensor data</p></li>
+</ul>
+<p>Then process the data files by running <code class="docutils literal notranslate"><span class="pre">nais_processor()</span></code> method with the config file as the input argument.</p>
+<p>In our example case:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nais.processor</span> <span class="kn">import</span> <span class="n">nais_processor</span>
+<span class="n">nais_processor</span><span class="p">(</span><span class="s2">&quot;/home/user/viikki.yml&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Building database...
+Processing 20220928 (Viikki, Helsinki, Finland)
+Processing 20220929 (Viikki, Helsinki, Finland)
+Processing 20220930 (Viikki, Helsinki, Finland)
+Done!
+</pre></div>
+</div>
+<p>The code produces daily processed data files <code class="docutils literal notranslate"><span class="pre">NAIS_yyyymmdd.nc</span></code> (netCDF format). These files are saved in the destination given in the configuration file.</p>
+<p>The locations of raw and processed files for each day are written in the JSON formatted <code class="docutils literal notranslate"><span class="pre">database_file</span></code>. This prevents reprocessing when <code class="docutils literal notranslate"><span class="pre">allow_reprocess:</span> <span class="pre">false</span></code>.</p>
+<p>The netcdf files have the following structure:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Fields</p></th>
+<th class="head"><p>Dimensions</p></th>
+<th class="head"><p>Data type</p></th>
+<th class="head"><p>Units</p></th>
+<th class="head"><p>Comments</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Coordinates</strong></p></td>
+<td><p></p></td>
+<td><p></p></td>
+<td><p></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>time</p></td>
+<td><p>time</p></td>
+<td><p>datetime64[ns]</p></td>
+<td><p></p></td>
+<td><p>timezone: utc</p></td>
+</tr>
+<tr class="row-even"><td><p>diameter</p></td>
+<td><p>diameter</p></td>
+<td><p>float</p></td>
+<td><p>m</p></td>
+<td><p>particle diameter</p></td>
+</tr>
+<tr class="row-odd"><td><p>flag</p></td>
+<td><p>flag</p></td>
+<td><p>string</p></td>
+<td><p></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Data variables</strong></p></td>
+<td><p></p></td>
+<td><p></p></td>
+<td><p></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>neg_ions</p></td>
+<td><p>time,diameter</p></td>
+<td><p>float</p></td>
+<td><p>cm-3</p></td>
+<td><p>dN/dlogDp</p></td>
+</tr>
+<tr class="row-even"><td><p>pos_ions</p></td>
+<td><p>time,diameter</p></td>
+<td><p>float</p></td>
+<td><p>cm-3</p></td>
+<td><p>dN/dlogDp</p></td>
+</tr>
+<tr class="row-odd"><td><p>neg_particles</p></td>
+<td><p>time,diameter</p></td>
+<td><p>float</p></td>
+<td><p>cm-3</p></td>
+<td><p>dN/dlogDp</p></td>
+</tr>
+<tr class="row-even"><td><p>pos_particles</p></td>
+<td><p>time,diameter</p></td>
+<td><p>float</p></td>
+<td><p>cm-3</p></td>
+<td><p>dN/dlogDp</p></td>
+</tr>
+<tr class="row-odd"><td><p>neg_ion_flags</p></td>
+<td><p>time,flag</p></td>
+<td><p>int</p></td>
+<td><p></p></td>
+<td><p>flag=1, no flag=0</p></td>
+</tr>
+<tr class="row-even"><td><p>pos_ion_flags</p></td>
+<td><p>time,flag</p></td>
+<td><p>int</p></td>
+<td><p></p></td>
+<td><p>flag=1, no flag=0</p></td>
+</tr>
+<tr class="row-odd"><td><p>neg_particle_flags</p></td>
+<td><p>time,flag</p></td>
+<td><p>int</p></td>
+<td><p></p></td>
+<td><p>flag=1, no flag=0</p></td>
+</tr>
+<tr class="row-even"><td><p>pos_particle_flags</p></td>
+<td><p>time,flag</p></td>
+<td><p>int</p></td>
+<td><p></p></td>
+<td><p>flag=1, no flag=0</p></td>
+</tr>
+<tr class="row-odd"><td><p>temperature</p></td>
+<td><p>time</p></td>
+<td><p>float</p></td>
+<td><p>K</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>pressure</p></td>
+<td><p>time</p></td>
+<td><p>float</p></td>
+<td><p>Pa</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>sample_flow</p></td>
+<td><p>time</p></td>
+<td><p>float</p></td>
+<td><p>lpm</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Attributes</strong></p></td>
+<td><p></p></td>
+<td><p></p></td>
+<td><p></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p>Measurement info</p></td>
+<td><p></p></td>
+<td><p>dictionary</p></td>
+<td><p></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<p>Below are some examples of how to access the different variables in the netcdf file.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">xarray</span> <span class="k">as</span> <span class="nn">xr</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="c1"># load the dataset</span>
+<span class="n">ds</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="s2">&quot;/home/user/viikki/NAIS_20220928.nc&quot;</span><span class="p">)</span>
+
+<span class="c1"># Get negative ion number size distribution</span>
+<span class="n">df_neg_ions</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">neg_ions</span><span class="o">.</span><span class="n">to_pandas</span><span class="p">()</span>
+
+<span class="c1"># Get temperature</span>
+<span class="n">df_temperature</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">temperature</span><span class="o">.</span><span class="n">to_pandas</span><span class="p">()</span>
+
+<span class="c1"># Close the file</span>
+<span class="n">ds</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Continuing on with the data analysis, next we combine the previously created files into a single continuous dataset with 1 hour time resolution and only raise a flag if at least 50% of the data points inside the two hour window contain the flag. We save it as a netcdf file.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nais.utils</span> <span class="kn">import</span> <span class="n">combine_data</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">xarray</span> <span class="k">as</span> <span class="nn">xr</span>
+
+<span class="n">data_source</span> <span class="o">=</span> <span class="s2">&quot;/home/user/viikki&quot;</span>
+<span class="n">date_range</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="s2">&quot;2022-09-28&quot;</span><span class="p">,</span><span class="s2">&quot;2022-09-30&quot;</span><span class="p">)</span>
+
+<span class="n">ds</span> <span class="o">=</span> <span class="n">combine_data</span><span class="p">(</span><span class="n">data_source</span><span class="p">,</span> <span class="n">date_range</span><span class="p">,</span> <span class="s2">&quot;1H&quot;</span><span class="p">,</span>
+    <span class="n">flag_sensitivity</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+
+<span class="n">ds</span><span class="o">.</span><span class="n">to_netcdf</span><span class="p">(</span><span class="s2">&quot;combined_nais_dataset.nc&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Then we launch the data checker with the combined data in order to identify bad data. Bounding boxes can be drawn around bad data in the size distributions (initiate an adjustable box with double left click and remove from the menu opened by right clicking the box). By clicking the save boundaries button the box coordinates are saved to a netcdf file (filename given in the second argument). If the bounding boxes are saved, they will be reloaded when the checker is reopened with same arguments, so save your work regularly in case the program crashes.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nais.checker</span> <span class="kn">import</span> <span class="n">startNaisChecker</span>
+<span class="n">startNaisChecker</span><span class="p">(</span><span class="s2">&quot;combined_nais_dataset.nc&quot;</span><span class="p">,</span> <span class="s2">&quot;bad_data_bounds.nc&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>We can set the bad data to <code class="docutils literal notranslate"><span class="pre">NaN</span></code> in our combined file and use the resulting dataset as the starting point for further analysis.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nais.utils</span> <span class="kn">import</span> <span class="n">remove_bad_data</span>
+
+<span class="n">ds</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="s2">&quot;combined_nais_dataset.nc&quot;</span><span class="p">)</span>
+<span class="n">bad_data</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="s2">&quot;bad_data_bounds.nc&quot;</span><span class="p">)</span>
+<span class="n">ds</span> <span class="o">=</span> <span class="n">remove_bad_data</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">bad_data</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>References</strong></p>
+<p>Gormley P. G. and Kennedy M., Diffusion from a Stream Flowing through a Cylindrical Tube, Proceedings of the Royal Irish Academy. Section A: Mathematical and Physical Sciences, 52, (1948-1950), pp. 163-169.</p>
+<p>Wagner R., Manninen H.E., Franchin A., Lehtipalo K., Mirme S., Steiner G., Petäjä T. and Kulmala M., On the accuracy of ion measurements using a Neutral cluster and Air Ion Spectrometer, Boreal Environment Research, 21, (2016), pp. 230–241.</p>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="version">
+<center><img src="logo.png"></center>
+<center><a href="https://jlpl.github.io/nais-processor/">home</a></center>
+<center><a href="https://github.com/jlpl/nais-processor">github</a></center>
+<center>v. 0.1.0</center>
+</div><h3><a href="index.html"></a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="nais.html">nais package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="nais.html#module-nais.checker">nais.checker module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="nais.html#nais.checker.startNaisChecker"><code class="docutils literal notranslate"><span class="pre">startNaisChecker()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="nais.html#module-nais.processor">nais.processor module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="nais.html#nais.processor.make_config_template"><code class="docutils literal notranslate"><span class="pre">make_config_template()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="nais.html#nais.processor.nais_processor"><code class="docutils literal notranslate"><span class="pre">nais_processor()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="nais.html#module-nais.utils">nais.utils module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="nais.html#nais.utils.combine_data"><code class="docutils literal notranslate"><span class="pre">combine_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="nais.html#nais.utils.combine_databases"><code class="docutils literal notranslate"><span class="pre">combine_databases()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="nais.html#nais.utils.remove_bad_data"><code class="docutils literal notranslate"><span class="pre">remove_bad_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="nais.html#nais.utils.remove_flagged_rows"><code class="docutils literal notranslate"><span class="pre">remove_flagged_rows()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cic.html">cic package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="cic.html#module-cic.processor">cic.processor module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="cic.html#cic.processor.cic_processor"><code class="docutils literal notranslate"><span class="pre">cic_processor()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cic.html#cic.processor.make_cic_config_template"><code class="docutils literal notranslate"><span class="pre">make_cic_config_template()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="cic.html#module-cic.utils">cic.utils module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="cic.html#cic.utils.combine_data"><code class="docutils literal notranslate"><span class="pre">combine_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cic.html#cic.utils.remove_flagged_rows"><code class="docutils literal notranslate"><span class="pre">remove_flagged_rows()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#"><code class="docutils literal notranslate"><span class="pre">nais-processor</span></code> tutorial</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, jlpl.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="_sources/tutorial.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

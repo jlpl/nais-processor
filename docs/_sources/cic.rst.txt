@@ -1,0 +1,14 @@
+cic package
+===========
+
+cic.processor module
+-------------------------
+
+.. automodule:: cic.processor
+   :members:
+
+cic.utils module
+-------------------------
+
+.. automodule:: cic.utils
+   :members:
