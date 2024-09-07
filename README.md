@@ -17,7 +17,7 @@ Documentation for this project can be found [here](https://jlpl.github.io/nais-p
 
 ## `nais` package
 
-See [here](https://jlpl.github.io/nais-processor/) for a tutorial on data analysis work flow.
+See [here](https://jlpl.github.io/nais-processor/tutorial.html#) for a tutorial on data analysis work flow.
 
 ### `nais.processor` module
 Generate easy-to-handle netcdf data files from any NAIS instrument generation. Apply optional corrections and transforms.
