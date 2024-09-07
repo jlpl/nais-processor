@@ -373,97 +373,100 @@ def get_diagnostic_data(
     fill_temperature,
     fill_flowrate):
 
-    if records is None:
-        return None, None, None, None, None, None, None
-
-    else:        
-        # Check that the relevant diagnostic data is found
+    if records is not None:        
         (temperature_name,
-        pressure_name,
-        sampleflow_name,
-        pos_sampleflow_name,
-        neg_sampleflow_name,
-        dilution_flow_name) = find_diagnostic_names(list(records))
+            pressure_name,
+            sampleflow_name,
+            pos_sampleflow_name,
+            neg_sampleflow_name,
+            dilution_flow_name) = find_diagnostic_names(list(records))
+    else:
+        temperature_name = None
+        pressure_name = None
+        sampleflow_name = None
+        pos_sampleflow_name = None
+        neg_sampleflow_name = None
+        dilution_flow_name = None
 
-        if temperature_name is not None:
-            temperature = 273.15 + records[temperature_name].astype(float)
-            temperature_filled = False
-            # Values may be missing: e.g. sensor is broken
-            if (temperature.isna().all() and (fill_temperature is not None)):
-                temperature = pd.Series(index = records.index, dtype=float)
-                temperature[:] = fill_temperature
-                temperature_filled = True
-        elif fill_temperature is not None:
+    if temperature_name is not None:
+        temperature = 273.15 + records[temperature_name].astype(float)
+        temperature_filled = False
+        # Values may be missing: e.g. sensor is broken
+        if (temperature.isna().all() and (fill_temperature is not None)):
             temperature = pd.Series(index = records.index, dtype=float)
             temperature[:] = fill_temperature
             temperature_filled = True
-        else:
-            temperature = None
-            temperature_filled=False
+    elif fill_temperature is not None:
+        temperature = pd.Series(index = records.index, dtype=float)
+        temperature[:] = fill_temperature
+        temperature_filled = True
+    else:
+        temperature = None
+        temperature_filled=False
 
-        if pressure_name is not None:
-            pressure = 100.0 * records[pressure_name].astype(float)
-            pressure_filled = False
-            if (pressure.isna().all() and (fill_pressure is not None)):
-                pressure = pd.Series(index = pressure.index, dtype=float)
-                pressure[:] = fill_pressure
-                pressure_filled = True
-        elif fill_pressure is not None:
-            pressure = pd.Series(index = records.index, dtype=float)
+    if pressure_name is not None:
+        pressure = 100.0 * records[pressure_name].astype(float)
+        pressure_filled = False
+        if (pressure.isna().all() and (fill_pressure is not None)):
+            pressure = pd.Series(index = pressure.index, dtype=float)
             pressure[:] = fill_pressure
-            pressure_filled=True
-        else:
-            pressure = None
-            pressure_filled=False
+            pressure_filled = True
+    elif fill_pressure is not None:
+        pressure = pd.Series(index = records.index, dtype=float)
+        pressure[:] = fill_pressure
+        pressure_filled=True
+    else:
+        pressure = None
+        pressure_filled=False
 
-        if sampleflow_name is not None:
-            sampleflow = records[sampleflow_name].astype(float)
-            sampleflow_filled=False
-            if (sampleflow.isna().all() and (fill_flowrate is not None)):
-                sampleflow = pd.Series(index = records.index, dtype=float)
-                sampleflow[:] = fill_flowrate
-                sampleflow_filled=True
-        elif ((neg_sampleflow_name is not None) and (pos_sampleflow_name is not None)):
-            neg_sampleflow = records[neg_sampleflow_name].astype(float)
-            pos_sampleflow = records[pos_sampleflow_name].astype(float)
-            sampleflow = neg_sampleflow + pos_sampleflow
-            sampleflow_filled=False
-            if (sampleflow.isna().all() and (fill_flowrate is not None)):
-                sampleflow = pd.Series(index = records.index, dtype=float)
-                sampleflow[:] = fill_flowrate
-                sampleflow_filled=True
-        elif fill_flowrate is not None:
+    if sampleflow_name is not None:
+        sampleflow = records[sampleflow_name].astype(float)
+        sampleflow_filled=False
+        if (sampleflow.isna().all() and (fill_flowrate is not None)):
             sampleflow = pd.Series(index = records.index, dtype=float)
             sampleflow[:] = fill_flowrate
             sampleflow_filled=True
-        else:
-            sampleflow = None
-            sampleflow_filled=False
+    elif ((neg_sampleflow_name is not None) and (pos_sampleflow_name is not None)):
+        neg_sampleflow = records[neg_sampleflow_name].astype(float)
+        pos_sampleflow = records[pos_sampleflow_name].astype(float)
+        sampleflow = neg_sampleflow + pos_sampleflow
+        sampleflow_filled=False
+        if (sampleflow.isna().all() and (fill_flowrate is not None)):
+            sampleflow = pd.Series(index = records.index, dtype=float)
+            sampleflow[:] = fill_flowrate
+            sampleflow_filled=True
+    elif fill_flowrate is not None:
+        sampleflow = pd.Series(index = records.index, dtype=float)
+        sampleflow[:] = fill_flowrate
+        sampleflow_filled=True
+    else:
+        sampleflow = None
+        sampleflow_filled=False
 
-        # Convert from cm3/s to lpm
-        if (np.nanmedian(sampleflow)>300):
-            sampleflow = (sampleflow/1000.0) * 60.0
-        else:
-            pass
+    # Convert from cm3/s to lpm
+    if (np.nanmedian(sampleflow)>300):
+        sampleflow = (sampleflow/1000.0) * 60.0
+    else:
+        pass
 
-        if dilution_flow_name is not None:
-            dilution_flow = records[dilution_flow_name].astype(float)
-            if dilution_flow.isna().all():
-                dilution_flow = None
-        else:
+    if dilution_flow_name is not None:
+        dilution_flow = records[dilution_flow_name].astype(float)
+        if dilution_flow.isna().all():
             dilution_flow = None
+    else:
+        dilution_flow = None
 
-        # Sanity check the values
-        if temperature is not None:
-            temperature = temperature.where(((temperature>=223.)&(temperature<=353.)),np.nan)
-        
-        if pressure is not None:
-            pressure = pressure.where(((pressure>=37000.)&(pressure<=121000.)),np.nan)
-        
-        if sampleflow is not None:
-            sampleflow = sampleflow.where(((sampleflow>=48.)&(sampleflow<=65.)),np.nan)
-        
-        return temperature, pressure, sampleflow, dilution_flow, temperature_filled, pressure_filled, sampleflow_filled
+    # Sanity check the values
+    if temperature is not None:
+        temperature = temperature.where(((temperature>=223.)&(temperature<=353.)),np.nan)
+    
+    if pressure is not None:
+        pressure = pressure.where(((pressure>=37000.)&(pressure<=121000.)),np.nan)
+    
+    if sampleflow is not None:
+        sampleflow = sampleflow.where(((sampleflow>=48.)&(sampleflow<=65.)),np.nan)
+    
+    return temperature, pressure, sampleflow, dilution_flow, temperature_filled, pressure_filled, sampleflow_filled
 
 def bring_to_sealevel(
     spectra,
