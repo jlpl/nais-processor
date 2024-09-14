@@ -5,7 +5,7 @@ Use the `nais.processor.make_config_template()` method to create a configuration
 from nais.processor import make_config_template
 make_config_template("/home/user/viikki.yml")
 ```
-Running this will create a configuration file template called `/home/user/viikki.yml`. After filling in the information in the confguration file for our example measurement the file may look like this:
+Running the above commands will create a configuration file template in the file `/home/user/viikki.yml`. After filling in the information the configuration file may look like this: 
 ```yaml
 measurement_location: Viikki, Helsinki, Finland
 description: Agricultural site
@@ -26,9 +26,9 @@ do_wagner_ion_mode_correction: true
 remove_corona_ions: true
 allow_reprocess: false
 redo_database: false
-fill_temperature: 273.15
-fill_pressure: 101325.0
-fill_flowrate: 54.0
+fill_temperature: null
+fill_pressure: null
+fill_flowrate: null
 dilution_on: false
 file_format: block
 resolution: 5min 
@@ -41,23 +41,27 @@ The following corrections are available
   * Remove charger ion band from total particle data
   * Use fill values in case of missing environmental sensor data
 
-Then process the data files by running `nais_processor()` method with the config file as the input argument.
-
-In our example case:
+Then process the data files by running `nais_processor()`
 ```python
 from nais.processor import nais_processor
 nais_processor("/home/user/viikki.yml")
 ```
 ```
-Building database...
-Processing 20220928 (Viikki, Helsinki, Finland)
-Processing 20220929 (Viikki, Helsinki, Finland)
-Processing 20220930 (Viikki, Helsinki, Finland)
+Added 20220928 to database (Viikki, Helsinki, Finland) ...
+Added 20220928 to database (Viikki, Helsinki, Finland) ...
+Added 20220928 to database (Viikki, Helsinki, Finland) ...
+Processing 20220928 (Viikki, Helsinki, Finland) ...
+Processing 20220929 (Viikki, Helsinki, Finland) ...
+Processing 20220930 (Viikki, Helsinki, Finland) ...
 Done!
 ```
 The code produces daily processed data files `NAIS_yyyymmdd.nc` (netCDF format). These files are saved in the destination given in the configuration file.
 
-The locations of raw and processed files for each day are written in the JSON formatted `database_file`. This prevents reprocessing when `allow_reprocess: false`.
+The locations of raw and processed files for each day are written in the JSON formatted `database_file`. This database keeps track of the files and prevents reprocessing in a continuous measurement setting. 
+
+  * If `allow_reprocess: false` only files newer than the newest file in the database are processed.
+  * If `allow_reprocess: true` any unprocessed files in the time range are attempted to be processed.
+  * If you want everything to be reprocessed use `redo_database: true`
 
 The netcdf files have the following structure:
 | Fields             | Dimensions    | Data type      | Units | Comments           |
@@ -99,7 +103,7 @@ df_temperature = ds.temperature.to_pandas()
 ds.close()
 ```
 
-Continuing on with the data analysis, next we combine the previously created files into a single continuous dataset with 1 hour time resolution and only raise a flag if at least 50% of the data points inside the two hour window contain the flag. We save it as a netcdf file.
+Next we combine the previously created files into a single continuous dataset with 1 hour time resolution and only raise a flag if at least 50% of the data points inside the two hour window contain the flag. We save the result as a netcdf file.
 ```python
 from nais.utils import combine_data
 import pandas as pd
@@ -113,11 +117,17 @@ ds = combine_data(data_source, date_range, "1H",
 
 ds.to_netcdf("combined_nais_dataset.nc")
 ```
-Then we launch the data checker with the combined data in order to identify bad data. Bounding boxes can be drawn around bad data in the size distributions (initiate an adjustable box with double left click and remove from the menu opened by right clicking the box). By clicking the save boundaries button the box coordinates are saved to a netcdf file (filename given in the second argument). If the bounding boxes are saved, they will be reloaded when the checker is reopened with same arguments, so save your work regularly in case the program crashes.
+Then we launch the data checker with the combined data file in order to identify bad data. 
+
+  1. Bounding boxes can be drawn around bad data in the size distributions (initiate an adjustable box with double left click and remove it by right clicking on the box and choosing remove). 
+  2. By clicking the save boundaries button the box coordinates are saved to a netcdf file (filename given in the second argument). 
+  3. If the bounding boxes are saved, they will be reloaded when the checker is reopened with same arguments, so save your work regularly in case the program crashes.
+
 ```python
 from nais.checker import startNaisChecker
 startNaisChecker("combined_nais_dataset.nc", "bad_data_bounds.nc")
 ```
+
 We can set the bad data to `NaN` in our combined file and use the resulting dataset as the starting point for further analysis.
 ```python
 from nais.utils import remove_bad_data
@@ -129,6 +139,6 @@ ds = remove_bad_data(ds, bad_data)
 
 __References__
 
-Gormley P. G. and Kennedy M., Diffusion from a Stream Flowing through a Cylindrical Tube, Proceedings of the Royal Irish Academy. Section A: Mathematical and Physical Sciences, 52, (1948-1950), pp. 163-169.
+_Gormley P. G. and Kennedy M., Diffusion from a Stream Flowing through a Cylindrical Tube, Proceedings of the Royal Irish Academy. Section A: Mathematical and Physical Sciences, 52, (1948-1950), pp. 163-169._
 
-Wagner R., Manninen H.E., Franchin A., Lehtipalo K., Mirme S., Steiner G., Petäjä T. and Kulmala M., On the accuracy of ion measurements using a Neutral cluster and Air Ion Spectrometer, Boreal Environment Research, 21, (2016), pp. 230–241.
+_Wagner R., Manninen H.E., Franchin A., Lehtipalo K., Mirme S., Steiner G., Petäjä T. and Kulmala M., On the accuracy of ion measurements using a Neutral cluster and Air Ion Spectrometer, Boreal Environment Research, 21, (2016), pp. 230–241._

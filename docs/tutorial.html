@@ -39,7 +39,7 @@
 <span class="n">make_config_template</span><span class="p">(</span><span class="s2">&quot;/home/user/viikki.yml&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Running this will create a configuration file template called <code class="docutils literal notranslate"><span class="pre">/home/user/viikki.yml</span></code>. After filling in the information in the confguration file for our example measurement the file may look like this:</p>
+<p>Running the above commands will create a configuration file template in the file <code class="docutils literal notranslate"><span class="pre">/home/user/viikki.yml</span></code>. After filling in the information the configuration file may look like this:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">measurement_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Viikki, Helsinki, Finland</span>
 <span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Agricultural site</span>
 <span class="nt">instrument_model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NAIS-5-27</span>
@@ -59,9 +59,9 @@
 <span class="nt">remove_corona_ions</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="nt">allow_reprocess</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 <span class="nt">redo_database</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
-<span class="nt">fill_temperature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">273.15</span>
-<span class="nt">fill_pressure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">101325.0</span>
-<span class="nt">fill_flowrate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">54.0</span>
+<span class="nt">fill_temperature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<span class="nt">fill_pressure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<span class="nt">fill_flowrate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
 <span class="nt">dilution_on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 <span class="nt">file_format</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">block</span>
 <span class="nt">resolution</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5min</span><span class="w"> </span>
@@ -75,21 +75,27 @@
 <li><p>Remove charger ion band from total particle data</p></li>
 <li><p>Use fill values in case of missing environmental sensor data</p></li>
 </ul>
-<p>Then process the data files by running <code class="docutils literal notranslate"><span class="pre">nais_processor()</span></code> method with the config file as the input argument.</p>
-<p>In our example case:</p>
+<p>Then process the data files by running <code class="docutils literal notranslate"><span class="pre">nais_processor()</span></code></p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nais.processor</span> <span class="kn">import</span> <span class="n">nais_processor</span>
 <span class="n">nais_processor</span><span class="p">(</span><span class="s2">&quot;/home/user/viikki.yml&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Building database...
-Processing 20220928 (Viikki, Helsinki, Finland)
-Processing 20220929 (Viikki, Helsinki, Finland)
-Processing 20220930 (Viikki, Helsinki, Finland)
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Added 20220928 to database (Viikki, Helsinki, Finland) ...
+Added 20220928 to database (Viikki, Helsinki, Finland) ...
+Added 20220928 to database (Viikki, Helsinki, Finland) ...
+Processing 20220928 (Viikki, Helsinki, Finland) ...
+Processing 20220929 (Viikki, Helsinki, Finland) ...
+Processing 20220930 (Viikki, Helsinki, Finland) ...
 Done!
 </pre></div>
 </div>
 <p>The code produces daily processed data files <code class="docutils literal notranslate"><span class="pre">NAIS_yyyymmdd.nc</span></code> (netCDF format). These files are saved in the destination given in the configuration file.</p>
-<p>The locations of raw and processed files for each day are written in the JSON formatted <code class="docutils literal notranslate"><span class="pre">database_file</span></code>. This prevents reprocessing when <code class="docutils literal notranslate"><span class="pre">allow_reprocess:</span> <span class="pre">false</span></code>.</p>
+<p>The locations of raw and processed files for each day are written in the JSON formatted <code class="docutils literal notranslate"><span class="pre">database_file</span></code>. This database keeps track of the files and prevents reprocessing in a continuous measurement setting.</p>
+<ul class="simple">
+<li><p>If <code class="docutils literal notranslate"><span class="pre">allow_reprocess:</span> <span class="pre">false</span></code> only files newer than the newest file in the database are processed.</p></li>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">allow_reprocess:</span> <span class="pre">true</span></code> any unprocessed files in the time range are attempted to be processed.</p></li>
+<li><p>If you want everything to be reprocessed use <code class="docutils literal notranslate"><span class="pre">redo_database:</span> <span class="pre">true</span></code></p></li>
+</ul>
 <p>The netcdf files have the following structure:</p>
 <table class="docutils align-default">
 <thead>
@@ -228,7 +234,7 @@ Done!
 <span class="n">ds</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>Continuing on with the data analysis, next we combine the previously created files into a single continuous dataset with 1 hour time resolution and only raise a flag if at least 50% of the data points inside the two hour window contain the flag. We save it as a netcdf file.</p>
+<p>Next we combine the previously created files into a single continuous dataset with 1 hour time resolution and only raise a flag if at least 50% of the data points inside the two hour window contain the flag. We save the result as a netcdf file.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nais.utils</span> <span class="kn">import</span> <span class="n">combine_data</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">xarray</span> <span class="k">as</span> <span class="nn">xr</span>
@@ -242,7 +248,12 @@ Done!
 <span class="n">ds</span><span class="o">.</span><span class="n">to_netcdf</span><span class="p">(</span><span class="s2">&quot;combined_nais_dataset.nc&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Then we launch the data checker with the combined data in order to identify bad data. Bounding boxes can be drawn around bad data in the size distributions (initiate an adjustable box with double left click and remove from the menu opened by right clicking the box). By clicking the save boundaries button the box coordinates are saved to a netcdf file (filename given in the second argument). If the bounding boxes are saved, they will be reloaded when the checker is reopened with same arguments, so save your work regularly in case the program crashes.</p>
+<p>Then we launch the data checker with the combined data file in order to identify bad data.</p>
+<ol class="arabic simple">
+<li><p>Bounding boxes can be drawn around bad data in the size distributions (initiate an adjustable box with double left click and remove it by right clicking on the box and choosing remove).</p></li>
+<li><p>By clicking the save boundaries button the box coordinates are saved to a netcdf file (filename given in the second argument).</p></li>
+<li><p>If the bounding boxes are saved, they will be reloaded when the checker is reopened with same arguments, so save your work regularly in case the program crashes.</p></li>
+</ol>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nais.checker</span> <span class="kn">import</span> <span class="n">startNaisChecker</span>
 <span class="n">startNaisChecker</span><span class="p">(</span><span class="s2">&quot;combined_nais_dataset.nc&quot;</span><span class="p">,</span> <span class="s2">&quot;bad_data_bounds.nc&quot;</span><span class="p">)</span>
 </pre></div>
@@ -256,8 +267,8 @@ Done!
 </pre></div>
 </div>
 <p><strong>References</strong></p>
-<p>Gormley P. G. and Kennedy M., Diffusion from a Stream Flowing through a Cylindrical Tube, Proceedings of the Royal Irish Academy. Section A: Mathematical and Physical Sciences, 52, (1948-1950), pp. 163-169.</p>
-<p>Wagner R., Manninen H.E., Franchin A., Lehtipalo K., Mirme S., Steiner G., Petäjä T. and Kulmala M., On the accuracy of ion measurements using a Neutral cluster and Air Ion Spectrometer, Boreal Environment Research, 21, (2016), pp. 230–241.</p>
+<p><em>Gormley P. G. and Kennedy M., Diffusion from a Stream Flowing through a Cylindrical Tube, Proceedings of the Royal Irish Academy. Section A: Mathematical and Physical Sciences, 52, (1948-1950), pp. 163-169.</em></p>
+<p><em>Wagner R., Manninen H.E., Franchin A., Lehtipalo K., Mirme S., Steiner G., Petäjä T. and Kulmala M., On the accuracy of ion measurements using a Neutral cluster and Air Ion Spectrometer, Boreal Environment Research, 21, (2016), pp. 230–241.</em></p>
 </section>
 
 

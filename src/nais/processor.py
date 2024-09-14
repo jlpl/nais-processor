@@ -882,7 +882,7 @@ def nais_processor(config_file):
                             preferred_format = filename_formats.pop(j)
                             filename_formats.insert(0,preferred_format)
 
-                        print(f"Added date {x.strftime('%Y%m%d')} to database")
+                        print(f"Added {x.strftime('%Y%m%d')} to database ({location}) ...")
                         
                         break
 
@@ -915,7 +915,7 @@ def nais_processor(config_file):
 
     for x in database_iterator:
 
-        print("Processing %s (%s)" % (x["timestamp"], location))
+        print("Processing %s (%s) ..." % (x["timestamp"], location))
 
         ions_exist = bool(db.search(
             check.ions.exists() & (check.timestamp==x["timestamp"])))
