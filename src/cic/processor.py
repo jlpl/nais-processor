@@ -610,11 +610,11 @@ def flags2polarity(
             combined_idx = spectra_idx.join(offset_idx,how="outer")
                         
             # Message/flag only concerns positive polarity of the given spectrum
-            if ("+" in message):                
+            if ("EM R" in message):                
                 flags_pos_spectra.loc[combined_idx,message] = 1 
                                     
             # Message/flag only concerns negative polarity
-            elif ("−" in message):   
+            elif ("EM B" in message):   
                 flags_neg_spectra.loc[combined_idx,message] = 1
             
             # Message/flag concerns both polarities

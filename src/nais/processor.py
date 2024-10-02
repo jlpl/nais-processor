@@ -125,9 +125,9 @@ def make_config_template(file_name):
     with open(file_name,"w") as f:
         f.write("measurement_location: # Name of the measurement site\n")
         f.write("description: # Additional description of the measurement\n")
-        f.write("instrument_model: # e.g. NAIS-5-33")
-        f.write("longitude: # decimal degrees west/east = -/+ (float)\n")
-        f.write("latitude: # decimal degrees south/north = -/+ (float)\n")
+        f.write("instrument_model: # e.g. NAIS-5-33\n")
+        f.write("longitude: # decimal degrees west/east = -/+ (float) or null\n")
+        f.write("latitude: # decimal degrees south/north = -/+ (float) or null\n")
         f.write("data_folder: # Full paths to raw data folders\n")
         f.write("- # Data folder 1\n")
         f.write("- # Data folder 2, and so on...\n")
@@ -778,8 +778,8 @@ def nais_processor(config_file):
     assert isinstance(do_wagner_ion_mode_correction,bool)
     assert isinstance(do_inlet_loss_correction,bool)
     assert isinstance(pipelength,float)
-    assert isinstance(longitude,float)
-    assert isinstance(latitude,float)
+    assert (isinstance(longitude,float) or (longitude is None))
+    assert (isinstance(latitude,float) or (latitude is None))
     assert (isinstance(fill_temperature,float) or (fill_temperature is None))
     assert (isinstance(fill_pressure,float) or (fill_pressure is None))
     assert (isinstance(fill_flowrate,float) or (fill_flowrate is None))
@@ -792,8 +792,8 @@ def nais_processor(config_file):
         'measurement_location':location,
         'description':description,
         'instrument_model':instrument_model,
-        'longitude':longitude,
-        'latitude':latitude,
+        'longitude':str(longitude),
+        'latitude':str(latitude),
         'inlet_length':pipelength,
         'do_inlet_loss_correction':str(do_inlet_loss_correction),
         'convert_to_standard_conditions':str(convert_to_standard_conditions),
@@ -1051,39 +1051,50 @@ def nais_processor(config_file):
 
         if ((ion_records is not None) & 
             (particle_records is not None) & 
-            (ions_exist & (not temperature_ion_filled)) & 
-            (particles_exist & (not temperature_particle_filled))):
-            temperature_data = (temperature_ion + temperature_particle)/2.
-        elif ((ion_records is not None) & ions_exist & (not temperature_ion_filled)):
-            temperature_data = temperature_ion
-        elif ((particle_records is not None) & particles_exist & (not temperature_particle_filled)):
-            temperature_data = temperature_particle
+            ions_exist & 
+            particles_exist):
+                if ((not temperature_ion_filled) & (not temperature_particle_filled)): 
+                    temperature_data = (temperature_ion + temperature_particle)/2.
+        elif ((ion_records is not None) & ions_exist):
+            if (not temperature_ion_filled):
+                temperature_data = temperature_ion
+        elif ((particle_records is not None) & particles_exist):
+            if (not temperature_particle_filled):
+                temperature_data = temperature_particle
         else:
             temperature_data = None
 
-        if ((ion_records is not None) &
-            (particle_records is not None) &
-            (ions_exist & (not pressure_ion_filled)) & 
-            (particles_exist & (not pressure_particle_filled))):
-            pressure_data = (pressure_ion + pressure_particle)/2.
-        elif ((ion_records is not None) & (ions_exist & (not pressure_ion_filled))):
-            pressure_data = pressure_ion
-        elif ((particle_records is not None) & (particles_exist & (not pressure_particle_filled))):
-            pressure_data = pressure_particle
+        if ((ion_records is not None) & 
+            (particle_records is not None) & 
+            ions_exist & 
+            particles_exist):
+                if ((not pressure_ion_filled) & (not pressure_particle_filled)): 
+                    pressure_data = (pressure_ion + pressure_particle)/2.
+        elif ((ion_records is not None) & ions_exist):
+            if (not pressure_ion_filled):
+                pressure_data = pressure_ion
+        elif ((particle_records is not None) & particles_exist):
+            if (not pressure_particle_filled):
+                pressure_data = pressure_particle
         else:
             pressure_data = None
 
-        if ((ion_records is not None) &
-            (particle_records is not None) &
-            (ions_exist & (not sampleflow_ion_filled)) & 
-            (particles_exist & (not sampleflow_particle_filled))):
-            sampleflow_data = (sampleflow_ion + sampleflow_particle)/2.
-        elif ((ion_records is not None) & (ions_exist & (not sampleflow_ion_filled))):
-            sampleflow_data = sampleflow_ion
-        elif ((particle_records is not None) & (particles_exist & (not sampleflow_particle_filled))):
-            sampleflow_data = sampleflow_particle
+
+        if ((ion_records is not None) & 
+            (particle_records is not None) & 
+            ions_exist & 
+            particles_exist):
+                if ((not sampleflow_ion_filled) & (not sampleflow_particle_filled)): 
+                    sampleflow_data = (sampleflow_ion + sampleflow_particle)/2.
+        elif ((ion_records is not None) & ions_exist):
+            if (not sampleflow_ion_filled):
+                sampleflow_data = sampleflow_ion
+        elif ((particle_records is not None) & particles_exist):
+            if (not sampleflow_particle_filled):
+                sampleflow_data = sampleflow_particle
         else:
             sampleflow_data = None
+
 
         my_save_path = os.path.join(save_path,"NAIS_"+x["timestamp"]+".nc")
         
