@@ -162,26 +162,14 @@ def read_raw(file_name,timestamp,resolution_str):
         
         # Remove duplicate flags (may happen due to restarts)        
         flag_explanations = flag_explanations[~flag_explanations["message"].duplicated()]
-       
-        # Contruct the datetime index
-        # there can be timezone change
+      
+        # Check the timezone the file was created 
+        data_tz = pd.to_datetime(df[df.columns[0]].loc[0]).tz
 
-        begin_time = []
-        end_time = []
+        # Transform time strings to utc aware datetime objects
+        begin_time = pd.to_datetime(df[df.columns[0]].values, format="mixed", utc=True)
+        end_time = pd.to_datetime(df[df.columns[1]].values, format="mixed", utc=True)
 
-        for bt, et in zip(df[df.columns[0]], df[df.columns[1]]):
-            # Computer in utc time
-            data_tz = pd.to_datetime(bt).tz
-            if data_tz is None:
-                begin_time.append(pd.to_datetime(bt).tz_localize("UTC"))
-                end_time.append(pd.to_datetime(et).tz_localize("UTC"))
-            # Computer not in utc time
-            else:
-                begin_time.append(pd.to_datetime(bt).tz_convert("UTC"))
-                end_time.append(pd.to_datetime(et).tz_convert("UTC"))
-
-        begin_time = pd.DatetimeIndex(begin_time)
-        end_time = pd.DatetimeIndex(end_time)
         center_time = begin_time + (end_time - begin_time)/2.
         df.index = center_time
 
@@ -197,6 +185,7 @@ def read_raw(file_name,timestamp,resolution_str):
             standard_start_time = pd.to_datetime(timestamp).tz_localize('UTC')
         else:
             standard_start_time = pd.to_datetime(timestamp).tz_localize(data_tz).tz_convert("UTC")
+        
         standard_end_time = standard_start_time + pd.Timedelta(days=1)
         standard_time = pd.date_range(start=standard_start_time, end=standard_end_time, freq=resolution_str)
         
