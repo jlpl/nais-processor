@@ -110,6 +110,9 @@ DILUTION_FLOW_NAMES = [
 TEMP_REF = 293.15
 PRES_REF = 101325.0
 
+from nais import __version__
+version=__version__
+
 def make_config_template(file_name):
     """
     Make a configuration file template
@@ -148,6 +151,7 @@ def make_config_template(file_name):
         f.write("dilution_on: # true or false (is the integrated dilution system used)\n")
         f.write('file_format: # 1s, 10s or block\n')
         f.write('resolution: # processed data time resolution (pandas time offset string), e.g. 5min')
+
 
 def read_raw(file_name,file_type,timestamp,resolution_str):
     with open(file_name,'r') as f:
@@ -208,8 +212,8 @@ def read_raw(file_name,file_type,timestamp,resolution_str):
         data_tz = pd.to_datetime(df[df.columns[0]].loc[0]).tz
 
         # Transform time strings to utc aware datetime objects
-        begin_time = pd.to_datetime(df[df.columns[0]].values, format="mixed", utc=True)
-        end_time = pd.to_datetime(df[df.columns[1]].values, format="mixed", utc=True)
+        begin_time = pd.to_datetime(df[df.columns[0]].values, format="mixed", utc=True).tz_convert('UTC')
+        end_time = pd.to_datetime(df[df.columns[1]].values, format="mixed", utc=True).tz_convert('UTC')
 
         center_time = begin_time + (end_time - begin_time)/2.
         df.index = center_time
@@ -240,26 +244,43 @@ def read_raw(file_name,file_type,timestamp,resolution_str):
             offset_records_and_flags = df[df.opmode=='offset']
             
             if ion_records_and_flags.empty==False:
-                ion_records_and_flags = ion_records_and_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
                 ion_records = ion_records_and_flags.iloc[:,3:-1].apply(pd.to_numeric, errors='coerce').astype(float)
                 ion_flags = ion_records_and_flags.iloc[:,-1].fillna('').str.split("!",expand=True).fillna('')
+                
+                ion_records = ion_records.resample(resolution_str).median()
+                ion_flags = ion_flags.resample(resolution_str).apply(lambda col: ''.join(col))
+
+                ion_records = ion_records.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
+                ion_flags = ion_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
 
             else:
                 ion_records = None
                 ion_flags = None
                 
             if particle_records_and_flags.empty == False:
-                particle_records_and_flags = particle_records_and_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
                 particle_records = particle_records_and_flags.iloc[:,3:-1].apply(pd.to_numeric, errors='coerce').astype(float)
                 particle_flags = particle_records_and_flags.iloc[:,-1].fillna('').str.split("!",expand=True).fillna('')
+
+                particle_records = particle_records.resample(resolution_str).median()
+                particle_flags = particle_flags.resample(resolution_str).apply(lambda col: ''.join(col))
+
+                particle_records = particle_records.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
+                particle_flags = particle_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
+
             else:
                 particle_records = None
                 particle_flags = None
                 
             if offset_records_and_flags.empty==False:
-                offset_records_and_flags = offset_records_and_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
                 offset_records = offset_records_and_flags.iloc[:,3:-1].apply(pd.to_numeric, errors='coerce').astype(float)
                 offset_flags = offset_records_and_flags.iloc[:,-1].fillna('').str.split("!",expand=True).fillna('')
+
+                offset_records = offset_records.resample(resolution_str).median()
+                offset_flags = offset_flags.resample(resolution_str).apply(lambda col: ''.join(col))
+
+                offset_records = offset_records.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
+                offset_flags = offset_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
+
             else:
                 offset_records = None
                 offset_flags = None
@@ -271,6 +292,8 @@ def read_raw(file_name,file_type,timestamp,resolution_str):
         
         if file_type=="spectra":
             spectra = df.iloc[:,3:].apply(pd.to_numeric, errors='coerce').astype(float)
+
+            spectra = spectra.resample(resolution_str).median()
 
             spectra = spectra.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
              
@@ -791,7 +814,8 @@ def nais_processor(config_file):
         "fill_pressure":str(fill_pressure),
         "fill_flowrate":str(fill_flowrate),
         "dilution_on":str(dilution_on),
-        "resolution":resolution
+        "resolution":resolution,
+        "nais_processor_version":version
     }    
 
     end_date = date.today() if end_date=='' else end_date

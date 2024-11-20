@@ -77,6 +77,9 @@ POS_MOB_3_NAMES
 TEMP_REF = 293.15
 PRES_REF = 101325.0
 
+from cic import __version__
+version = __version__
+
 def make_cic_config_template(file_name):
     """  
     Make a configuration file template
@@ -913,7 +916,8 @@ def cic_processor(config_file):
         'inlet_length':pipelength,
         'do_inlet_loss_correction':str(do_inlet_loss_correction),
         'convert_to_standard_conditions':str(convert_to_standard_conditions),
-        "resolution":resolution
+        "resolution":resolution,
+        "nais_processor_version":version
     }    
 
     end_date = date.today() if end_date=='' else end_date
