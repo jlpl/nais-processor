@@ -170,8 +170,8 @@ def read_raw(file_name,timestamp,resolution_str):
         data_tz = pd.to_datetime(df[df.columns[0]].loc[0]).tz
 
         # Transform time strings to utc aware datetime objects
-        begin_time = pd.to_datetime(df[df.columns[0]].values, format="mixed", utc=True)
-        end_time = pd.to_datetime(df[df.columns[1]].values, format="mixed", utc=True)
+        begin_time = pd.to_datetime(df[df.columns[0]].values, format="mixed", utc=True).tz_convert("UTC")
+        end_time = pd.to_datetime(df[df.columns[1]].values, format="mixed", utc=True).tz_convert("UTC")
 
         center_time = begin_time + (end_time - begin_time)/2.
         df.index = center_time
@@ -917,7 +917,8 @@ def cic_processor(config_file):
         'do_inlet_loss_correction':str(do_inlet_loss_correction),
         'convert_to_standard_conditions':str(convert_to_standard_conditions),
         "resolution":resolution,
-        "nais_processor_version":version
+        "nais_processor_version":version,
+        "date_processed":date.today().strftime("%Y-%m-%d")
     }    
 
     end_date = date.today() if end_date=='' else end_date

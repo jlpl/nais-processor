@@ -815,7 +815,8 @@ def nais_processor(config_file):
         "fill_flowrate":str(fill_flowrate),
         "dilution_on":str(dilution_on),
         "resolution":resolution,
-        "nais_processor_version":version
+        "nais_processor_version":version,
+        "date_processed":date.today().strftime("%Y-%m-%d")
     }    
 
     end_date = date.today() if end_date=='' else end_date
