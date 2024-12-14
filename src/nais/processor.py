@@ -153,6 +153,67 @@ def make_config_template(file_name):
         f.write('resolution: # processed data time resolution (pandas time offset string), e.g. 5min')
 
 
+def check_config_file(config_file):
+    """ Check goodness of configuration file
+    
+    Parameters
+    ----------
+    
+    config_file : str
+        full path to configuration file
+
+    """
+
+    # Load configuration
+    with open(config_file,'r') as stream:
+        config = yaml.safe_load(stream)
+        
+        # Read in the configuration file
+        load_path = config['data_folder']
+        save_path = config['processed_folder']
+        start_date = config['start_date']
+        database = config['database_file']
+        location = config['measurement_location']
+        description = config['description']
+        instrument_model = config['instrument_model']
+        longitude = config["longitude"]
+        latitude = config["latitude"]
+        end_date = config['end_date']
+        allow_reprocess = config["allow_reprocess"]
+        redo_database = config["redo_database"]
+        pipelength = config['inlet_length']
+        do_inlet_loss_correction = config['do_inlet_loss_correction']
+        convert_to_standard_conditions = config['convert_to_standard_conditions']
+        do_wagner_ion_mode_correction = config["do_wagner_ion_mode_correction"]
+        remove_charger_ions = config["remove_corona_ions"]
+        file_format = config["file_format"]
+        resolution = config["resolution"]
+        fill_temperature = config["fill_temperature"]
+        fill_pressure = config["fill_pressure"]
+        fill_flowrate = config["fill_flowrate"]
+        dilution_on = config["dilution_on"]
+        
+    # Check the config file
+    assert isinstance(start_date,date)
+    assert (end_date=='' or isinstance(end_date,date))
+    assert os.path.exists(save_path)
+    assert all([os.path.exists(x) for x in load_path])
+    assert isinstance(allow_reprocess,bool)
+    assert isinstance(remove_charger_ions,bool)
+    assert isinstance(convert_to_standard_conditions,bool)
+    assert isinstance(do_wagner_ion_mode_correction,bool)
+    assert isinstance(do_inlet_loss_correction,bool)
+    assert isinstance(pipelength,float)
+    assert (isinstance(longitude,float) or (longitude is None))
+    assert (isinstance(latitude,float) or (latitude is None))
+    assert (isinstance(fill_temperature,float) or (fill_temperature is None))
+    assert (isinstance(fill_pressure,float) or (fill_pressure is None))
+    assert (isinstance(fill_flowrate,float) or (fill_flowrate is None))
+    assert isinstance(dilution_on,bool)
+    assert isinstance(redo_database,bool)
+    pd.tseries.frequencies.to_offset(resolution)
+
+
 def read_raw(file_name,file_type,timestamp,resolution_str):
     with open(file_name,'r') as f:
         header_found = False
