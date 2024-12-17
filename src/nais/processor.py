@@ -1063,6 +1063,9 @@ def nais_processor(config_file):
                 posion_datamatrix = dilution_correction(posion_datamatrix,dilution_flow_ion,sampleflow_ion)
 
         else:
+            temperature_ion = None
+            pressure_ion = None
+            sampleflow_ion = None
             negion_datamatrix, posion_datamatrix = None, None
             negion_flags, posion_flags = None, None
                     
@@ -1120,55 +1123,71 @@ def nais_processor(config_file):
                 pospar_datamatrix = dilution_correction(pospar_datamatrix,dilution_flow_particle,sampleflow_particle)
 
         else:
+            temperature_particle = None
+            pressure_particle = None
+            sampleflow_particle = None
             negpar_datamatrix, pospar_datamatrix = None, None
             negpar_flags, pospar_flags = None, None
 
-        if ((ion_records is not None) & 
-            (particle_records is not None) & 
-            ions_exist & 
-            particles_exist):
-                if ((not temperature_ion_filled) & (not temperature_particle_filled)): 
-                    temperature_data = (temperature_ion + temperature_particle)/2.
-        elif ((ion_records is not None) & ions_exist):
-            if (not temperature_ion_filled):
-                temperature_data = temperature_ion
-        elif ((particle_records is not None) & particles_exist):
-            if (not temperature_particle_filled):
+
+        # Both ion and particle data exists
+        if ((temperature_ion is not None) & (temperature_particle is not None)):
+            if ((not temperature_ion_filled) & (not temperature_particle_filled)): 
+                temperature_data = (temperature_ion + temperature_particle)/2.
+            elif (temperature_ion_filled & (not temperature_particle_filled)):
                 temperature_data = temperature_particle
+            elif ((not temperature_ion_filled) & temperature_particle_filled):
+                temperature_data = temperature_ion
+            else:
+                temperature_data = temperature_ion
+        # Only ion data exists
+        elif (temperature_ion is not None):
+            temperature_data = temperature_ion
+        # Only particle data exists
+        elif (temperature_particle is not None):
+            temperature_data = temperature_particle
         else:
             temperature_data = None
 
-        if ((ion_records is not None) & 
-            (particle_records is not None) & 
-            ions_exist & 
-            particles_exist):
-                if ((not pressure_ion_filled) & (not pressure_particle_filled)): 
-                    pressure_data = (pressure_ion + pressure_particle)/2.
-        elif ((ion_records is not None) & ions_exist):
-            if (not pressure_ion_filled):
-                pressure_data = pressure_ion
-        elif ((particle_records is not None) & particles_exist):
-            if (not pressure_particle_filled):
+
+        # Both ion and particle data exists
+        if ((pressure_ion is not None) & (pressure_particle is not None)):
+            if ((not pressure_ion_filled) & (not pressure_particle_filled)): 
+                pressure_data = (pressure_ion + pressure_particle)/2.
+            elif (pressure_ion_filled & (not pressure_particle_filled)):
                 pressure_data = pressure_particle
+            elif ((not pressure_ion_filled) & pressure_particle_filled):
+                pressure_data = pressure_ion
+            else:
+                pressure_data = pressure_ion
+        # Only ion data exists
+        elif (pressure_ion is not None):
+            pressure_data = pressure_ion
+        # Only particle data exists
+        elif (pressure_particle is not None):
+            pressure_data = pressure_particle
         else:
             pressure_data = None
 
 
-        if ((ion_records is not None) & 
-            (particle_records is not None) & 
-            ions_exist & 
-            particles_exist):
-                if ((not sampleflow_ion_filled) & (not sampleflow_particle_filled)): 
-                    sampleflow_data = (sampleflow_ion + sampleflow_particle)/2.
-        elif ((ion_records is not None) & ions_exist):
-            if (not sampleflow_ion_filled):
-                sampleflow_data = sampleflow_ion
-        elif ((particle_records is not None) & particles_exist):
-            if (not sampleflow_particle_filled):
+        # Both ion and particle data exists
+        if ((sampleflow_ion is not None) & (sampleflow_particle is not None)):
+            if ((not sampleflow_ion_filled) & (not sampleflow_particle_filled)): 
+                sampleflow_data = (sampleflow_ion + sampleflow_particle)/2.
+            elif (sampleflow_ion_filled & (not sampleflow_particle_filled)):
                 sampleflow_data = sampleflow_particle
+            elif ((not sampleflow_ion_filled) & sampleflow_particle_filled):
+                sampleflow_data = sampleflow_ion
+            else:
+                sampleflow_data = sampleflow_ion
+        # Only ion data exists
+        elif (sampleflow_ion is not None):
+            sampleflow_data = sampleflow_ion
+        # Only particle data exists
+        elif (sampleflow_particle is not None):
+            sampleflow_data = sampleflow_particle
         else:
             sampleflow_data = None
-
 
         my_save_path = os.path.join(save_path,"NAIS_"+x["timestamp"]+".nc")
         
