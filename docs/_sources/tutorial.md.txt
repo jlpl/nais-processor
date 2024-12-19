@@ -81,6 +81,7 @@ The netcdf files have the following structure:
 | pos_particle_flags | time,flag     | int            |       | flag=1, no flag=0  |
 | temperature        | time          | float          | K     |                    |
 | pressure           | time          | float          | Pa    |                    |
+| relhum             | time          | float          | %     |                    |
 | sample_flow        | time          | float          | lpm   |                    |
 | **Attributes**     |               |                |       |                    |
 | Measurement info   |               | dictionary     |       |                    |

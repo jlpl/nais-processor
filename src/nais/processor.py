@@ -103,6 +103,11 @@ PRESSURE_NAMES = [
 "baro.mean",
 "baro"]
 
+RELHUM_NAMES = [
+"relhum.mean",
+"relhum"
+]
+
 DILUTION_FLOW_NAMES = [
 "diluter_sample_flow_rate.mean",
 "diluter_flow.mean"]
@@ -406,6 +411,7 @@ def find_diagnostic_names(diag_params):
     pos_sampleflow_name=None
     temperature_name=None
     pressure_name=None
+    relhum_name=None
     dilution_flow_name=None
 
     for temp_name in TEMPERATURE_NAMES:
@@ -416,6 +422,11 @@ def find_diagnostic_names(diag_params):
     for pres_name in PRESSURE_NAMES:
         if pres_name in diag_params:
             pressure_name = pres_name
+            break
+
+    for rh_name in RELHUM_NAMES:
+        if rh_name in diag_params:
+            relhum_name = rh_name
             break
 
     for flow_name in TOTAL_SAMPLEFLOW_NAMES:
@@ -438,7 +449,7 @@ def find_diagnostic_names(diag_params):
             dilution_flow_name = dilflow_name 
             break
 
-    return temperature_name, pressure_name, sampleflow_name, pos_sampleflow_name, neg_sampleflow_name, dilution_flow_name
+    return temperature_name, pressure_name, sampleflow_name, pos_sampleflow_name, neg_sampleflow_name, dilution_flow_name, relhum_name
 
 def get_diagnostic_data(
     records,
@@ -454,7 +465,8 @@ def get_diagnostic_data(
             sampleflow_name,
             pos_sampleflow_name,
             neg_sampleflow_name,
-            dilution_flow_name) = find_diagnostic_names(list(records))
+            dilution_flow_name,
+            relhum_name) = find_diagnostic_names(list(records))
 
         if temperature_name is not None:
             temperature = 273.15 + records[temperature_name].astype(float)
@@ -486,7 +498,14 @@ def get_diagnostic_data(
         else:
             pressure = None
             pressure_filled=False
-    
+
+        if relhum_name is not None:
+            relhum = records[relhum_name].astype(float)
+            if (relhum.isna().all()):
+                relhum = None
+        else:
+            relhum = None
+
         if sampleflow_name is not None:
             sampleflow = records[sampleflow_name].astype(float)
             sampleflow_filled=False
@@ -534,7 +553,7 @@ def get_diagnostic_data(
         if sampleflow is not None:
             sampleflow = sampleflow.where(((sampleflow>=48.)&(sampleflow<=65.)),np.nan)
         
-        return temperature, pressure, sampleflow, dilution_flow, temperature_filled, pressure_filled, sampleflow_filled
+        return temperature, pressure, sampleflow, dilution_flow, relhum, temperature_filled, pressure_filled, sampleflow_filled
 
 def bring_to_sealevel(
     spectra,
@@ -675,6 +694,7 @@ def save_as_netcdf(
     flag_explanations,
     temp_data,
     pres_data,
+    rh_data,
     sampleflow_data,
     measurement_info):
     
@@ -755,6 +775,14 @@ def save_as_netcdf(
 
         ds.pressure.attrs["units"] = "Pa"
         ds.pressure.attrs["description"] = "Sample air pressure at the inlet"
+
+        if rh_data is not None:
+            ds = ds.assign(relhum=(("time",), rh_data.values))   
+        else:
+            ds = ds.assign(relhum=(("time",), nan_env_data))
+
+        ds.relhum.attrs["units"] = "%"
+        ds.relhum.attrs["description"] = "Sample air relative humidity at the inlet"
 
         if sampleflow_data is not None:
             ds = ds.assign(sample_flow=(("time",), sampleflow_data.values))   
@@ -1019,6 +1047,7 @@ def nais_processor(config_file):
                 pressure_ion,
                 sampleflow_ion,
                 dilution_flow_ion,
+                relhum_ion,
                 temperature_ion_filled,
                 pressure_ion_filled,
                 sampleflow_ion_filled) = get_diagnostic_data(
@@ -1062,11 +1091,12 @@ def nais_processor(config_file):
             if dilution_on:
                 negion_datamatrix = dilution_correction(negion_datamatrix,dilution_flow_ion,sampleflow_ion)
                 posion_datamatrix = dilution_correction(posion_datamatrix,dilution_flow_ion,sampleflow_ion)
-
+        
         else:
             temperature_ion = None
             pressure_ion = None
             sampleflow_ion = None
+            relhum_ion = None
             negion_datamatrix, posion_datamatrix = None, None
             negion_flags, posion_flags = None, None
                     
@@ -1083,6 +1113,7 @@ def nais_processor(config_file):
                 pressure_particle,
                 sampleflow_particle,
                 dilution_flow_particle,
+                relhum_particle,
                 temperature_particle_filled,
                 pressure_particle_filled,
                 sampleflow_particle_filled) = get_diagnostic_data(
@@ -1127,6 +1158,7 @@ def nais_processor(config_file):
             temperature_particle = None
             pressure_particle = None
             sampleflow_particle = None
+            relhum_particle = None
             negpar_datamatrix, pospar_datamatrix = None, None
             negpar_flags, pospar_flags = None, None
 
@@ -1170,6 +1202,18 @@ def nais_processor(config_file):
         else:
             pressure_data = None
 
+        # Both ion and particle data exists
+        if ((relhum_ion is not None) & (relhum_particle is not None)):
+            relhum_data = (relhum_ion + relhum_particle)/2.
+        # Only ion data exists
+        elif (relhum_ion is not None):
+            relhum_data = relhum_ion
+        # Only particle data exists
+        elif (relhum_particle is not None):
+            relhum_data = relhum_particle
+        else:
+            relhum_data = None
+
 
         # Both ion and particle data exists
         if ((sampleflow_ion is not None) & (sampleflow_particle is not None)):
@@ -1205,6 +1249,7 @@ def nais_processor(config_file):
             flag_explanations,
             temperature_data,
             pressure_data,
+            relhum_data,
             sampleflow_data,
             measurement_info
         )
