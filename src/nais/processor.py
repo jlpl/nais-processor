@@ -104,7 +104,8 @@ PRESSURE_NAMES = [
 "baro"]
 
 DILUTION_FLOW_NAMES = [
-"diluter_sample_flow_rate.mean"]
+"diluter_sample_flow_rate.mean",
+"diluter_flow.mean"]
 
 # Standard conditions
 TEMP_REF = 293.15
