@@ -97,11 +97,24 @@ ds = xr.open_dataset("/home/user/viikki/NAIS_20220928.nc")
 # Get negative ion number size distribution
 df_neg_ions = ds.neg_ions.to_pandas()
 
+# Get total particle number size distribution (positive polarity)
+df_pos_particles = ds.pos_particles.to_pandas()
+
 # Get temperature
 df_temperature = ds.temperature.to_pandas()
 
 # Close the file
 ds.close()
+```
+
+Next is an example how to calculate the number concentration in some size range
+```python
+import aerosol.functions as af
+
+dp_1 = 2.5e-9
+dp_2 = 5e-9
+
+conc = af.calc_conc_interp(df_pos_particles,dp_1,dp_2)
 ```
 
 Next we combine the previously created files into a single continuous dataset with 1 hour time resolution and only raise a flag if at least 50% of the data points inside the two hour window contain the flag. We save the result as a netcdf file.

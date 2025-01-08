@@ -233,11 +233,23 @@ Done!
 <span class="c1"># Get negative ion number size distribution</span>
 <span class="n">df_neg_ions</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">neg_ions</span><span class="o">.</span><span class="n">to_pandas</span><span class="p">()</span>
 
+<span class="c1"># Get total particle number size distribution (positive polarity)</span>
+<span class="n">df_pos_particles</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">pos_particles</span><span class="o">.</span><span class="n">to_pandas</span><span class="p">()</span>
+
 <span class="c1"># Get temperature</span>
 <span class="n">df_temperature</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">temperature</span><span class="o">.</span><span class="n">to_pandas</span><span class="p">()</span>
 
 <span class="c1"># Close the file</span>
 <span class="n">ds</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Next is an example how to calculate the number concentration in some size range</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">aerosol.functions</span> <span class="k">as</span> <span class="nn">af</span>
+
+<span class="n">dp_1</span> <span class="o">=</span> <span class="mf">2.5e-9</span>
+<span class="n">dp_2</span> <span class="o">=</span> <span class="mf">5e-9</span>
+
+<span class="n">conc</span> <span class="o">=</span> <span class="n">af</span><span class="o">.</span><span class="n">calc_conc_interp</span><span class="p">(</span><span class="n">df_pos_particles</span><span class="p">,</span><span class="n">dp_1</span><span class="p">,</span><span class="n">dp_2</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Next we combine the previously created files into a single continuous dataset with 1 hour time resolution and only raise a flag if at least 50% of the data points inside the two hour window contain the flag. We save the result as a netcdf file.</p>
