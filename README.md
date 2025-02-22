@@ -1,7 +1,7 @@
 # `nais-processor`
 This code project is designed to facilitate [NAIS](https://www.airel.ee/products/nais/) (Neutral cluster and Air Ion Spectrometer, Airel Ltd.) and [CIC](https://www.airel.ee/products/cic/) (Cluster Ion Counter, Airel Ltd.) data analysis.
 
-Latest version: 0.1.4
+Latest version: 0.1.5
 
 ## Installation
 

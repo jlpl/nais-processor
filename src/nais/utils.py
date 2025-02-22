@@ -83,8 +83,9 @@ def combine_databases(database_list, combined_database):
         json.dump({"_default":DB},f)
                
 def combine_data(
-    source_dir, 
-    date_range, 
+    files, 
+    start,
+    end, 
     time_reso, 
     flag_sensitivity=0.5):
     """
@@ -94,10 +95,12 @@ def combine_data(
     Parameters
     ----------
     
-    source_dir : str
-        Directory for NAIS datafiles    
-    date_range : pandas.DatetimeIndex
-        Range of dates for combining data        
+    files : list
+        List of NAIS data file paths    
+    start : str
+        start time
+    end : str
+        end time   
     time_reso : str
         A pandas date frequency string. See for all options here: 
         https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases
@@ -117,10 +120,12 @@ def combine_data(
     #assert pd.Timedelta(time_reso)>pd.Timedelta("5min")
     
     data_read = False
-    for date in date_range:
+    for f in files:
         
-        filename_date = os.path.join(source_dir,"NAIS_"+date.strftime("%Y%m%d")+".nc")
+        #filename_date = os.path.join(source_dir,"NAIS_"+date.strftime("%Y%m%d")+".nc")
         
+        filename_date = f
+
         if os.path.isfile(filename_date):       
             ds = xr.open_dataset(filename_date)
 
@@ -134,8 +139,15 @@ def combine_data(
             ds_data = ds[data_variables]
             ds_flags = ds[flag_variables]
 
-            ds_data = ds[data_variables]
-            ds_flags = ds[flag_variables]
+            # Sort and uniqueify
+            ds_data = ds_data.sortby("time")
+            unique_mask = ~pd.Index(ds_data.time.values).duplicated()
+            ds_data = ds_data.isel(time=unique_mask)
+    
+            ds_flags = ds_flags.sortby("time")
+            unique_mask = ~pd.Index(ds_flags.time.values).duplicated()
+            ds_flags = ds_flags.isel(time=unique_mask)
+
             ds_data_resampled = ds_data.resample({"time":time_reso}).median()
             ds_flags_resampled = xr.where(
                 ds_flags.resample({"time":time_reso}).mean()>flag_sensitivity,1,0
@@ -159,6 +171,15 @@ def combine_data(
                 )
 
     if data_read:
+        # Sort and uniqueify
+        ds_data_combined = ds_data_combined.sortby("time")
+        unique_mask = ~pd.Index(ds_data_combined.time.values).duplicated()
+        ds_data_combined = ds_data_combined.isel(time=unique_mask)
+
+        ds_flags_combined = ds_flags_combined.sortby("time")
+        unique_mask = ~pd.Index(ds_flags_combined.time.values).duplicated()
+        ds_flags_combined = ds_flags_combined.isel(time=unique_mask)
+
         ds_data_combined_resampled = ds_data_combined.resample({"time":time_reso}).median()
         ds_flags_combined_resampled = xr.where(
             ds_flags_combined.resample({"time":time_reso}).mean()>flag_sensitivity,1,0
@@ -167,7 +188,7 @@ def combine_data(
         # Combine the two data frames
         ds_data_and_flags =  xr.merge((ds_data_combined_resampled,ds_flags_combined_resampled))
         
-        idx_final=pd.date_range(date_range[0],date_range[-1],freq=time_reso)
+        idx_final=pd.date_range(start,end,freq=time_reso)
         ds_final=ds_data_and_flags.reindex(
             indexers={"time":idx_final.values}, 
             method="nearest",
