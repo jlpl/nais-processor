@@ -256,11 +256,15 @@ Done!
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nais.utils</span> <span class="kn">import</span> <span class="n">combine_data</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">xarray</span> <span class="k">as</span> <span class="nn">xr</span>
+<span class="kn">import</span> <span class="nn">os</span>
 
 <span class="n">data_source</span> <span class="o">=</span> <span class="s2">&quot;/home/user/viikki&quot;</span>
-<span class="n">date_range</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="s2">&quot;2022-09-28&quot;</span><span class="p">,</span><span class="s2">&quot;2022-09-30&quot;</span><span class="p">)</span>
+<span class="n">data_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_source</span><span class="p">,</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> 
+    <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">data_source</span><span class="p">)</span> <span class="k">if</span> <span class="s2">&quot;nc&quot;</span> <span class="ow">in</span> <span class="n">f</span><span class="p">]</span>
+<span class="n">date_start</span> <span class="o">=</span> <span class="s2">&quot;2022-09-28&quot;</span>
+<span class="n">date_end</span> <span class="o">=</span> <span class="s2">&quot;2022-09-30&quot;</span>
 
-<span class="n">ds</span> <span class="o">=</span> <span class="n">combine_data</span><span class="p">(</span><span class="n">data_source</span><span class="p">,</span> <span class="n">date_range</span><span class="p">,</span> <span class="s2">&quot;1H&quot;</span><span class="p">,</span>
+<span class="n">ds</span> <span class="o">=</span> <span class="n">combine_data</span><span class="p">(</span><span class="n">data_source</span><span class="p">,</span> <span class="n">date_start</span><span class="p">,</span> <span class="n">date_end</span><span class="p">,</span> <span class="s2">&quot;1h&quot;</span><span class="p">,</span>
     <span class="n">flag_sensitivity</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
 
 <span class="n">ds</span><span class="o">.</span><span class="n">to_netcdf</span><span class="p">(</span><span class="s2">&quot;combined_nais_dataset.nc&quot;</span><span class="p">)</span>

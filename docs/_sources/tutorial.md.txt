@@ -122,11 +122,15 @@ Next we combine the previously created files into a single continuous dataset wi
 from nais.utils import combine_data
 import pandas as pd
 import xarray as xr
+import os
 
 data_source = "/home/user/viikki"
-date_range = pd.date_range("2022-09-28","2022-09-30")
+data_files = [os.path.join(data_source,f) for f 
+    in os.listdir(data_source) if "nc" in f]
+date_start = "2022-09-28"
+date_end = "2022-09-30"
 
-ds = combine_data(data_source, date_range, "1H",
+ds = combine_data(data_source, date_start, date_end, "1h",
     flag_sensitivity=0.5)
 
 ds.to_netcdf("combined_nais_dataset.nc")

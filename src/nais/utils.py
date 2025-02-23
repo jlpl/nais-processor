@@ -280,4 +280,3 @@ def remove_bad_data(ds,bad_data):
     ds_checked.assign(pos_particles=(("time","diameter"),pos_particles_checked.values))
     
     return ds_checked
-

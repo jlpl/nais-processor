@@ -458,7 +458,7 @@ def get_diagnostic_data(
     fill_flowrate):
 
     if records is None:
-        return None, None, None, None, False, False, False
+        return None, None, None, None, None, False, False, False
     else:
         (temperature_name,
             pressure_name,
