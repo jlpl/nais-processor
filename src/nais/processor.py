@@ -897,8 +897,6 @@ def nais_processor(config_file):
         'id':ide,
         'description':description,
         'instrument_model':instrument_model,
-        'start_date': start_date.strftime("%Y-%m-%d"),
-        'end_date': str(end_date) if end_date is None else end_date.strftime("%Y-%m-%d"),
         'longitude':str(longitude),
         'latitude':str(latitude),
         'inlet_length':pipelength,

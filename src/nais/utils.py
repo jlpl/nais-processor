@@ -126,8 +126,6 @@ def combine_data(
     
     data_read = False
 
-    meas_info_list = []
-
     for f in files:
         
         #filename_date = os.path.join(source_dir,"NAIS_"+date.strftime("%Y%m%d")+".nc")
@@ -146,9 +144,6 @@ def combine_data(
                     data_variables.append(v)
             ds_data = ds[data_variables]
             ds_flags = ds[flag_variables]
-
-            # Read the attribute dictionary
-            ds_attrs = ds.attrs
 
             # Sort and uniqueify
             ds_data = ds_data.sortby("time")
@@ -169,7 +164,6 @@ def combine_data(
             if data_read==False:
                 ds_data_combined = ds_data_resampled
                 ds_flags_combined = ds_flags_resampled
-                meas_info_list.append(ds_attrs)
                 data_read = True
             else:
                 ds_data_combined = xr.concat(
@@ -181,14 +175,6 @@ def combine_data(
                     dim="time",
                     fill_value=0
                 )
-
-                meas_info_exist = False
-                for m in meas_info_list:
-                    if m==ds_attrs:
-                        meas_info_exist=True
-                if not meas_info_exist:
-                    meas_info_list.append(ds_attrs)
-
 
     if data_read:
         # Sort and uniqueify
@@ -215,12 +201,7 @@ def combine_data(
             tolerance=time_reso
         )
 
-        # Process the measurement info and put it into the attrs
-        meas_info = {}
-        for i,elem in enumerate(meas_info_list):
-            meas_info[i] = elem
-
-        ds_final.attrs = meas_info
+        ds_final.attrs = {}
         
         return ds_final
     
@@ -329,8 +310,6 @@ def rewrite_metadata(files, config):
         # Read in the configuration file
         location = config['measurement_location']
         ide = config["id"]
-        start_date = config["start_date"]
-        end_date = config["end_date"]
         description = config['description']
         instrument_model = config['instrument_model']
         longitude = config["longitude"]
@@ -348,8 +327,6 @@ def rewrite_metadata(files, config):
      
     # Check that the values make sense
     assert isinstance(remove_charger_ions,bool)
-    assert isinstance(start_date,date)
-    assert ((end_date is None) or isinstance(end_date,date))
     assert isinstance(convert_to_standard_conditions,bool)
     assert isinstance(do_wagner_ion_mode_correction,bool)
     assert isinstance(do_inlet_loss_correction,bool)
@@ -366,8 +343,6 @@ def rewrite_metadata(files, config):
     new_measurement_info = {
         'measurement_location':location,
         'id':ide,
-        'end_date': str(end_date) if end_date is None else end_date.strftime("%Y-%m-%d"),
-        'start_date': start_date.strftime("%Y-%m-%d"),
         'description':description,
         'instrument_model':instrument_model,
         'longitude':str(longitude),
