@@ -20,6 +20,11 @@ import aerosol.functions as af
 from scipy.interpolate import interp1d
 import xarray as xr
 
+
+from nais import __version__
+version=__version__
+
+
 def remove_flagged_rows(ds,flag):
     """
     Set data associated with given flag as NaN
@@ -280,3 +285,83 @@ def remove_bad_data(ds,bad_data):
     ds_checked.assign(pos_particles=(("time","diameter"),pos_particles_checked.values))
     
     return ds_checked
+
+def rewrite_metadata(files, config):
+    """
+    Rewrite metadata in netcdf file
+
+    Parameters
+    ----------
+
+    files : list of strings
+        List of the netcdf files 
+    config : string
+        The name of the config file with updated info
+
+    """
+
+    # Load configuration
+    with open(config,'r') as stream:
+        config = yaml.safe_load(stream)
+     
+        # Read in the configuration file
+        location = config['measurement_location']
+        ide = config["id"]
+        description = config['description']
+        instrument_model = config['instrument_model']
+        longitude = config["longitude"]
+        latitude = config["latitude"]
+        pipelength = config['inlet_length']
+        do_inlet_loss_correction = config['do_inlet_loss_correction']
+        convert_to_standard_conditions = config['convert_to_standard_conditions']
+        do_wagner_ion_mode_correction = config["do_wagner_ion_mode_correction"]
+        remove_charger_ions = config["remove_corona_ions"]
+        resolution = config["resolution"]
+        fill_temperature = config["fill_temperature"]
+        fill_pressure = config["fill_pressure"]
+        fill_flowrate = config["fill_flowrate"]
+        dilution_on = config["dilution_on"]
+     
+    # Check that the values make sense
+    assert isinstance(remove_charger_ions,bool)
+    assert isinstance(convert_to_standard_conditions,bool)
+    assert isinstance(do_wagner_ion_mode_correction,bool)
+    assert isinstance(do_inlet_loss_correction,bool)
+    assert isinstance(pipelength,float)
+    assert (isinstance(longitude,float) or (longitude is None))
+    assert (isinstance(latitude,float) or (latitude is None))
+    assert (isinstance(fill_temperature,float) or (fill_temperature is None))
+    assert (isinstance(fill_pressure,float) or (fill_pressure is None))
+    assert (isinstance(fill_flowrate,float) or (fill_flowrate is None))
+    assert isinstance(dilution_on,bool)
+    pd.tseries.frequencies.to_offset(resolution)
+
+    # Extract relevant info for metadata from the config
+    new_measurement_info = {
+        'measurement_location':location,
+        'id':ide,
+        'description':description,
+        'instrument_model':instrument_model,
+        'longitude':str(longitude),
+        'latitude':str(latitude),
+        'inlet_length':pipelength,
+        'do_inlet_loss_correction':str(do_inlet_loss_correction),
+        'convert_to_standard_conditions':str(convert_to_standard_conditions),
+        "do_wagner_ion_mode_correction":str(do_wagner_ion_mode_correction),
+        "remove_corona_ions":str(remove_charger_ions),
+        "fill_temperature":str(fill_temperature),
+        "fill_pressure":str(fill_pressure),
+        "fill_flowrate":str(fill_flowrate),
+        "dilution_on":str(dilution_on),
+        "resolution":resolution,
+    }
+
+    for f in files:
+        if os.path.isfile(f):   
+            print("Updating metadata for:", f)    
+            ds = xr.open_dataset(f)
+            ds.attrs.update(new_measurement_info)
+            temp_file = os.path.join(os.path.split(f)[0],"temp.nc")
+            ds.to_netcdf(temp_file)
+            ds.close()
+            os.replace(temp_file,f)

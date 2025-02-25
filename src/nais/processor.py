@@ -133,6 +133,7 @@ def make_config_template(file_name):
     
     with open(file_name,"w") as f:
         f.write("measurement_location: # Name of the measurement site\n")
+        f.write("id: # short id that identifies the measurement\n")
         f.write("description: # Additional description of the measurement\n")
         f.write("instrument_model: # e.g. NAIS-5-33\n")
         f.write("longitude: # decimal degrees west/east = -/+ (float) or null\n")
@@ -181,6 +182,7 @@ def check_config_file(config_file):
         database = config['database_file']
         location = config['measurement_location']
         description = config['description']
+        ide = config["id"]
         instrument_model = config['instrument_model']
         longitude = config["longitude"]
         latitude = config["latitude"]
@@ -845,6 +847,7 @@ def nais_processor(config_file):
         
         # Read in the configuration file
         load_path = config['data_folder']
+        ide = config["id"]
         save_path = config['processed_folder']
         start_date = config['start_date']
         database = config['database_file']
@@ -891,6 +894,7 @@ def nais_processor(config_file):
     # Extract relevant info for metadata from the config
     measurement_info = {
         'measurement_location':location,
+        'id':ide,
         'description':description,
         'instrument_model':instrument_model,
         'longitude':str(longitude),
