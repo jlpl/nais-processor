@@ -144,7 +144,7 @@ def make_config_template(file_name):
         f.write("processed_folder: # Full path to folder where procesed data is saved\n")
         f.write("database_file: # Full path to database file (will be created on first run)\n")
         f.write("start_date: # Format: yyyy-mm-dd\n")
-        f.write("end_date: # Format: yyyy-mm-dd or '' for current day\n")
+        f.write("end_date: # Format: yyyy-mm-dd or null for current day\n")
         f.write("inlet_length: # length of inlet in meters (float)\n")
         f.write("do_inlet_loss_correction: # true or false\n")
         f.write("convert_to_standard_conditions: # true or false\n")
@@ -203,7 +203,7 @@ def check_config_file(config_file):
         
     # Check the config file
     assert isinstance(start_date,date)
-    assert (end_date=='' or isinstance(end_date,date))
+    assert ((end_date is None) or isinstance(end_date,date))
     assert os.path.exists(save_path)
     assert all([os.path.exists(x) for x in load_path])
     assert isinstance(allow_reprocess,bool)
@@ -873,7 +873,7 @@ def nais_processor(config_file):
         
     # Check the config file
     assert isinstance(start_date,date)
-    assert (end_date=='' or isinstance(end_date,date))
+    assert ((end_date is None) or isinstance(end_date,date))
     assert os.path.exists(save_path)
     assert all([os.path.exists(x) for x in load_path])
     assert isinstance(allow_reprocess,bool)
@@ -897,6 +897,8 @@ def nais_processor(config_file):
         'id':ide,
         'description':description,
         'instrument_model':instrument_model,
+        'start_date': start_date.strftime("%Y-%m-%d"),
+        'end_date': str(end_date) if end_date is None else end_date.strftime("%Y-%m-%d"),
         'longitude':str(longitude),
         'latitude':str(latitude),
         'inlet_length':pipelength,
@@ -913,7 +915,7 @@ def nais_processor(config_file):
         "date_processed":date.today().strftime("%Y-%m-%d")
     }    
 
-    end_date = date.today() if end_date=='' else end_date
+    end_date = date.today() if end_date is None else end_date
 
     if redo_database:
         try:
