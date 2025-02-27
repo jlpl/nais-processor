@@ -206,10 +206,11 @@ def combine_data(
         )
 
         ds_final.attrs = {
-            "meaasurement_location":place,
-            "id":place_id,
-            "longitude":lon,
-            "latitude":lat}
+            "measurement_location": place,
+            "id": place_id,
+            "longitude": lon,
+            "latitude": lat
+        }
         
         return ds_final
     
