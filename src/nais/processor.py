@@ -223,7 +223,7 @@ def check_config_file(config_file):
 
 
 def read_raw(file_name,file_type,timestamp,resolution_str):
-    with open(file_name,'r') as f:
+    with open(file_name,'r', encoding='utf-8') as f:
         header_found = False
         data_matrix = []
         flag_explanations = []

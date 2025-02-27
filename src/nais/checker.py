@@ -272,21 +272,39 @@ class NaisChecker(QWidget):
         self.ionScatter = pg.ScatterPlotItem()
         for i,flag in self.negIonFlagTicks:
             data = negIonFlags.sel(flag=flag)
-            self.ionScatter.addPoints(dts.date2num(data.time.values),data.values,pen=None, symbol='o', symbolSize=5, brush="b")
-        
+            try:
+                self.ionScatter.addPoints(dts.date2num(data.time.values),
+                    data.values,pen=None, symbol='o', symbolSize=5, brush="b")
+            except:
+                continue
+
         for i,flag in self.posIonFlagTicks:
             data = posIonFlags.sel(flag=flag)
-            self.ionScatter.addPoints(dts.date2num(data.time.values),data.values,pen=None, symbol='o', symbolSize=5, brush="r")
-        
+            try:
+                self.ionScatter.addPoints(dts.date2num(data.time.values),
+                    data.values,pen=None, symbol='o', symbolSize=5, brush="r")
+            except:
+                continue
+
+
         self.parScatter = pg.ScatterPlotItem()
         for i,flag in self.negParFlagTicks:
             data = negParFlags.sel(flag=flag)
-            self.parScatter.addPoints(dts.date2num(data.time.values),data.values,pen=None, symbol='o', symbolSize=5, brush="b")
-        
+            try:
+                self.parScatter.addPoints(dts.date2num(data.time.values),
+                    data.values,pen=None, symbol='o', symbolSize=5, brush="b")
+            except:
+                continue
+
+
         for i,flag in self.posParFlagTicks:
             data = posParFlags.sel(flag=flag)
-            self.parScatter.addPoints(dts.date2num(data.time.values),data.values,pen=None, symbol='o', symbolSize=5, brush="r")
-        
+            try:
+                self.parScatter.addPoints(dts.date2num(data.time.values),
+                    data.values,pen=None, symbol='o', symbolSize=5, brush="r")
+            except:
+                continue
+
     def addNegIonRoi(self,origin,size):
         roi = pg.RectROI(origin,size,removable=True)
         roi.sigRemoveRequested.connect(self.removeNegIonRoi)

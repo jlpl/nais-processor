@@ -8,6 +8,7 @@ make_config_template("/home/user/viikki.yml")
 Running the above commands will create a configuration file template in the file `/home/user/viikki.yml`. After filling in the information the configuration file may look like this: 
 ```yaml
 measurement_location: Viikki, Helsinki, Finland
+id: viikki
 description: Agricultural site
 instrument_model: NAIS-5-27
 longitude: 25.02
@@ -61,7 +62,7 @@ The locations of raw and processed files for each day are written in the JSON fo
 
   * If `allow_reprocess: false` only files newer than the newest file in the database are processed.
   * If `allow_reprocess: true` any unprocessed files in the time range are attempted to be processed.
-  * If you want everything to be reprocessed use `redo_database: true`
+  * If you want everything to be reprocessed use `redo_database: true` otherwise keep `redo_database: false`
 
 The netcdf files have the following structure:
 | Fields             | Dimensions    | Data type      | Units | Comments           |
@@ -126,7 +127,7 @@ import os
 
 data_source = "/home/user/viikki"
 data_files = [os.path.join(data_source,f) for f 
-    in os.listdir(data_source) if "nc" in f]
+    in os.listdir(data_source) if ".nc" in f]
 date_start = "2022-09-28"
 date_end = "2022-09-30"
 
