@@ -158,12 +158,16 @@ def combine_data(
             ds_flags_resampled = xr.where(
                 ds_flags.resample({"time":time_reso}).mean()>flag_sensitivity,1,0
             )
-            
+
             ds.close()
 
             if data_read==False:
                 ds_data_combined = ds_data_resampled
                 ds_flags_combined = ds_flags_resampled
+                place = ds.attrs["measurement_location"]
+                place_id = ds.attrs["id"]
+                lon = ds.attrs["longitude"]
+                lat = ds.attrs["latitude"]
                 data_read = True
             else:
                 ds_data_combined = xr.concat(
@@ -201,7 +205,11 @@ def combine_data(
             tolerance=time_reso
         )
 
-        ds_final.attrs = {}
+        ds_final.attrs = {
+            "meaasurement_location":place,
+            "id":place_id,
+            "longitude":lon,
+            "latitude":lat}
         
         return ds_final
     
