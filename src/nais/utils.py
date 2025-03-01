@@ -20,10 +20,8 @@ import aerosol.functions as af
 from scipy.interpolate import interp1d
 import xarray as xr
 
-
 from nais import __version__
 version=__version__
-
 
 def remove_flagged_rows(ds,flag):
     """
@@ -327,7 +325,7 @@ def rewrite_metadata(files, config):
         do_inlet_loss_correction = config['do_inlet_loss_correction']
         convert_to_standard_conditions = config['convert_to_standard_conditions']
         do_wagner_ion_mode_correction = config["do_wagner_ion_mode_correction"]
-        remove_charger_ions = config["remove_corona_ions"]
+        #remove_charger_ions = config["remove_corona_ions"]
         resolution = config["resolution"]
         fill_temperature = config["fill_temperature"]
         fill_pressure = config["fill_pressure"]
@@ -335,7 +333,7 @@ def rewrite_metadata(files, config):
         dilution_on = config["dilution_on"]
      
     # Check that the values make sense
-    assert isinstance(remove_charger_ions,bool)
+    #assert isinstance(remove_charger_ions,bool)
     assert isinstance(convert_to_standard_conditions,bool)
     assert isinstance(do_wagner_ion_mode_correction,bool)
     assert isinstance(do_inlet_loss_correction,bool)
@@ -360,7 +358,7 @@ def rewrite_metadata(files, config):
         'do_inlet_loss_correction':str(do_inlet_loss_correction),
         'convert_to_standard_conditions':str(convert_to_standard_conditions),
         "do_wagner_ion_mode_correction":str(do_wagner_ion_mode_correction),
-        "remove_corona_ions":str(remove_charger_ions),
+        #"remove_corona_ions":str(remove_charger_ions),
         "fill_temperature":str(fill_temperature),
         "fill_pressure":str(fill_pressure),
         "fill_flowrate":str(fill_flowrate),

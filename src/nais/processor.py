@@ -149,7 +149,6 @@ def make_config_template(file_name):
         f.write("do_inlet_loss_correction: # true or false\n")
         f.write("convert_to_standard_conditions: # true or false\n")
         f.write("do_wagner_ion_mode_correction: # true or false\n")
-        f.write("remove_corona_ions: # true or false\n")
         f.write("allow_reprocess: # true or false\n")
         f.write("redo_database: # true or false\n")
         f.write("fill_temperature: # null or temperature in K\n")
@@ -193,7 +192,6 @@ def check_config_file(config_file):
         do_inlet_loss_correction = config['do_inlet_loss_correction']
         convert_to_standard_conditions = config['convert_to_standard_conditions']
         do_wagner_ion_mode_correction = config["do_wagner_ion_mode_correction"]
-        remove_charger_ions = config["remove_corona_ions"]
         file_format = config["file_format"]
         resolution = config["resolution"]
         fill_temperature = config["fill_temperature"]
@@ -207,7 +205,6 @@ def check_config_file(config_file):
     assert os.path.exists(save_path)
     assert all([os.path.exists(x) for x in load_path])
     assert isinstance(allow_reprocess,bool)
-    assert isinstance(remove_charger_ions,bool)
     assert isinstance(convert_to_standard_conditions,bool)
     assert isinstance(do_wagner_ion_mode_correction,bool)
     assert isinstance(do_inlet_loss_correction,bool)
@@ -659,29 +656,29 @@ def flags2polarity(
             
         return flags_neg_spectra, flags_pos_spectra
 
-def remove_corona_ions(spectra):
-
-    if (spectra is None):
-        return None
-
-    # Only consider likely limit range
-    lower = 1.5e-9
-    upper = 5.0e-9
-    c = (lower <= spectra.columns.values) & (upper >= spectra.columns.values)
-    spectra2 = spectra.loc[:, c]
-    
-    # If all the values are NA return spectra
-    # else ifnd the cutoff and set data below it to NA
-
-    if spectra2.isna().all().all():
-        return spectra
-    else:
-        corona_lim = spectra2.columns.values[spectra2.median().diff().abs().argmax()]
-    
-        # Set values below corona ion limit to NaNs
-        spectra.iloc[:,spectra.columns.values<=corona_lim]=np.nan
-
-        return spectra
+#def remove_corona_ions(spectra):
+#
+#    if (spectra is None):
+#        return None
+#
+#    # Only consider likely limit range
+#    lower = 1.5e-9
+#    upper = 5.0e-9
+#    c = (lower <= spectra.columns.values) & (upper >= spectra.columns.values)
+#    spectra2 = spectra.loc[:, c]
+#    
+#    # If all the values are NA return spectra
+#    # else ifnd the cutoff and set data below it to NA
+#
+#    if spectra2.isna().all().all():
+#        return spectra
+#    else:
+#        corona_lim = spectra2.columns.values[spectra2.median().diff().abs().argmax()]
+#    
+#        # Set values below corona ion limit to NaNs
+#        spectra.iloc[:,spectra.columns.values<=corona_lim]=np.nan
+#
+#        return spectra
 
 def save_as_netcdf(
     netcdf_save_path,
@@ -863,7 +860,7 @@ def nais_processor(config_file):
         do_inlet_loss_correction = config['do_inlet_loss_correction']
         convert_to_standard_conditions = config['convert_to_standard_conditions']
         do_wagner_ion_mode_correction = config["do_wagner_ion_mode_correction"]
-        remove_charger_ions = config["remove_corona_ions"]
+#        remove_charger_ions = config["remove_corona_ions"]
         file_format = config["file_format"]
         resolution = config["resolution"]
         fill_temperature = config["fill_temperature"]
@@ -877,7 +874,7 @@ def nais_processor(config_file):
     assert os.path.exists(save_path)
     assert all([os.path.exists(x) for x in load_path])
     assert isinstance(allow_reprocess,bool)
-    assert isinstance(remove_charger_ions,bool)
+#    assert isinstance(remove_charger_ions,bool)
     assert isinstance(convert_to_standard_conditions,bool)
     assert isinstance(do_wagner_ion_mode_correction,bool)
     assert isinstance(do_inlet_loss_correction,bool)
@@ -903,7 +900,7 @@ def nais_processor(config_file):
         'do_inlet_loss_correction':str(do_inlet_loss_correction),
         'convert_to_standard_conditions':str(convert_to_standard_conditions),
         "do_wagner_ion_mode_correction":str(do_wagner_ion_mode_correction),
-        "remove_corona_ions":str(remove_charger_ions),
+#        "remove_corona_ions":str(remove_charger_ions),
         "fill_temperature":str(fill_temperature),
         "fill_pressure":str(fill_pressure),
         "fill_flowrate":str(fill_flowrate),
@@ -1036,7 +1033,7 @@ def nais_processor(config_file):
             particle_flags, 
             offset_flags, 
             flag_explanations) = read_raw(x["diagnostics"],"records",x["timestamp"],resolution)
-
+        
         # ions
         if ions_exist:
 
@@ -1044,7 +1041,7 @@ def nais_processor(config_file):
 
             negion_datamatrix, posion_datamatrix = raw2sum(ions,"ions")
             negion_flags, posion_flags = flags2polarity(ion_flags, offset_flags, flag_explanations)
-           
+
             # Get diagnostic data for corrections and conversions
             #if (convert_to_standard_conditions or do_inlet_loss_correction or dilution_on):
             (temperature_ion,
@@ -1071,7 +1068,7 @@ def nais_processor(config_file):
                     temperature_ion,
                     pressure_ion
                     )
-             
+
             if do_inlet_loss_correction:
                 negion_datamatrix = correct_inlet_losses(
                     negion_datamatrix,
@@ -1087,11 +1084,11 @@ def nais_processor(config_file):
                     pressure_ion,
                     sampleflow_ion
                     )
-            
+
             if do_wagner_ion_mode_correction:
                 negion_datamatrix = wagner_ion_mode_correction(negion_datamatrix)
                 posion_datamatrix = wagner_ion_mode_correction(posion_datamatrix)
-                
+
             if dilution_on:
                 negion_datamatrix = dilution_correction(negion_datamatrix,dilution_flow_ion,sampleflow_ion)
                 posion_datamatrix = dilution_correction(posion_datamatrix,dilution_flow_ion,sampleflow_ion)
@@ -1150,9 +1147,9 @@ def nais_processor(config_file):
                     pressure_particle,
                     sampleflow_particle)    
                 
-            if remove_charger_ions:  
-                negpar_datamatrix = remove_corona_ions(negpar_datamatrix)
-                pospar_datamatrix = remove_corona_ions(pospar_datamatrix)
+            #if remove_charger_ions:  
+            #    negpar_datamatrix = remove_corona_ions(negpar_datamatrix)
+            #    pospar_datamatrix = remove_corona_ions(pospar_datamatrix)
 
             if dilution_on:
                 negpar_datamatrix = dilution_correction(negpar_datamatrix,dilution_flow_particle,sampleflow_particle)
@@ -1165,6 +1162,8 @@ def nais_processor(config_file):
             relhum_particle = None
             negpar_datamatrix, pospar_datamatrix = None, None
             negpar_flags, pospar_flags = None, None
+
+
 
 
         # Both ion and particle data exists

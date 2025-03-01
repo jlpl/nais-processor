@@ -1,7 +1,7 @@
 # `nais-processor`
 This code project is designed to facilitate [NAIS](https://www.airel.ee/products/nais/) (Neutral cluster and Air Ion Spectrometer, Airel Ltd.) and [CIC](https://www.airel.ee/products/cic/) (Cluster Ion Counter, Airel Ltd.) data analysis.
 
-Latest version: 0.1.8
+Latest version: 0.1.9
 
 ## Installation
 
@@ -13,7 +13,7 @@ pip install git+https://github.com/jlpl/nais-processor.git
 Installation of [`aerosol-functions`](https://github.com/jlpl/aerosol-functions) is required.
 
 ## Documentation
-Documentation for this project can be found [here](https://jlpl.github.io/nais-processor/)
+See [here](https://jlpl.github.io/nais-processor/)
 
 ## `nais` package
 
