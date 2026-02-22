@@ -1,17 +1,17 @@
-
 <!DOCTYPE html>
 
-<html lang="en">
+<html lang="en" data-content_root="./">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>nais-processor tutorial &#8212; nais-processor 0.1.9 documentation</title>
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
-    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/sphinx_highlight.js"></script>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <script src="_static/documentation_options.js?v=8618f531"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -19,8 +19,9 @@
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
   
+
   
-  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+  
 
   </head><body>
   
@@ -33,9 +34,9 @@
           <div class="body" role="main">
             
   <section id="nais-processor-tutorial">
-<h1><code class="docutils literal notranslate"><span class="pre">nais-processor</span></code> tutorial<a class="headerlink" href="#nais-processor-tutorial" title="Permalink to this heading">¶</a></h1>
+<h1><code class="docutils literal notranslate"><span class="pre">nais-processor</span></code> tutorial<a class="headerlink" href="#nais-processor-tutorial" title="Link to this heading">¶</a></h1>
 <p>Use the <code class="docutils literal notranslate"><span class="pre">nais.processor.make_config_template()</span></code> method to create a configuration file template and fill it with necessary information. The configuration file is used at processing the data files.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nais.processor</span> <span class="kn">import</span> <span class="n">make_config_template</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">nais.processor</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_config_template</span>
 <span class="n">make_config_template</span><span class="p">(</span><span class="s2">&quot;/home/user/viikki.yml&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -77,7 +78,7 @@
 <li><p>Use fill values in case of missing environmental sensor data</p></li>
 </ul>
 <p>Then process the data files by running <code class="docutils literal notranslate"><span class="pre">nais_processor()</span></code></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nais.processor</span> <span class="kn">import</span> <span class="n">nais_processor</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">nais.processor</span><span class="w"> </span><span class="kn">import</span> <span class="n">nais_processor</span>
 <span class="n">nais_processor</span><span class="p">(</span><span class="s2">&quot;/home/user/viikki.yml&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -225,8 +226,8 @@ Done!
 </tbody>
 </table>
 <p>Below are some examples of how to access the different variables in the netcdf file.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">xarray</span> <span class="k">as</span> <span class="nn">xr</span>
-<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">xarray</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">xr</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 
 <span class="c1"># load the dataset</span>
 <span class="n">ds</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="s2">&quot;/home/user/viikki/NAIS_20220928.nc&quot;</span><span class="p">)</span>
@@ -245,7 +246,7 @@ Done!
 </pre></div>
 </div>
 <p>Next is an example how to calculate the number concentration in some size range</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">aerosol.functions</span> <span class="k">as</span> <span class="nn">af</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">aerosol.functions</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">af</span>
 
 <span class="n">dp_1</span> <span class="o">=</span> <span class="mf">2.5e-9</span>
 <span class="n">dp_2</span> <span class="o">=</span> <span class="mf">5e-9</span>
@@ -254,10 +255,10 @@ Done!
 </pre></div>
 </div>
 <p>Next we combine the previously created files into a single continuous dataset with 1 hour time resolution and only raise a flag if at least 50% of the data points inside the two hour window contain the flag. We save the result as a netcdf file.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nais.utils</span> <span class="kn">import</span> <span class="n">combine_data</span>
-<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="kn">import</span> <span class="nn">xarray</span> <span class="k">as</span> <span class="nn">xr</span>
-<span class="kn">import</span> <span class="nn">os</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">nais.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">combine_data</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">xarray</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">xr</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 
 <span class="n">data_source</span> <span class="o">=</span> <span class="s2">&quot;/home/user/viikki&quot;</span>
 <span class="n">data_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_source</span><span class="p">,</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> 
@@ -277,12 +278,12 @@ Done!
 <li><p>By clicking the save boundaries button the box coordinates are saved to a netcdf file (filename given in the second argument).</p></li>
 <li><p>If the bounding boxes are saved, they will be reloaded when the checker is reopened with same arguments, so save your work regularly in case the program crashes.</p></li>
 </ol>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nais.checker</span> <span class="kn">import</span> <span class="n">startNaisChecker</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">nais.checker</span><span class="w"> </span><span class="kn">import</span> <span class="n">startNaisChecker</span>
 <span class="n">startNaisChecker</span><span class="p">(</span><span class="s2">&quot;combined_nais_dataset.nc&quot;</span><span class="p">,</span> <span class="s2">&quot;bad_data_bounds.nc&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>We can set the bad data to <code class="docutils literal notranslate"><span class="pre">NaN</span></code> in our combined file and use the resulting dataset as the starting point for further analysis.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">nais.utils</span> <span class="kn">import</span> <span class="n">remove_bad_data</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">nais.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">remove_bad_data</span>
 
 <span class="n">ds</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="s2">&quot;combined_nais_dataset.nc&quot;</span><span class="p">)</span>
 <span class="n">bad_data</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="s2">&quot;bad_data_bounds.nc&quot;</span><span class="p">)</span>
@@ -299,7 +300,7 @@ Done!
           
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
         <div class="sphinxsidebarwrapper"><div class="version">
 <center><img src="logo.png"></center>
 <center><a href="https://jlpl.github.io/nais-processor/">home</a></center>
@@ -350,11 +351,11 @@ Done!
       <div class="clearer"></div>
     </div>
     <div class="footer">
-      &copy;2023, jlpl.
+      &#169;2023, jlpl.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
       
       |
       <a href="_sources/tutorial.md.txt"
