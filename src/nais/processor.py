@@ -276,7 +276,16 @@ def read_raw(file_name,file_type,timestamp,resolution_str):
         
         # Remove duplicate flags (may happen due to restarts)        
         flag_explanations = flag_explanations[~flag_explanations["message"].duplicated()]
-       
+
+        # Only keep rows with proper time
+        df = df[pd.to_datetime(df[df.columns[0]],errors="coerce").notna()]
+
+        if df.empty:
+            if file_type=="records":
+                return None,None,None,None,None,None
+            if file_type=="spectra":
+                return None
+
         data_tz = pd.to_datetime(df[df.columns[0]].loc[0]).tz
 
         # Transform time strings to utc aware datetime objects
