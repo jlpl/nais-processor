@@ -5,11 +5,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>nais-processor tutorial &#8212; nais-processor 0.1.9 documentation</title>
+    <title>nais-processor tutorial &#8212; nais-processor 0.2.0 documentation</title>
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
     <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
     <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
-    <script src="_static/documentation_options.js?v=8618f531"></script>
+    <script src="_static/documentation_options.js?v=938c9ccc"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -58,7 +58,6 @@
 <span class="nt">do_inlet_loss_correction</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="nt">convert_to_standard_conditions</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="nt">do_wagner_ion_mode_correction</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<span class="nt">remove_corona_ions</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="nt">allow_reprocess</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 <span class="nt">redo_database</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 <span class="nt">fill_temperature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
@@ -73,7 +72,7 @@
 <ul class="simple">
 <li><p>Inlet loss correction (Gromley and Kennedy, 1948)</p></li>
 <li><p>Ion mode correction (Wagner et al. 2016)</p></li>
-<li><p>Conversion to standard conditions (293.15 K, 101325 Pa)</p></li>
+<li><p>Conversion to standard conditions (273.15 K, 101325 Pa)</p></li>
 <li><p>Remove charger ion band from total particle data</p></li>
 <li><p>Use fill values in case of missing environmental sensor data</p></li>
 </ul>
@@ -258,30 +257,30 @@ Done!
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">nais.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">combine_data</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">xarray</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">xr</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 
-<span class="n">data_source</span> <span class="o">=</span> <span class="s2">&quot;/home/user/viikki&quot;</span>
-<span class="n">data_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_source</span><span class="p">,</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> 
+<span class="n">data_source</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;/home/user/viikki&quot;</span><span class="p">)</span>
+<span class="n">data_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">data_source</span> <span class="o">/</span> <span class="n">f</span> <span class="k">for</span> <span class="n">f</span> 
     <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">data_source</span><span class="p">)</span> <span class="k">if</span> <span class="s2">&quot;.nc&quot;</span> <span class="ow">in</span> <span class="n">f</span><span class="p">]</span>
 <span class="n">date_start</span> <span class="o">=</span> <span class="s2">&quot;2022-09-28&quot;</span>
 <span class="n">date_end</span> <span class="o">=</span> <span class="s2">&quot;2022-09-30&quot;</span>
 
-<span class="n">ds</span> <span class="o">=</span> <span class="n">combine_data</span><span class="p">(</span><span class="n">data_source</span><span class="p">,</span> <span class="n">date_start</span><span class="p">,</span> <span class="n">date_end</span><span class="p">,</span> <span class="s2">&quot;1h&quot;</span><span class="p">,</span>
+<span class="n">ds</span> <span class="o">=</span> <span class="n">combine_data</span><span class="p">(</span><span class="n">data_files</span><span class="p">,</span> <span class="n">date_start</span><span class="p">,</span> <span class="n">date_end</span><span class="p">,</span> <span class="s2">&quot;1h&quot;</span><span class="p">,</span>
     <span class="n">flag_sensitivity</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
 
 <span class="n">ds</span><span class="o">.</span><span class="n">to_netcdf</span><span class="p">(</span><span class="s2">&quot;combined_nais_dataset.nc&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Then we launch the data checker with the combined data file in order to identify bad data.</p>
+<p>Then we launch <code class="docutils literal notranslate"><span class="pre">nais-data-checker</span></code> from the command prompt in order to identify regions of bada data in the size spectrum.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>nais-data-checker<span class="w"> </span>/home/user/viikki/combined_nas_dataset.nc<span class="w"> </span>/home/user/viikki/bad_data_boundaries.nc
+</pre></div>
+</div>
 <ol class="arabic simple">
 <li><p>Bounding boxes can be drawn around bad data in the size distributions (initiate an adjustable box with double left click and remove it by right clicking on the box and choosing remove).</p></li>
 <li><p>By clicking the save boundaries button the box coordinates are saved to a netcdf file (filename given in the second argument).</p></li>
-<li><p>If the bounding boxes are saved, they will be reloaded when the checker is reopened with same arguments, so save your work regularly in case the program crashes.</p></li>
+<li><p>If the bounding boxes are saved, they will be reloaded when the checker is reopened with same command line arguments, so save your work regularly in case the program crashes.</p></li>
 </ol>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">nais.checker</span><span class="w"> </span><span class="kn">import</span> <span class="n">startNaisChecker</span>
-<span class="n">startNaisChecker</span><span class="p">(</span><span class="s2">&quot;combined_nais_dataset.nc&quot;</span><span class="p">,</span> <span class="s2">&quot;bad_data_bounds.nc&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
 <p>We can set the bad data to <code class="docutils literal notranslate"><span class="pre">NaN</span></code> in our combined file and use the resulting dataset as the starting point for further analysis.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">nais.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">remove_bad_data</span>
 
@@ -305,14 +304,11 @@ Done!
 <center><img src="logo.png"></center>
 <center><a href="https://jlpl.github.io/nais-processor/">home</a></center>
 <center><a href="https://github.com/jlpl/nais-processor">github</a></center>
-<center>v. 0.1.9</center>
+<center>v. 0.2.0</center>
 </div><h3><a href="index.html"></a></h3>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="nais.html">nais package</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="nais.html#module-nais.checker">nais.checker module</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="nais.html#nais.checker.startNaisChecker"><code class="docutils literal notranslate"><span class="pre">startNaisChecker()</span></code></a></li>
-</ul>
-</li>
+<li class="toctree-l2"><a class="reference internal" href="nais.html#module-nais.checker">nais.checker module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="nais.html#module-nais.processor">nais.processor module</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="nais.html#nais.processor.check_config_file"><code class="docutils literal notranslate"><span class="pre">check_config_file()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="nais.html#nais.processor.make_config_template"><code class="docutils literal notranslate"><span class="pre">make_config_template()</span></code></a></li>

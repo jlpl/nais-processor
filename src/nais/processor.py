@@ -1020,6 +1020,7 @@ def nais_processor(config_file):
             flag_explanations) = read_raw(x["diagnostics"],"records",x["timestamp"],resolution)
         
         # ions
+
         if ions_exist:
 
             ions = read_raw(x["ions"],"spectra",x["timestamp"],resolution)

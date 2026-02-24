@@ -5,10 +5,15 @@ with open("README.md","r") as fh:
 
 setup(
     name="nais-processor",
-    version = "0.1.9",
+    version = "0.2.0",
     description='Code to process ion spectrometer data files',
     package_dir={'':'src'},
-    packages=['nais','cic'], 
+    packages=['nais','cic'],
+    entry_points = { 
+        'console_scripts': [
+            'nais-data-checker = nais.checker:main',
+        ],  
+    },     
     long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires = [
@@ -20,8 +25,8 @@ setup(
         "tinydb >= 4.7.0",
         "aerosol-functions >= 0.1.4",
 		"netcdf4 >= 1.6.2",
-        "PyQt5 >= 5.15.7",
         "pyqtgraph >= 0.13.1",
+        "PySide6 >= 6.5",
     ],
     url="https://github.com/jlpl/nais-processor",
     author="Janne Lampilahti",

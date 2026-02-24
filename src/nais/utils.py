@@ -358,7 +358,6 @@ def rewrite_metadata(files, config):
         'do_inlet_loss_correction':str(do_inlet_loss_correction),
         'convert_to_standard_conditions':str(convert_to_standard_conditions),
         "do_wagner_ion_mode_correction":str(do_wagner_ion_mode_correction),
-        #"remove_corona_ions":str(remove_charger_ions),
         "fill_temperature":str(fill_temperature),
         "fill_pressure":str(fill_pressure),
         "fill_flowrate":str(fill_flowrate),

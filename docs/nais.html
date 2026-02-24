@@ -5,11 +5,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>nais package &#8212; nais-processor 0.1.9 documentation</title>
+    <title>nais package &#8212; nais-processor 0.2.0 documentation</title>
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
     <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
     <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
-    <script src="_static/documentation_options.js?v=8618f531"></script>
+    <script src="_static/documentation_options.js?v=938c9ccc"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -36,27 +36,6 @@
             
   <section id="nais-package">
 <h1>nais package<a class="headerlink" href="#nais-package" title="Link to this heading">¶</a></h1>
-<section id="module-nais.checker">
-<span id="nais-checker-module"></span><h2>nais.checker module<a class="headerlink" href="#module-nais.checker" title="Link to this heading">¶</a></h2>
-<dl class="py function">
-<dt class="sig sig-object py" id="nais.checker.startNaisChecker">
-<span class="sig-prename descclassname"><span class="pre">nais.checker.</span></span><span class="sig-name descname"><span class="pre">startNaisChecker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bounding_boxes_path</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/jlpl/nais-processor/blob/master/src/nais/checker.py#L396"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nais.checker.startNaisChecker" title="Link to this definition">¶</a></dt>
-<dd><p>Manually check a NAIS dataset, draw bounding boxes around bad data
-and save the boundaries into a netcdf file for later use.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>data_file</strong><span class="classifier">str</span></dt><dd><p>Absolute path to NAIS netcdf data file</p>
-</dd>
-<dt><strong>boundary_file</strong><span class="classifier">str</span></dt><dd><p>Absolyte path to file where to save the coordinates 
-of bad data bounding boxes.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-</section>
 <section id="module-nais.processor">
 <span id="nais-processor-module"></span><h2>nais.processor module<a class="headerlink" href="#module-nais.processor" title="Link to this heading">¶</a></h2>
 <dl class="py function">
@@ -89,7 +68,7 @@ of bad data bounding boxes.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="nais.processor.nais_processor">
-<span class="sig-prename descclassname"><span class="pre">nais.processor.</span></span><span class="sig-name descname"><span class="pre">nais_processor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_file</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/jlpl/nais-processor/blob/master/src/nais/processor.py#L808"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nais.processor.nais_processor" title="Link to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">nais.processor.</span></span><span class="sig-name descname"><span class="pre">nais_processor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_file</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/jlpl/nais-processor/blob/master/src/nais/processor.py#L817"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#nais.processor.nais_processor" title="Link to this definition">¶</a></dt>
 <dd><p>Processes NAIS data</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -227,14 +206,10 @@ the second earliest and so on</p>
 <center><img src="logo.png"></center>
 <center><a href="https://jlpl.github.io/nais-processor/">home</a></center>
 <center><a href="https://github.com/jlpl/nais-processor">github</a></center>
-<center>v. 0.1.9</center>
+<center>v. 0.2.0</center>
 </div><h3><a href="index.html"></a></h3>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">nais package</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#module-nais.checker">nais.checker module</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#nais.checker.startNaisChecker"><code class="docutils literal notranslate"><span class="pre">startNaisChecker()</span></code></a></li>
-</ul>
-</li>
 <li class="toctree-l2"><a class="reference internal" href="#module-nais.processor">nais.processor module</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#nais.processor.check_config_file"><code class="docutils literal notranslate"><span class="pre">check_config_file()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#nais.processor.make_config_template"><code class="docutils literal notranslate"><span class="pre">make_config_template()</span></code></a></li>
