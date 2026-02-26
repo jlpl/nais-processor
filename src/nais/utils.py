@@ -266,33 +266,33 @@ def remove_bad_data(ds,bad_data):
     neg_particles_checked = ds_checked.neg_particles.to_pandas()
     pos_particles_checked = ds_checked.pos_particles.to_pandas()
     
-    time_num = dts.date2num(ds.time.values)
-    dp = ds.diameter.values
+    time_num = ds_checked.time.values
+    dp = ds_checked.diameter.values
     
     for i in bad_data.neg_ion_roi_id.values:
-        neg_ions_checked.iloc[
+        neg_ions_checked.loc[
             (time_num>=neg_ion_bounds[0][i])&(time_num<=neg_ion_bounds[1][i]),
             (dp>=neg_ion_bounds[2][i])&(dp<=neg_ion_bounds[3][i])] = np.nan
     
     for i in bad_data.pos_ion_roi_id.values:
-        pos_ions_checked.iloc[
+        pos_ions_checked.loc[
             (time_num>=pos_ion_bounds[0][i])&(time_num<=pos_ion_bounds[1][i]),
             (dp>=pos_ion_bounds[2][i])&(dp<=pos_ion_bounds[3][i])] = np.nan
     
     for i in bad_data.neg_par_roi_id.values:
-        neg_particles_checked.iloc[
+        neg_particles_checked.loc[
             (time_num>=neg_par_bounds[0][i])&(time_num<=neg_par_bounds[1][i]),
             (dp>=neg_par_bounds[2][i])&(dp<=neg_par_bounds[3][i])] = np.nan
     
     for i in bad_data.pos_par_roi_id.values:
-        pos_particles_checked.iloc[
+        pos_particles_checked.loc[
             (time_num>=pos_par_bounds[0][i])&(time_num<=pos_par_bounds[1][i]),
             (dp>=pos_par_bounds[2][i])&(dp<=pos_par_bounds[3][i])] = np.nan
     
-    ds_checked.assign(neg_ions=(("time","diameter"),neg_ions_checked.values))
-    ds_checked.assign(pos_ions=(("time","diameter"),pos_ions_checked.values))
-    ds_checked.assign(neg_particles=(("time","diameter"),neg_particles_checked.values))
-    ds_checked.assign(pos_particles=(("time","diameter"),pos_particles_checked.values))
+    ds_checked = ds_checked.assign(neg_ions=(("time","diameter"),neg_ions_checked.values))
+    ds_checked = ds_checked.assign(pos_ions=(("time","diameter"),pos_ions_checked.values))
+    ds_checked = ds_checked.assign(neg_particles=(("time","diameter"),neg_particles_checked.values))
+    ds_checked = ds_checked.assign(pos_particles=(("time","diameter"),pos_particles_checked.values))
     
     return ds_checked
 
