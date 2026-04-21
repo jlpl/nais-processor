@@ -227,7 +227,8 @@ def read_raw(file_name,file_type,timestamp,resolution_str):
         data_matrix = []
         flag_explanations = []
         lines = f.read().splitlines()
-        
+        inverter_info = None
+
         for line in lines:
             # Skip empty and comments
             if (len(line)==0):
@@ -242,6 +243,9 @@ def read_raw(file_name,file_type,timestamp,resolution_str):
                     flag_explanations.append([flag_name,flag_message])
                 except:
                     continue
+            elif ((file_type=="spectra") and (line[:10]=="# inverter") and ("Version" in line[:10]) and ("Resolution" in line[:10]) and ("Electrometers" in line[:10])):
+                # if the inverter was written into the header (uhel processed data) grab it and add to metadata
+                inverter_info = line[11:].rstrip('\r\n')
             elif (line[0]=='#'):
                 continue
             else:
@@ -267,7 +271,7 @@ def read_raw(file_name,file_type,timestamp,resolution_str):
         if file_type=="records":
             return None,None,None,None,None,None
         if file_type=="spectra":
-            return None
+            return None, None
 
     else:
         # Construct dataframes
@@ -284,7 +288,7 @@ def read_raw(file_name,file_type,timestamp,resolution_str):
             if file_type=="records":
                 return None,None,None,None,None,None
             if file_type=="spectra":
-                return None
+                return None, None
 
         data_tz = pd.to_datetime(df[df.columns[0]].loc[0]).tz
 
@@ -303,7 +307,7 @@ def read_raw(file_name,file_type,timestamp,resolution_str):
             if file_type=="records":
                 return None,None,None,None,None,None
             if file_type=="spectra":
-                return None
+                return None, None
         
         # Define a standard time index for all data of the day
         if data_tz is None:
@@ -374,7 +378,7 @@ def read_raw(file_name,file_type,timestamp,resolution_str):
 
             spectra = spectra.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
              
-            return spectra
+            return spectra, inverter_info
 
 def regrid_columns(data, old_columns, new_columns):
     data_out = interp1d(old_columns,data,bounds_error=False)(new_columns)
@@ -885,7 +889,6 @@ def nais_processor(config_file):
         'do_inlet_loss_correction':str(do_inlet_loss_correction),
         'convert_to_standard_conditions':str(convert_to_standard_conditions),
         "do_wagner_ion_mode_correction":str(do_wagner_ion_mode_correction),
-#        "remove_corona_ions":str(remove_charger_ions),
         "fill_temperature":str(fill_temperature),
         "fill_pressure":str(fill_pressure),
         "fill_flowrate":str(fill_flowrate),
@@ -1023,7 +1026,9 @@ def nais_processor(config_file):
 
         if ions_exist:
 
-            ions = read_raw(x["ions"],"spectra",x["timestamp"],resolution)
+            ions, ions_inverter_info = read_raw(x["ions"],"spectra",x["timestamp"],resolution)
+            
+            measurement_info["ion_inverter"] = str(ions_inverter_info)
 
             negion_datamatrix, posion_datamatrix = raw2sum(ions,"ions")
             negion_flags, posion_flags = flags2polarity(ion_flags, offset_flags, flag_explanations)
@@ -1090,9 +1095,11 @@ def nais_processor(config_file):
         # Particles
         if particles_exist:
 
-            particles = read_raw(x["particles"],"spectra",x["timestamp"],resolution)            
+            particles, particles_inverter_info = read_raw(x["particles"],"spectra",x["timestamp"],resolution)            
             negpar_datamatrix, pospar_datamatrix = raw2sum(particles,"particles")
             negpar_flags, pospar_flags = flags2polarity(particle_flags, offset_flags, flag_explanations)
+
+            measurement_info["particle_inverter"] = str(particles_inverter_info)
 
             ## Get diagnostic data for corrections and conversions
             #if (convert_to_standard_conditions or do_inlet_loss_correction or dilution_on):
@@ -1144,7 +1151,6 @@ def nais_processor(config_file):
             relhum_particle = None
             negpar_datamatrix, pospar_datamatrix = None, None
             negpar_flags, pospar_flags = None, None
-
 
 
 
