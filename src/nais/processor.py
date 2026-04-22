@@ -243,9 +243,9 @@ def read_raw(file_name,file_type,timestamp,resolution_str):
                     flag_explanations.append([flag_name,flag_message])
                 except:
                     continue
-            elif ((file_type=="spectra") and (line[:10]=="# inverter") and ("Version" in line[:10]) and ("Resolution" in line[:10]) and ("Electrometers" in line[:10])):
-                # if the inverter was written into the header (uhel processed data) grab it and add to metadata
+            elif ((file_type=="spectra") and (line[:10]=="# inverter") and ("Version" in line) and ("Resolution" in line) and ("Electrometers" in line)):
                 inverter_info = line[11:].rstrip('\r\n')
+                continue
             elif (line[0]=='#'):
                 continue
             else:
