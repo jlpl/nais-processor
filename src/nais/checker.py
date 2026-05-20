@@ -72,9 +72,11 @@ class NaisChecker(QWidget):
         self.negParPlot.addItem(self.negParImg)
         self.posParPlot.addItem(self.posParImg)
         
-        self.ionFlagPlot.addItem(self.ionScatter)
-        self.parFlagPlot.addItem(self.parScatter)
-        
+        self.ionFlagPlot.addItem(self.negIonScatter)
+        self.ionFlagPlot.addItem(self.posIonScatter)
+        self.parFlagPlot.addItem(self.negParScatter)
+        self.parFlagPlot.addItem(self.posParScatter)
+
         ionAx = self.ionFlagPlot.getAxis("left")
         parAx = self.parFlagPlot.getAxis("left")
         
@@ -202,10 +204,10 @@ class NaisChecker(QWidget):
         ds = xr.open_dataset(self.data_file)
         
         # Data
-        negIonData = np.log10(ds.neg_ions.where(ds.neg_ions>0).values)
-        posIonData = np.log10(ds.pos_ions.where(ds.pos_ions>0).values)
-        negParData = np.log10(ds.neg_particles.where(ds.neg_particles>0).values)
-        posParData = np.log10(ds.pos_particles.where(ds.pos_particles>0).values)
+        negIonData = np.log10(ds.neg_ions.where(ds.neg_ions>0).values).astype(np.float32)
+        posIonData = np.log10(ds.pos_ions.where(ds.pos_ions>0).values).astype(np.float32)
+        negParData = np.log10(ds.neg_particles.where(ds.neg_particles>0).values).astype(np.float32)
+        posParData = np.log10(ds.pos_particles.where(ds.pos_particles>0).values).astype(np.float32)
         
         #x = dts.date2num(ds.time.values.min())
         #w = dts.date2num(ds.time.values.max())-x
@@ -237,49 +239,191 @@ class NaisChecker(QWidget):
         self.posParFlagTicks = list(zip(posParTicks,posParFlags.flag.values))
         
         ds.close()
-     
+                        
         # Data
         self.negIonImg = pg.ImageItem(negIonData,rect=boundaries)
         self.posIonImg = pg.ImageItem(posIonData,rect=boundaries)
         self.negParImg = pg.ImageItem(negParData,rect=boundaries)
         self.posParImg = pg.ImageItem(posParData,rect=boundaries)
+
+        self.negIonImg.setAutoDownsample(True)
+        self.posIonImg.setAutoDownsample(True)
+        self.negParImg.setAutoDownsample(True)
+        self.posParImg.setAutoDownsample(True)
+
+
+
+        # -------- Negative ion flags --------
         
-        # Flags
-        self.ionScatter = pg.ScatterPlotItem()
-        for i,flag in self.negIonFlagTicks:
-            data = negIonFlags.sel(flag=flag)
-            try:
-                self.ionScatter.addPoints(data.time.values.astype('datetime64[s]').astype(int),
-                    data.values,pen=None, symbol='o', symbolSize=5, brush="b")
-            except:
+        neg_x_all = []
+        neg_y_all = []
+        
+        neg_time = negIonFlags.time.values.astype('datetime64[s]').astype(np.int64)
+        neg_values = negIonFlags.values
+        
+        for i in range(neg_values.shape[1]):
+        
+            values = neg_values[:, i]
+        
+            mask = np.isfinite(values)
+        
+            if not np.any(mask):
                 continue
-
-        for i,flag in self.posIonFlagTicks:
-            data = posIonFlags.sel(flag=flag)
-            try:
-                self.ionScatter.addPoints(data.time.values.astype('datetime64[s]').astype(int),
-                    data.values,pen=None, symbol='o', symbolSize=5, brush="r")
-            except:
+        
+            neg_x_all.append(neg_time[mask])
+            neg_y_all.append(values[mask])
+        
+        # -------- Positive ion flags --------
+        
+        pos_x_all = []
+        pos_y_all = []
+        
+        pos_time = posIonFlags.time.values.astype('datetime64[s]').astype(np.int64)
+        pos_values = posIonFlags.values
+        
+        for i in range(pos_values.shape[1]):
+        
+            values = pos_values[:, i]
+        
+            mask = np.isfinite(values)
+        
+            if not np.any(mask):
                 continue
+        
+            pos_x_all.append(pos_time[mask])
+            pos_y_all.append(values[mask])
 
 
-        self.parScatter = pg.ScatterPlotItem()
-        for i,flag in self.negParFlagTicks:
-            data = negParFlags.sel(flag=flag)
-            try:
-                self.parScatter.addPoints(data.time.values.astype('datetime64[s]').astype(int),
-                    data.values,pen=None, symbol='o', symbolSize=5, brush="b")
-            except:
+        
+        # -------- Concatenate --------
+        
+        if len(neg_x_all) > 0:
+        
+            neg_x_all = np.concatenate(neg_x_all)
+            neg_y_all = np.concatenate(neg_y_all)
+        
+        else:
+        
+            neg_x_all = np.array([], dtype=np.int64)
+            neg_y_all = np.array([], dtype=np.float32)
+        
+        if len(pos_x_all) > 0:
+        
+            pos_x_all = np.concatenate(pos_x_all)
+            pos_y_all = np.concatenate(pos_y_all)
+        
+        else:
+        
+            pos_x_all = np.array([], dtype=np.int64)
+            pos_y_all = np.array([], dtype=np.float32)
+        
+        # -------- Plotting --------
+        
+        self.negIonScatter = pg.PlotDataItem(
+            neg_x_all,
+            neg_y_all,
+            pen=None,
+            symbol='o',
+            symbolSize=4,
+            symbolBrush='b',
+            connect='finite'
+        )
+        
+        self.posIonScatter = pg.PlotDataItem(
+            pos_x_all,
+            pos_y_all,
+            pen=None,
+            symbol='o',
+            symbolSize=4,
+            symbolBrush='r',
+            connect='finite'
+        )
+
+
+        # -------- Negative particle flags --------
+        
+        neg_par_x_all = []
+        neg_par_y_all = []
+        
+        neg_par_time = negParFlags.time.values.astype('datetime64[s]').astype(np.int64)
+        neg_par_values = negParFlags.values
+        
+        for i in range(neg_par_values.shape[1]):
+        
+            values = neg_par_values[:, i]
+        
+            mask = np.isfinite(values)
+        
+            if not np.any(mask):
                 continue
-
-
-        for i,flag in self.posParFlagTicks:
-            data = posParFlags.sel(flag=flag)
-            try:
-                self.parScatter.addPoints(data.time.values.astype('datetime64[s]').astype(int),
-                    data.values,pen=None, symbol='o', symbolSize=5, brush="r")
-            except:
+        
+            neg_par_x_all.append(neg_par_time[mask])
+            neg_par_y_all.append(values[mask])
+        
+        # -------- Positive particle flags --------
+        
+        pos_par_x_all = []
+        pos_par_y_all = []
+        
+        pos_par_time = posParFlags.time.values.astype('datetime64[s]').astype(np.int64)
+        pos_par_values = posParFlags.values
+        
+        for i in range(pos_par_values.shape[1]):
+        
+            values = pos_par_values[:, i]
+        
+            mask = np.isfinite(values)
+        
+            if not np.any(mask):
                 continue
+        
+            pos_par_x_all.append(pos_par_time[mask])
+            pos_par_y_all.append(values[mask])
+        
+        # -------- Concatenate --------
+        
+        if len(neg_par_x_all) > 0:
+        
+            neg_par_x_all = np.concatenate(neg_par_x_all)
+            neg_par_y_all = np.concatenate(neg_par_y_all)
+        
+        else:
+        
+            neg_par_x_all = np.array([], dtype=np.int64)
+            neg_par_y_all = np.array([], dtype=np.float32)
+        
+        if len(pos_par_x_all) > 0:
+        
+            pos_par_x_all = np.concatenate(pos_par_x_all)
+            pos_par_y_all = np.concatenate(pos_par_y_all)
+        
+        else:
+        
+            pos_par_x_all = np.array([], dtype=np.int64)
+            pos_par_y_all = np.array([], dtype=np.float32)
+        
+        # -------- Plotting --------
+        
+        self.negParScatter = pg.PlotDataItem(
+            neg_par_x_all,
+            neg_par_y_all,
+            pen=None,
+            symbol='o',
+            symbolSize=4,
+            symbolBrush='b',
+            connect='finite'
+        )
+        
+        self.posParScatter = pg.PlotDataItem(
+            pos_par_x_all,
+            pos_par_y_all,
+            pen=None,
+            symbol='o',
+            symbolSize=4,
+            symbolBrush='r',
+            connect='finite'
+        )
+
 
     def addNegIonRoi(self,origin,size):
         roi = pg.RectROI(origin,size,removable=True)

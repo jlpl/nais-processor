@@ -30,8 +30,6 @@ NEG_TEMPERATURE_NAMES = ["blue_temperature.mean"]
 POS_PRESSURE_NAMES = ["red_pressure.mean"]     
 NEG_PRESSURE_NAMES = ["blue_pressure.mean"]
 
-NEG_CLUSTER_ION_MOB_NAMES = ["neg_avg_cluster_mob"]
-
 NEG_MOB_1_NAMES = ["neg_mob_1"]
 NEG_MOB_2_NAMES = ["neg_mob_2"]
 NEG_MOB_3_NAMES = ["neg_mob_3"]
@@ -39,8 +37,6 @@ NEG_MOB_3_NAMES = ["neg_mob_3"]
 NEG_CONC_1_NAMES = ["neg_conc_1"]
 NEG_CONC_2_NAMES = ["neg_conc_2"]
 NEG_CONC_3_NAMES = ["neg_conc_3"]
-
-POS_CLUSTER_ION_MOB_NAMES = ["pos_avg_cluster_mob"]
 
 POS_MOB_1_NAMES = ["pos_mob_1"]
 POS_MOB_2_NAMES = ["pos_mob_2"]
@@ -57,14 +53,12 @@ NEG_TEMPERATURE_NAMES,
 POS_TEMPERATURE_NAMES,
 NEG_PRESSURE_NAMES,
 POS_PRESSURE_NAMES,
-NEG_CLUSTER_ION_MOB_NAMES,
-POS_CLUSTER_ION_MOB_NAMES,
 NEG_CONC_1_NAMES,
 POS_CONC_1_NAMES,
 NEG_CONC_2_NAMES,
 POS_CONC_2_NAMES,
 NEG_CONC_3_NAMES,
-POS_MOB_3_NAMES,
+POS_CONC_3_NAMES,
 NEG_MOB_1_NAMES,
 POS_MOB_1_NAMES,
 NEG_MOB_2_NAMES,
@@ -74,7 +68,7 @@ POS_MOB_3_NAMES
 ]
 
 # Standard conditions
-TEMP_REF = 293.15
+TEMP_REF = 273.15
 PRES_REF = 101325.0
 
 from cic import __version__
@@ -94,6 +88,7 @@ def make_cic_config_template(file_name):
     
     with open(file_name,"w") as f:
         f.write("measurement_location: # Name of the measurement site\n")
+        f.write("id: # Name of the measurement site\n")
         f.write("description: # Additional description of the measurement\n")
         f.write("instrument_model: # e.g. CIC-2-1")
         f.write("longitude: # decimal degrees west/east = -/+ (float)\n")
@@ -165,7 +160,13 @@ def read_raw(file_name,timestamp,resolution_str):
         
         # Remove duplicate flags (may happen due to restarts)        
         flag_explanations = flag_explanations[~flag_explanations["message"].duplicated()]
-      
+
+        # Only keep rows with proper time
+        df = df[pd.to_datetime(df[df.columns[0]],errors="coerce").notna()]
+
+        if df.empty:
+            return None,None,None,None
+        
         # Check the timezone the file was created 
         data_tz = pd.to_datetime(df[df.columns[0]].loc[0]).tz
 
@@ -190,24 +191,36 @@ def read_raw(file_name,timestamp,resolution_str):
             standard_start_time = pd.to_datetime(timestamp).tz_localize(data_tz).tz_convert("UTC")
         
         standard_end_time = standard_start_time + pd.Timedelta(days=1)
-        standard_time = pd.date_range(start=standard_start_time, end=standard_end_time, freq=resolution_str)
+        standard_time = pd.date_range(start=standard_start_time, end=standard_end_time, freq=resolution_str, inclusive="left")
         
         # Extract records for ions and offset
         ion_records_and_flags = df[df.opmode=='ions']
         offset_records_and_flags = df[df.opmode=='offset']
         
         if ion_records_and_flags.empty==False:
-            ion_records_and_flags = ion_records_and_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
             ion_records = ion_records_and_flags.iloc[:,3:-1].apply(pd.to_numeric, errors='coerce').astype(float)
             ion_flags = ion_records_and_flags.iloc[:,-1].fillna('').str.split("!",expand=True).fillna('')
+
+            ion_records = ion_records.resample(resolution_str).median()
+            ion_flags = ion_flags.resample(resolution_str).apply(lambda col: ''.join(col))
+
+            ion_records = ion_records.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
+            ion_flags = ion_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
+            
         else:
             ion_records = None
             ion_flags = None
 
         if offset_records_and_flags.empty==False:
-            offset_records_and_flags = offset_records_and_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
             offset_records = offset_records_and_flags.iloc[:,3:-1].apply(pd.to_numeric, errors='coerce').astype(float)
             offset_flags = offset_records_and_flags.iloc[:,-1].fillna('').str.split("!",expand=True).fillna('')
+            
+            offset_records = offset_records.resample(resolution_str).median()
+            offset_flags = offset_flags.resample(resolution_str).apply(lambda col: ''.join(col))
+            
+            offset_records = offset_records.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
+            offset_flags = offset_flags.reindex(standard_time, method="nearest", tolerance=pd.Timedelta(resolution_str))
+            
         else:
             offset_records = None
             offset_flags = None
@@ -224,8 +237,6 @@ def find_names(params):
     pos_temperature_name=None
     neg_pressure_name=None
     pos_pressure_name=None
-    neg_cluster_mob_name=None
-    pos_cluster_mob_name=None
     neg_conc_1_name=None
     neg_conc_2_name=None
     neg_conc_3_name=None
@@ -246,8 +257,6 @@ def find_names(params):
     "pos_temperature_name",
     "neg_pressure_name",
     "pos_pressure_name",
-    "neg_cluster_mob_name",
-    "pos_cluster_mob_name",
     "neg_conc_1_name",
     "pos_conc_1_name",
     "neg_conc_2_name",
@@ -269,8 +278,6 @@ def find_names(params):
     pos_temperature_name,
     neg_pressure_name,
     pos_pressure_name,
-    neg_cluster_mob_name,
-    pos_cluster_mob_name,
     neg_conc_1_name,
     pos_conc_1_name,
     neg_conc_2_name,
@@ -342,32 +349,26 @@ def get_data(records):
              pos_sampleflow = None
 
         # MOBILITIES
-        if ((data_names["neg_cluster_mob_name"] is not None) and
-            (data_names["neg_mob_1_name"] is not None) and
+        if ((data_names["neg_mob_1_name"] is not None) and
             (data_names["neg_mob_2_name"] is not None) and
             (data_names["neg_mob_3_name"] is not None)
             ):
-            neg_cluster_mob = records[data_names["neg_cluster_mob_name"]].astype(float) # cm2/sV
             neg_mob_1 = records[data_names["neg_mob_1_name"]].astype(float) # cm2/sV
             neg_mob_2 = records[data_names["neg_mob_2_name"]].astype(float) # cm2/sV
             neg_mob_3 = records[data_names["neg_mob_3_name"]].astype(float) # cm2/sV
         else:
-            neg_cluster_mob = None
             neg_mob_1 = None
             neg_mob_2 = None
             neg_mob_3 = None
 
-        if ((data_names["pos_cluster_mob_name"] is not None) and
-            (data_names["pos_mob_1_name"] is not None) and
+        if ((data_names["pos_mob_1_name"] is not None) and
             (data_names["pos_mob_2_name"] is not None) and
             (data_names["pos_mob_3_name"] is not None)
             ):
-            pos_cluster_mob = records[data_names["pos_cluster_mob_name"]].astype(float) # cm2/sV
             pos_mob_1 = records[data_names["pos_mob_1_name"]].astype(float) # cm2/sV
             pos_mob_2 = records[data_names["pos_mob_2_name"]].astype(float) # cm2/sV
             pos_mob_3 = records[data_names["pos_mob_3_name"]].astype(float) # cm2/sV
         else:
-            pos_cluster_mob = None
             pos_mob_1 = None
             pos_mob_2 = None
             pos_mob_3 = None
@@ -379,12 +380,10 @@ def get_data(records):
             neg_conc_1 = records[data_names["neg_conc_1_name"]].astype(float)
             neg_conc_2 = records[data_names["neg_conc_2_name"]].astype(float)
             neg_conc_3 = records[data_names["neg_conc_3_name"]].astype(float)
-            neg_cluster_conc = (neg_conc_1 + neg_conc_2) - neg_conc_3
         else:
             neg_conc_1 = None
             neg_conc_2 = None
             neg_conc_3 = None
-            neg_cluster_conc = None
 
         if ((data_names["pos_conc_1_name"] is not None) and 
             (data_names["pos_conc_2_name"] is not None) and
@@ -392,12 +391,10 @@ def get_data(records):
             pos_conc_1 = records[data_names["pos_conc_1_name"]].astype(float)
             pos_conc_2 = records[data_names["pos_conc_2_name"]].astype(float)
             pos_conc_3 = records[data_names["pos_conc_3_name"]].astype(float)
-            pos_cluster_conc = (pos_conc_1 + pos_conc_2) - pos_conc_3
         else:
             pos_conc_1 = None 
             pos_conc_2 = None 
             pos_conc_3 = None 
-            pos_cluster_conc = None
 
         # Sanity check the values
         if neg_temperature is not None:
@@ -427,10 +424,6 @@ def get_data(records):
             "pos_pressure": pos_pressure,
             "neg_sampleflow": neg_sampleflow,
             "pos_sampleflow": neg_sampleflow,
-            "neg_cluster_mob": neg_cluster_mob,
-            "pos_cluster_mob": pos_cluster_mob,
-            "neg_cluster_conc": neg_cluster_conc,
-            "pos_cluster_conc": pos_cluster_conc,
             "neg_conc_1": neg_conc_1,
             "neg_conc_2": neg_conc_2,
             "neg_conc_3": neg_conc_3,
@@ -452,39 +445,33 @@ def bring_to_sealevel(data):
 
     if (data is None):
         return None
-
+    
     # Negative polarity
-    if ((data["neg_cluster_conc"] is None) or 
-        (data["neg_conc_1"] is None) or
+    if ((data["neg_conc_1"] is None) or
         (data["neg_conc_2"] is None) or
         (data["neg_conc_3"] is None) or 
         (data["neg_temperature"] is None) or 
         (data["neg_pressure"] is None)):
-        data["neg_cluster_conc"] = None
         data["neg_conc_1"]=None 
         data["neg_conc_2"]=None
         data["neg_conc_3"]=None
     else:
         stp_corr_factor = (PRES_REF*data["neg_temperature"].values)/(TEMP_REF*data["neg_pressure"].values)
-        data["neg_cluster_conc"] = stp_corr_factor * data["neg_cluster_conc"]
         data["neg_conc_1"] = stp_corr_factor * data["neg_conc_1"]
         data["neg_conc_2"] = stp_corr_factor * data["neg_conc_2"]
         data["neg_conc_3"] = stp_corr_factor * data["neg_conc_3"]
 
     # Positive polarity
-    if ((data["pos_cluster_conc"] is None) or 
-        (data["pos_conc_1"] is None) or
+    if ((data["pos_conc_1"] is None) or
         (data["pos_conc_2"] is None) or
         (data["pos_conc_3"] is None) or 
         (data["pos_temperature"] is None) or 
         (data["pos_pressure"] is None)):
-        data["pos_cluster_conc"] = None
         data["pos_conc_1"]=None 
         data["pos_conc_2"]=None
         data["pos_conc_3"]=None
     else:
         stp_corr_factor = (PRES_REF*data["pos_temperature"].values)/(TEMP_REF*data["pos_pressure"].values)
-        data["pos_cluster_conc"] = stp_corr_factor * data["pos_cluster_conc"]
         data["pos_conc_1"] = stp_corr_factor * data["pos_conc_1"]
         data["pos_conc_2"] = stp_corr_factor * data["pos_conc_2"]
         data["pos_conc_3"] = stp_corr_factor * data["pos_conc_3"]
@@ -497,29 +484,25 @@ def correct_inlet_losses(data,pipe_length):
     if (data is None):
         return None
 
-    elif ((data["neg_cluster_conc"] is None) or
-        (data["neg_conc_1"] is None) or
+    elif ((data["neg_conc_1"] is None) or
         (data["neg_conc_2"] is None) or
         (data["neg_conc_3"] is None) or
         (data["neg_temperature"] is None) or 
         (data["neg_pressure"] is None) or 
         (data["neg_sampleflow"] is None) or
-        (data["neg_cluster_mob"] is None) or
         (data["neg_mob_1"] is None) or
         (data["neg_mob_2"] is None) or
         (data["neg_mob_3"] is None)
         ):
-        data["neg_cluster_conc"] = None
         data["neg_conc_1"] = None
         data["neg_conc_2"] = None
         data["neg_conc_3"] = None
     else:
-        avg_cluster_dp = af.mob2diam(data["neg_cluster_mob"].mean(),data["neg_temperature"].mean(),data["neg_pressure"].mean())
         avg_dp_1 = af.mob2diam(data["neg_mob_1"].mean(),data["neg_temperature"].mean(),data["neg_pressure"].mean())
         avg_dp_2 = af.mob2diam(data["neg_mob_2"].mean(),data["neg_temperature"].mean(),data["neg_pressure"].mean())
         avg_dp_3 = af.mob2diam(data["neg_mob_3"].mean(),data["neg_temperature"].mean(),data["neg_pressure"].mean())
 
-        dp = pd.Series([avg_cluster_dp,avg_dp_1,avg_dp_2,avg_dp_3])
+        dp = pd.Series([avg_dp_1,avg_dp_2,avg_dp_3])
         
         throughput = af.tubeloss(
             dp,
@@ -528,35 +511,30 @@ def correct_inlet_losses(data,pipe_length):
             data["neg_temperature"],
             data["neg_pressure"])
         
-        data["neg_cluster_conc"] = data["neg_cluster_conc"] / throughput.values[:,0]
-        data["neg_conc_1"] = data["neg_conc_1"] / throughput.values[:,1]
-        data["neg_conc_2"] = data["neg_conc_2"] / throughput.values[:,2]
-        data["neg_conc_3"] = data["neg_conc_3"] / throughput.values[:,3]
+        data["neg_conc_1"] = data["neg_conc_1"] / throughput.values[:,0]
+        data["neg_conc_2"] = data["neg_conc_2"] / throughput.values[:,1]
+        data["neg_conc_3"] = data["neg_conc_3"] / throughput.values[:,2]
 
 
-    if ((data["pos_cluster_conc"] is None) or
-        (data["pos_conc_1"] is None) or
+    if ((data["pos_conc_1"] is None) or
         (data["pos_conc_2"] is None) or
         (data["pos_conc_3"] is None) or
         (data["pos_temperature"] is None) or 
         (data["pos_pressure"] is None) or 
         (data["pos_sampleflow"] is None) or
-        (data["pos_cluster_mob"] is None) or
         (data["pos_mob_1"] is None) or
         (data["pos_mob_2"] is None) or
         (data["pos_mob_3"] is None)
         ):
-        data["pos_cluster_conc"] = None
         data["pos_conc_1"] = None
         data["pos_conc_2"] = None
         data["pos_conc_3"] = None
     else:
-        avg_cluster_dp = af.mob2diam(data["pos_cluster_mob"].mean(),data["pos_temperature"].mean(),data["pos_pressure"].mean())
         avg_dp_1 = af.mob2diam(data["pos_mob_1"].mean(),data["pos_temperature"].mean(),data["pos_pressure"].mean())
         avg_dp_2 = af.mob2diam(data["pos_mob_2"].mean(),data["pos_temperature"].mean(),data["pos_pressure"].mean())
         avg_dp_3 = af.mob2diam(data["pos_mob_3"].mean(),data["pos_temperature"].mean(),data["pos_pressure"].mean())
 
-        dp = pd.Series([avg_cluster_dp,avg_dp_1,avg_dp_2,avg_dp_3])
+        dp = pd.Series([avg_dp_1,avg_dp_2,avg_dp_3])
         
         throughput = af.tubeloss(
             dp,
@@ -565,10 +543,9 @@ def correct_inlet_losses(data,pipe_length):
             data["pos_temperature"],
             data["pos_pressure"])
         
-        data["pos_cluster_conc"] = data["pos_cluster_conc"] / throughput.values[:,0]
-        data["pos_conc_1"] = data["pos_conc_1"] / throughput.values[:,1]
-        data["pos_conc_2"] = data["pos_conc_2"] / throughput.values[:,2]
-        data["pos_conc_3"] = data["pos_conc_3"] / throughput.values[:,3]
+        data["pos_conc_1"] = data["pos_conc_1"] / throughput.values[:,0]
+        data["pos_conc_2"] = data["pos_conc_2"] / throughput.values[:,1]
+        data["pos_conc_3"] = data["pos_conc_3"] / throughput.values[:,2]
 
     return data
 
@@ -591,6 +568,7 @@ def flags2polarity(
         flags_pos_spectra = pd.DataFrame(index = flags_spectra.index, 
                                          columns = flag_explanations["message"].values,
                                          data = np.zeros((LEN_TIME,LEN_FLAG)),dtype=int)
+        
         flags_neg_spectra = pd.DataFrame(index = flags_spectra.index, 
                                          columns = flag_explanations["message"].values,
                                          data = np.zeros((LEN_TIME,LEN_FLAG)),dtype=int)
@@ -628,11 +606,9 @@ def save_as_netcdf(
 
     if (data is None):
         return False    
-    elif ((data["neg_cluster_conc"] is None) and
-        (data["neg_conc_1"] is None) and
+    elif ((data["neg_conc_1"] is None) and
         (data["neg_conc_2"] is None) and
         (data["neg_conc_3"] is None) and
-        (data["pos_cluster_conc"] is None) and
         (data["pos_conc_1"] is None) and
         (data["pos_conc_2"] is None) and
         (data["pos_conc_3"] is None)
@@ -640,11 +616,9 @@ def save_as_netcdf(
         return False
     else:    
         for spectra in [
-            data["neg_cluster_conc"],
             data["neg_conc_1"],
             data["neg_conc_2"],
             data["neg_conc_3"], 
-            data["pos_cluster_conc"],
             data["pos_conc_1"],
             data["pos_conc_2"],
             data["pos_conc_3"]
@@ -663,11 +637,6 @@ def save_as_netcdf(
         )
         
         ds.time.attrs["timezone"] = "utc"
-                
-        if data["neg_cluster_conc"] is not None:
-            ds = ds.assign(neg_cluster_conc=(("time",),data["neg_cluster_conc"].values))
-        else:
-            ds = ds.assign(neg_cluster_conc=(("time",),nan_data))
 
         if data["neg_conc_1"] is not None:
             ds = ds.assign(neg_conc_1=(("time",),data["neg_conc_1"].values))
@@ -683,11 +652,6 @@ def save_as_netcdf(
             ds = ds.assign(neg_conc_3=(("time",),data["neg_conc_3"].values))
         else:
             ds = ds.assign(neg_conc_3=(("time",),nan_data))
-
-        if data["pos_cluster_conc"] is not None:
-            ds = ds.assign(pos_cluster_conc=(("time",),data["pos_cluster_conc"].values))
-        else:
-            ds = ds.assign(pos_cluster_conc=(("time",),nan_data))
 
         if data["pos_conc_1"] is not None:
             ds = ds.assign(pos_conc_1=(("time",),data["pos_conc_1"].values))
@@ -705,45 +669,35 @@ def save_as_netcdf(
             ds = ds.assign(pos_conc_3=(("time",),nan_data))
 
 
-        if data["neg_cluster_mob"] is not None:
-            ds = ds.assign(neg_cluster_mob=(("time",),data["neg_cluster_mob"].values))
-        else:
-            ds = ds.assign(neg_cluster_mob=(("time",),nan_data))
+        #if data["neg_mob_1"] is not None:
+        #    ds = ds.assign(neg_mob_1=(("time",),data["neg_mob_1"].values))
+        #else:
+        #    ds = ds.assign(neg_mob_1=(("time",),nan_data))
 
-        if data["neg_mob_1"] is not None:
-            ds = ds.assign(neg_mob_1=(("time",),data["neg_mob_1"].values))
-        else:
-            ds = ds.assign(neg_mob_1=(("time",),nan_data))
+        #if data["neg_mob_2"] is not None:
+        #    ds = ds.assign(neg_mob_2=(("time",),data["neg_mob_2"].values))
+        #else:
+        #    ds = ds.assign(neg_mob_2=(("time",),nan_data))
 
-        if data["neg_mob_2"] is not None:
-            ds = ds.assign(neg_mob_2=(("time",),data["neg_mob_2"].values))
-        else:
-            ds = ds.assign(neg_mob_2=(("time",),nan_data))
+        #if data["neg_mob_3"] is not None:
+        #    ds = ds.assign(neg_mob_3=(("time",),data["neg_mob_3"].values))
+        #else:
+        #    ds = ds.assign(neg_mob_3=(("time",),nan_data))
 
-        if data["neg_mob_3"] is not None:
-            ds = ds.assign(neg_mob_3=(("time",),data["neg_mob_3"].values))
-        else:
-            ds = ds.assign(neg_mob_3=(("time",),nan_data))
+        #if data["pos_mob_1"] is not None:
+        #    ds = ds.assign(pos_mob_1=(("time",),data["pos_mob_1"].values))
+        #else:
+        #    ds = ds.assign(pos_mob_1=(("time",),nan_data))
 
-        if data["pos_cluster_mob"] is not None:
-            ds = ds.assign(pos_cluster_mob=(("time",),data["pos_cluster_mob"].values))
-        else:
-            ds = ds.assign(pos_cluster_mob=(("time",),nan_data))
+        #if data["pos_mob_2"] is not None:
+        #    ds = ds.assign(pos_mob_2=(("time",),data["pos_mob_2"].values))
+        #else:
+        #    ds = ds.assign(pos_mob_2=(("time",),nan_data))
 
-        if data["pos_mob_1"] is not None:
-            ds = ds.assign(pos_mob_1=(("time",),data["pos_mob_1"].values))
-        else:
-            ds = ds.assign(pos_mob_1=(("time",),nan_data))
-
-        if data["pos_mob_2"] is not None:
-            ds = ds.assign(pos_mob_2=(("time",),data["pos_mob_2"].values))
-        else:
-            ds = ds.assign(pos_mob_2=(("time",),nan_data))
-
-        if data["pos_mob_3"] is not None:
-            ds = ds.assign(pos_mob_3=(("time",),data["pos_mob_3"].values))
-        else:
-            ds = ds.assign(pos_mob_3=(("time",),nan_data))
+        #if data["pos_mob_3"] is not None:
+        #    ds = ds.assign(pos_mob_3=(("time",),data["pos_mob_3"].values))
+        #else:
+        #    ds = ds.assign(pos_mob_3=(("time",),nan_data))
 
 
 
@@ -778,8 +732,6 @@ def save_as_netcdf(
             ds = ds.assign(pos_sampleflow=(("time",),nan_data))
 
 
-        ds.neg_cluster_conc.attrs["units"] = "cm-3"
-        ds.neg_cluster_conc.attrs["description"] = "Negative cluster ion number concentration"
         ds.neg_conc_1.attrs["units"] = "cm-3"
         ds.neg_conc_1.attrs["description"] = "Negative ion number concentration in channel 1"
         ds.neg_conc_2.attrs["units"] = "cm-3"
@@ -787,8 +739,6 @@ def save_as_netcdf(
         ds.neg_conc_3.attrs["units"] = "cm-3"
         ds.neg_conc_3.attrs["description"] = "Negative ion number concentration in channel 3"
 
-        ds.pos_cluster_conc.attrs["units"] = "cm-3"
-        ds.pos_cluster_conc.attrs["description"] = "Positive cluster ion number concentration"
         ds.pos_conc_1.attrs["units"] = "cm-3"
         ds.pos_conc_1.attrs["description"] = "Positive ion number concentration in channel 1"
         ds.pos_conc_2.attrs["units"] = "cm-3"
@@ -796,23 +746,19 @@ def save_as_netcdf(
         ds.pos_conc_3.attrs["units"] = "cm-3"
         ds.pos_conc_3.attrs["description"] = "Positive ion number concentration in channel 3"
 
-        ds.neg_cluster_mob.attrs["units"] = "cm2s-1V-1"
-        ds.neg_cluster_mob.attrs["description"] = "Negative cluster ion mobility"
-        ds.neg_mob_1.attrs["units"] = "cm2s-1V-1"
-        ds.neg_mob_1.attrs["description"] = "Negative ion mobility in channel 1"
-        ds.neg_mob_2.attrs["units"] = "cm2s-1V-1"
-        ds.neg_mob_2.attrs["description"] = "Negative ion mobility in channel 2"
-        ds.neg_mob_3.attrs["units"] = "cm2s-1V-1"
-        ds.neg_mob_3.attrs["description"] = "Negative ion mobility in channel 3"
+        #ds.neg_mob_1.attrs["units"] = "cm2s-1V-1"
+        #ds.neg_mob_1.attrs["description"] = "Negative ion mobility in channel 1"
+        #ds.neg_mob_2.attrs["units"] = "cm2s-1V-1"
+        #ds.neg_mob_2.attrs["description"] = "Negative ion mobility in channel 2"
+        #ds.neg_mob_3.attrs["units"] = "cm2s-1V-1"
+        #ds.neg_mob_3.attrs["description"] = "Negative ion mobility in channel 3"
 
-        ds.pos_cluster_mob.attrs["units"] = "cm2s-1V-1"
-        ds.pos_cluster_mob.attrs["description"] = "Positive cluster ion mobility"
-        ds.pos_mob_1.attrs["units"] = "cm2s-1V-1"
-        ds.pos_mob_1.attrs["description"] = "Positive ion mobility in channel 1"
-        ds.pos_mob_2.attrs["units"] = "cm2s-1V-1"
-        ds.pos_mob_2.attrs["description"] = "Positive ion mobility in channel 2"
-        ds.pos_mob_3.attrs["units"] = "cm2s-1V-1"
-        ds.pos_mob_3.attrs["description"] = "Positive ion mobility in channel 3"
+        #ds.pos_mob_1.attrs["units"] = "cm2s-1V-1"
+        #ds.pos_mob_1.attrs["description"] = "Positive ion mobility in channel 1"
+        #ds.pos_mob_2.attrs["units"] = "cm2s-1V-1"
+        #ds.pos_mob_2.attrs["description"] = "Positive ion mobility in channel 2"
+        #ds.pos_mob_3.attrs["units"] = "cm2s-1V-1"
+        #ds.pos_mob_3.attrs["description"] = "Positive ion mobility in channel 3"
 
         ds.neg_temperature.attrs["units"] = "K"
         ds.neg_temperature.attrs["description"] = "Negative polarity sample air temperature"
@@ -875,6 +821,7 @@ def cic_processor(config_file):
         
         # Read in the configuration file
         load_path = config['data_folder']
+        ide = config["id"]
         save_path = config['processed_folder']
         start_date = config['start_date']
         database = config['database_file']
@@ -909,6 +856,7 @@ def cic_processor(config_file):
     # Extract relevant info for metadata from the config
     measurement_info = {
         'measurement_location':location,
+        'id':ide,
         'description':description,
         'instrument_model':instrument_model,
         'longitude':longitude,
@@ -919,7 +867,7 @@ def cic_processor(config_file):
         "resolution":resolution,
         "nais_processor_version":version,
         "date_processed":date.today().strftime("%Y-%m-%d")
-    }    
+    }
 
     end_date = date.today() if end_date=='' else end_date
 
@@ -1003,7 +951,7 @@ def cic_processor(config_file):
             (check.timestamp<=end_date_str))))
     else:
         database_iterator = iter(db.search(
-            (check.recrods.exists() &
+            (check.records.exists() &
             (check.timestamp>=last_day) &
             (check.timestamp>=start_date_str) &
             (check.timestamp<=end_date_str))))
@@ -1018,15 +966,15 @@ def cic_processor(config_file):
             flag_explanations) = read_raw(x["records"],x["timestamp"],resolution)
 
         negion_flags, posion_flags = flags2polarity(ion_flags, offset_flags, flag_explanations)
-           
+        
         data = get_data(ion_records)
 
         if convert_to_standard_conditions:
             data = bring_to_sealevel(data)
-         
+
         if do_inlet_loss_correction:
             data = correct_inlet_losses(data,pipelength)
-
+            
         my_save_path = os.path.join(save_path,"CIC_"+x["timestamp"]+".nc")
         
         saved = save_as_netcdf(

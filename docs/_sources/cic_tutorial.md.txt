@@ -1,0 +1,114 @@
+# CIC data processing tutorial
+
+Use the `cic.processor.make_cic_config_template()` method to create a configuration file template and fill it with necessary information. The configuration file is used at processing the data files.
+```python
+from cic.processor import make_cic_config_template
+make_cic_config_template("/home/user/viikki.yml")
+```
+Running the above commands will create a configuration file template in the file `/home/user/viikki.yml`. After filling in the information the configuration file may look like this: 
+```yaml
+measurement_location: Viikki, Helsinki, Finland
+id: viikki
+description: Agricultural site
+instrument_model: CIC-1-1
+longitude: 25.02
+latitude: 60.23
+data_folder:
+- /home/user/data/2021
+- /home/user/data/2022
+processed_folder: /home/user/viikki
+database_file: /home/user/viikki.json
+start_date: 2022-09-28
+end_date: 2022-09-30
+inlet_length: 1.0
+do_inlet_loss_correction: true
+convert_to_standard_conditions: true
+allow_reprocess: false
+redo_database: false
+file_format: block
+resolution: 10min
+```
+
+Then process the data files by running `cic_processor()`
+```python
+from cic.processor import cic_processor
+cic_processor("/home/user/viikki.yml")
+```
+```
+Added 20220928 to database (Viikki, Helsinki, Finland) ...
+Added 20220928 to database (Viikki, Helsinki, Finland) ...
+Added 20220928 to database (Viikki, Helsinki, Finland) ...
+Processing 20220928 (Viikki, Helsinki, Finland) ...
+Processing 20220929 (Viikki, Helsinki, Finland) ...
+Processing 20220930 (Viikki, Helsinki, Finland) ...
+Done!
+```
+The code produces daily processed data files `CIC_yyyymmdd.nc` (netCDF format). These files are saved in the destination given in the configuration file.
+
+The locations of raw and processed files for each day are written in the JSON formatted `database_file`. This database keeps track of the files and prevents reprocessing in a continuous measurement setting. 
+
+  * If `allow_reprocess: false` only files newer than the newest file in the database are processed.
+  * If `allow_reprocess: true` any unprocessed files in the time range are attempted to be processed.
+  * If you want everything to be reprocessed use `redo_database: true` otherwise keep `redo_database: false`
+
+The netcdf files have the following structure:
+| Fields             | Dimensions    | Data type      | Units | Comments                                       |
+|--------------------|---------------|----------------|-------|------------------------------------------------|
+| **Coordinates**    |               |                |       |                                                |
+| time               | time          | datetime64[ns] |       | timezone: utc                                  |
+| flag               | flag          | string         |       |                                                |
+| **Data variables** |               |                |       |                                                |
+| neg_conc_1         | time          | float          | cm-3  | Negative ion number concentration in channel 1 |
+| neg_conc_2         | time          | float          | cm-3  | Negative ion number concentration in channel 2 |
+| neg_conc_3         | time          | float          | cm-3  | Negative ion number concentration in channel 3 |
+| pos_conc_1         | time          | float          | cm-3  | Positive ion number concentration in channel 1 |
+| pos_conc_2         | time          | float          | cm-3  | Positive ion number concentration in channel 2 |
+| pos_conc_3         | time          | float          | cm-3  | Positive ion number concentration in channel 3 |
+| neg_temperature    | time          | float          | K     |                                                |
+| pos_temperature    | time          | float          | K     |                                                |
+| neg_pressure       | time          | float          | Pa    |                                                |
+| pos_pressure       | time          | float          | Pa    |                                                |
+| neg_sampleflow     | time          | float          | lpm   |                                                |
+| pos_sampleflow     | time          | float          | lpm   |                                                |
+| neg_ion_flags      | time,flag     | int            |       | flag=1, no flag=0                              |
+| pos_ion_flags      | time,flag     | int            |       | flag=1, no flag=0                              |
+| **Attributes**     |               |                |       |                                                |
+| Measurement info   |               | dictionary     |       |                                                |
+
+Below is an examples of how to access data in the netcdf file.
+```python
+import xarray as xr
+import pandas as pd
+
+# load the dataset
+ds = xr.open_dataset("/home/user/viikki/CIC_20220928.nc")
+
+# Get negative ion number concentration in channel 1
+neg_conc_1 = ds.neg_conc_1.to_pandas()
+
+# Close the file
+ds.close()
+```
+
+We can combine the previously created files into a single continuous datase. We save the result as a netcdf file.
+```python
+from cic.utils import combine_data
+import pandas as pd
+import xarray as xr
+from pathlib import Path
+import os
+
+data_source = Path("/home/user/viikki")
+data_files = [data_source / f for f 
+    in os.listdir(data_source) if ".nc" in f]
+date_start = "2022-09-28"
+date_end = "2022-09-30"
+
+# Combine the data into a single dataset with 30 min time 
+# resolution and flag a data line only if 50% or more 
+# of the data inside the 30 min time window contain the flag.
+ds = combine_data(data_files, date_start, date_end, "30min",
+    flag_sensitivity=0.5)
+
+ds.to_netcdf("combined_cic_dataset.nc")
+```

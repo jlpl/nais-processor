@@ -4,3 +4,4 @@
    nais
    cic
    tutorial.md
+   cic_tutorial.md

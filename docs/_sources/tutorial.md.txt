@@ -1,4 +1,4 @@
-# `nais-processor` tutorial
+# NAIS data processing tutorial
 
 Use the `nais.processor.make_config_template()` method to create a configuration file template and fill it with necessary information. The configuration file is used at processing the data files.
 ```python

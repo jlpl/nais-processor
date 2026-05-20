@@ -1,23 +1,7 @@
 import numpy as np
-from matplotlib import colors
-import matplotlib.pyplot as plt
-from matplotlib.ticker import LogLocator
-from datetime import date, datetime, timedelta
-import matplotlib.dates as dts
 import pandas as pd
 import os
-import locale
-import warnings
-import yaml
-import re
-import sys
-from dateutil.parser import parse
-from tinydb import TinyDB, Query
-from tinydb.operations import add
-import time
-import json
 import aerosol.functions as af
-from scipy.interpolate import interp1d
 import xarray as xr
 
 def remove_flagged_rows(ds,flag):
@@ -51,8 +35,9 @@ def remove_flagged_rows(ds,flag):
     return ds2
                
 def combine_data(
-    source_dir, 
-    date_range, 
+    files, 
+    start,
+    end, 
     time_reso, 
     flag_sensitivity=0.5):
     """
@@ -62,10 +47,12 @@ def combine_data(
     Parameters
     ----------
     
-    source_dir : str
-        Directory for CIC datafiles    
-    date_range : pandas.DatetimeIndex
-        Range of dates for combining data        
+    files : list
+        List of CIC data file paths    
+    start : str
+        start time
+    end : str
+        end time   
     time_reso : str
         A pandas date frequency string. See for all options here: 
         https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases
@@ -83,12 +70,13 @@ def combine_data(
     """
     
     data_read = False
-    for date in date_range:
+    for f in files:
         
-        filename_date = os.path.join(source_dir,"CIC_"+date.strftime("%Y%m%d")+".nc")
+        filename_date = f
         
         if os.path.isfile(filename_date):       
             ds = xr.open_dataset(filename_date)
+            
             data_variables = []
             flag_variables = []
             for v in list(ds):
@@ -98,6 +86,16 @@ def combine_data(
                     data_variables.append(v)
             ds_data = ds[data_variables]
             ds_flags = ds[flag_variables]
+
+            # Sort and uniqueify
+            ds_data = ds_data.sortby("time")
+            unique_mask = ~pd.Index(ds_data.time.values).duplicated()
+            ds_data = ds_data.isel(time=unique_mask)
+    
+            ds_flags = ds_flags.sortby("time")
+            unique_mask = ~pd.Index(ds_flags.time.values).duplicated()
+            ds_flags = ds_flags.isel(time=unique_mask)
+            
             ds_data_resampled = ds_data.resample({"time":time_reso}).median()
             ds_flags_resampled = xr.where(
                 ds_flags.resample({"time":time_reso}).mean()>flag_sensitivity,1,0
@@ -108,6 +106,10 @@ def combine_data(
             if data_read==False:
                 ds_data_combined = ds_data_resampled
                 ds_flags_combined = ds_flags_resampled
+                place = ds.attrs["measurement_location"]
+                place_id = ds.attrs["id"]
+                lon = ds.attrs["longitude"]
+                lat = ds.attrs["latitude"]
                 data_read = True
             else:
                 ds_data_combined = xr.concat(
@@ -119,8 +121,17 @@ def combine_data(
                     dim="time",
                     fill_value=0
                 )
-
+                
     if data_read:
+        # Sort and uniqueify
+        ds_data_combined = ds_data_combined.sortby("time")
+        unique_mask = ~pd.Index(ds_data_combined.time.values).duplicated()
+        ds_data_combined = ds_data_combined.isel(time=unique_mask)
+
+        ds_flags_combined = ds_flags_combined.sortby("time")
+        unique_mask = ~pd.Index(ds_flags_combined.time.values).duplicated()
+        ds_flags_combined = ds_flags_combined.isel(time=unique_mask)
+
         ds_data_combined_resampled = ds_data_combined.resample({"time":time_reso}).median()
         ds_flags_combined_resampled = xr.where(
             ds_flags_combined.resample({"time":time_reso}).mean()>flag_sensitivity,1,0
@@ -129,12 +140,19 @@ def combine_data(
         # Combine the two data frames
         ds_data_and_flags =  xr.merge((ds_data_combined_resampled,ds_flags_combined_resampled))
         
-        idx_final=pd.date_range(date_range[0],date_range[-1],freq=time_reso)
-        ds_final=ds_data_and_flags.reindex(
+        idx_final = pd.date_range(start,end,freq=time_reso)
+        ds_final = ds_data_and_flags.reindex(
             indexers={"time":idx_final.values}, 
             method="nearest",
             tolerance=time_reso
         )
+
+        ds_final.attrs = {
+            "measurement_location": place,
+            "id": place_id,
+            "longitude": lon,
+            "latitude": lat
+        }
         
         return ds_final
     
